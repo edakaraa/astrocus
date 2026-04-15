@@ -1,8 +1,8 @@
 # Astrocus — Product Requirements Document (PRD)
 
 > **Versiyon:** MVP v1.0  
-> **Durum:** Taslak — Onay Bekliyor
-> **Hazırlayan:** Eda Kara
+> **Durum:** Taslak — Onay Bekliyor  
+> **Hazırlayan:** Eda Kara   
 > **Hedef Platform:** iOS & Android  
 > **Desteklenen Diller:** Türkçe (TR) + İngilizce (EN)  
 > **Gizlilik:** Dahili
