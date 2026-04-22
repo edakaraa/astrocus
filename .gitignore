@@ -1,0 +1,14 @@
+node_modules/
+.expo/
+.expo-shared/
+dist/
+coverage/
+*.log
+
+server/node_modules/
+server/data/
+
+android/
+ios/
+
+.DS_Store

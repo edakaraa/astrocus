@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Astrocus",
+    "slug": "astrocus",
+    "version": "1.0.0",
+    "platforms": ["ios", "android"],
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "plugins": [
+      "expo-localization",
+      "expo-secure-store"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.astrocus.app"
+    },
+    "extra": {
+      "apiUrl": "http://192.168.1.103:4000"
+    }
+  }
+}
