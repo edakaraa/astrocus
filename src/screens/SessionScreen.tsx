@@ -69,7 +69,7 @@ export const SessionScreen = () => {
     return 1 - Math.min(sessionState.remainingSeconds / totalSeconds, 1);
   }, [sessionState.remainingSeconds, sessionState.selectedDurationMinutes]);
 
-  const ringColor = sessionState.status === "running" ? colors.periwinkle : colors.borderStrong;
+  const ringColor = sessionState.status === "running" ? colors.primary : colors.borderStrong;
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   categoryChipText: {
-    color: colors.periwinkle,
+    color: colors.text,
     fontSize: 11,
     fontWeight: "700",
   },
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
   stardustPreview: {
     marginTop: 8,
     fontSize: 12,
-    color: colors.periwinkle,
+    color: colors.primary,
     fontWeight: "700",
   },
   section: {
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1.5,
     borderColor: "rgba(179, 191, 255, 0.25)",
-    shadowColor: colors.periwinkle,
+    shadowColor: colors.primary,
     shadowOpacity: 0.16,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   summaryValue: {
-    color: colors.celadon,
+    color: colors.warmOffWhite,
     fontSize: 28,
     fontWeight: "800",
   },

@@ -66,7 +66,7 @@ export const StarfieldBackground = ({ density = 42, opacity = 1 }: StarfieldBack
           height: 280,
           borderRadius: 999,
           backgroundColor: "transparent",
-          shadowColor: colors.mediumSlateBlue,
+          shadowColor: colors.primary,
           shadowOpacity: 0.25,
           shadowRadius: 48,
           shadowOffset: { width: 0, height: 0 },

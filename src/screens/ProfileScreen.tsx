@@ -63,7 +63,7 @@ export const ProfileScreen = () => {
             <Text style={styles.pstatLabel}>Günlük Seri</Text>
           </View>
           <View style={styles.pstat}>
-            <Text style={[styles.pstatVal, { fontSize: 16, color: colors.periwinkle }]}>{user.totalStardust.toLocaleString()}</Text>
+            <Text style={[styles.pstatVal, { fontSize: 16, color: colors.primary }]}>{user.totalStardust.toLocaleString()}</Text>
             <Text style={styles.pstatLabel}>Yıldız Tozu</Text>
           </View>
         </View>
@@ -82,7 +82,12 @@ export const ProfileScreen = () => {
         {dailySummary.categoryBreakdown.slice(0, 3).map((item) => {
           const category = categories.find((c) => c.id === item.categoryId);
           const ratio = dailySummary.totalMinutes > 0 ? item.minutes / dailySummary.totalMinutes : 0;
-          const barColor = item.categoryId === "coding" ? colors.mediumSlateBlue : item.categoryId === "reading" ? colors.celadon : colors.periwinkle;
+          const barColor =
+            item.categoryId === "coding"
+              ? colors.primary
+              : item.categoryId === "reading"
+                ? colors.warmOffWhite
+                : colors.ube;
 
           return (
             <View key={item.categoryId} style={styles.catRow}>
@@ -218,7 +223,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(179, 191, 255, 0.10)",
     marginBottom: 6,
   },
-  progressFill: { height: "100%", backgroundColor: colors.mediumSlateBlue, borderRadius: 999 },
+  progressFill: { height: "100%", backgroundColor: colors.primary, borderRadius: 999 },
   progressLabel: { fontSize: 10, color: colors.textFaint, marginBottom: 14 },
   catRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
   catIcon: { width: 20, textAlign: "center", fontSize: 14, color: colors.textMuted },

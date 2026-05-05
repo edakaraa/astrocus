@@ -158,11 +158,14 @@ const createDailySummary = (sessions: SessionRecord[], user: User | null): Daily
 };
 
 const mapPayload = (payload: AuthPayload) => {
+  const sessions = Array.isArray(payload.sessions) ? payload.sessions : [];
+  const unlockedStarIds = Array.isArray(payload.unlockedStarIds) ? payload.unlockedStarIds : getUnlockedStars(payload.user?.totalStardust ?? 0);
+
   return {
     token: payload.token,
     user: payload.user,
-    sessions: payload.sessions,
-    unlockedStarIds: payload.unlockedStarIds,
+    sessions,
+    unlockedStarIds,
   };
 };
 

@@ -1,29 +1,30 @@
 export const colors = {
-  // Palette (from provided image)
-  mediumSlateBlue: "#5866FF",
-  periwinkle: "#B3BFFF",
-  columbiaBlue: "#C0E8FF",
-  richBlack: "#01001C",
-  celadon: "#B9F0D7",
+  // Palette (from latest onboarding/auth mock)
+  cadetGrey: "#959BB5",
+  chineseBlack: "#0A1123",
+  americanBlue: "#3A3E6C",
+  ube: "#8387C3",
+  coolGrey: "#A8ACAC",
+  warmOffWhite: "#E8E6C8",
 
   // App semantic colors
-  background: "#03020A",
-  surface: "#0B0A1F",
-  surfaceMuted: "#121033",
-  border: "rgba(179, 191, 255, 0.14)",
-  borderStrong: "rgba(179, 191, 255, 0.26)",
+  background: "#0A1123",
+  surface: "rgba(255,255,255,0.04)",
+  surfaceMuted: "rgba(255,255,255,0.06)",
+  border: "rgba(255,255,255,0.08)",
+  borderStrong: "rgba(255,255,255,0.14)",
 
-  text: "#F0ECFF",
-  textMuted: "#9B93CC",
-  textFaint: "#5A5480",
+  text: "#E8E6C8",
+  textMuted: "#959BB5",
+  textFaint: "rgba(149,155,181,0.70)",
 
-  primary: "#5866FF",
-  primarySoft: "rgba(88, 102, 255, 0.18)",
+  primary: "#8387C3",
+  primarySoft: "rgba(131,135,195,0.22)",
   success: "#B9F0D7",
   warning: "#FFD166",
   danger: "#FF6B9D",
 
-  chip: "rgba(179, 191, 255, 0.10)",
+  chip: "rgba(255,255,255,0.06)",
 };
 
 export const spacing = {
@@ -85,7 +86,7 @@ export const typography = {
 
 export const shadows = {
   glow: {
-    shadowColor: colors.periwinkle,
+    shadowColor: colors.primary,
     shadowOpacity: 0.18,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },

@@ -14,6 +14,6 @@ app.use(authRoutes);
 app.use(profileRoutes);
 app.use(sessionRoutes);
 
-app.listen(4000, () => {
-  console.log("Astrocus API listening on http://localhost:4000");
+app.listen(4000, "0.0.0.0", () => {
+  console.log("Astrocus API listening on http://0.0.0.0:4000");
 });

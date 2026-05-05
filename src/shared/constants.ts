@@ -39,4 +39,31 @@ const runtimeApiUrl =
   (Constants.expoConfig?.extra?.apiUrl as string | undefined) ??
   (Constants.manifest2?.extra?.expoClient?.extra?.apiUrl as string | undefined);
 
-export const API_URL = runtimeApiUrl ?? "http://localhost:4000";
+const getDevServerHost = () => {
+  const hostUri =
+    (Constants.expoConfig as { hostUri?: string } | undefined)?.hostUri ??
+    (Constants.manifest2 as { extra?: { expoClient?: { hostUri?: string } } } | undefined)?.extra?.expoClient?.hostUri;
+
+  if (!hostUri) {
+    return null;
+  }
+
+  const host = hostUri.split("://").pop() ?? hostUri;
+  const [hostname] = host.split(":");
+  return hostname || null;
+};
+
+const resolveApiUrl = () => {
+  if (runtimeApiUrl && !runtimeApiUrl.includes("localhost") && !runtimeApiUrl.includes("127.0.0.1")) {
+    return runtimeApiUrl;
+  }
+
+  const host = getDevServerHost();
+  if (host) {
+    return `http://${host}:4000`;
+  }
+
+  return runtimeApiUrl ?? "http://localhost:4000";
+};
+
+export const API_URL = resolveApiUrl();

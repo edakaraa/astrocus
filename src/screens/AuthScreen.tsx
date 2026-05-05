@@ -1,349 +1,486 @@
 import React, { useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/AppContext";
-import { t } from "../shared/i18n";
-import { colors, fontFamilies, radii, shadows, spacing, typography } from "../shared/theme";
-import { StarfieldBackground } from "../components/StarfieldBackground";
+import { colors, fontFamilies, radii, spacing } from "../shared/theme";
+import { SpaceScene } from "../components/SpaceScene";
 import { TextField } from "../components/TextField";
 import { GradientButton } from "../components/GradientButton";
 
 export const AuthScreen = () => {
-  const { authMode, setAuthMode, register, login, continueWithProvider, language } = useAppContext();
+  const { authMode, setAuthMode, register, login, continueWithProvider } = useAppContext();
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
   const [galaxyName, setGalaxyName] = useState("Astrocus");
+  const [fullName, setFullName] = useState("");
+  const [registerStep, setRegisterStep] = useState<1 | 2>(1);
+  const [birthday, setBirthday] = useState("");
+  const [favoritePlanet, setFavoritePlanet] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isPlanetModalOpen, setIsPlanetModalOpen] = useState(false);
 
-  const activeTab = useMemo(() => (authMode === "login" ? "login" : "register"), [authMode]);
+  const planetOptions = useMemo(
+    () => ["Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune"],
+    [],
+  );
+
+  const screen = useMemo(() => {
+    if (authMode === "login") return "login";
+    return registerStep === 1 ? "register" : "register-step-2";
+  }, [authMode, registerStep]);
 
   const handleSubmit = async () => {
     try {
-      if (authMode === "register") {
-        await register({ email, password, username, galaxyName });
+      if (authMode === "login") {
+        await login({ email, password });
         return;
       }
 
-      await login({ email, password });
+      if (registerStep === 1) {
+        setRegisterStep(2);
+        return;
+      }
+
+      if (!acceptedTerms) {
+        Alert.alert("Astrocus", "Please accept Terms of Service and Privacy Policy.");
+        return;
+      }
+
+      await register({ email, password, username: username || fullName || "explorer", galaxyName });
     } catch (error) {
       Alert.alert("Astrocus", error instanceof Error ? error.message : "Unknown error");
     }
   };
 
+  const handleProviderLogin = async (provider: "google" | "apple") => {
+    try {
+      await continueWithProvider(provider);
+    } catch (error) {
+      Alert.alert("Astrocus", error instanceof Error ? error.message : "Network request failed");
+    }
+  };
+
+  const horizontalPadding = Math.max(spacing.lg, Math.min(spacing.xl, Math.round(width * 0.08)));
+  const titleSize = Math.max(26, Math.min(30, Math.round(width * 0.075)));
+  const titleLineHeight = Math.round(titleSize * 1.14);
+
   return (
-    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-      <View style={styles.hero}>
-        <StarfieldBackground density={26} opacity={1} />
-        <View style={styles.nebulaPrimary} pointerEvents="none" />
-        <View style={styles.nebulaSecondary} pointerEvents="none" />
-
-        <View style={styles.logoMark}>
-          <View style={styles.logoDotLarge} />
-          <View style={styles.logoDotTop} />
-          <View style={styles.logoDotRight} />
-          <View style={styles.logoDotBottom} />
-          <View style={styles.logoDotLeft} />
-        </View>
-
-        <Text style={styles.appName}>{t(language, "appTitle")}</Text>
-        <Text style={styles.tagline}>{t(language, "authSubtitle")}</Text>
+    <ScrollView
+      contentContainerStyle={[styles.container, { paddingBottom: Math.max(18, insets.bottom + 14) }]}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={[styles.topBar, { paddingTop: Math.max(14, insets.top + 10), paddingHorizontal: horizontalPadding }]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          onPress={() => {
+            if (authMode === "register" && registerStep === 2) {
+              setRegisterStep(1);
+              return;
+            }
+            setAuthMode("login");
+          }}
+          style={styles.backButton}
+        >
+          <MaterialCommunityIcons name="chevron-left" size={22} color={colors.textMuted} />
+        </Pressable>
       </View>
 
-      <View style={styles.sheet}>
-        <View style={styles.tabRow}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t(language, "login")}
-            onPress={() => setAuthMode("login")}
-            style={[styles.tab, activeTab === "login" ? styles.tabActive : null]}
-          >
-            <Text style={[styles.tabText, activeTab === "login" ? styles.tabTextActive : null]}>
-              {t(language, "login")}
-            </Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t(language, "register")}
-            onPress={() => setAuthMode("register")}
-            style={[styles.tab, activeTab === "register" ? styles.tabActive : null]}
-          >
-            <Text style={[styles.tabText, activeTab === "register" ? styles.tabTextActive : null]}>
-              {t(language, "register")}
-            </Text>
-          </Pressable>
-        </View>
-
-        {authMode === "register" ? (
-          <View style={styles.formGroup}>
-            <TextField
-              accessibilityLabel={t(language, "username")}
-              placeholder={t(language, "username")}
-              value={username}
-              onChangeText={setUsername}
-            />
-            <TextField
-              accessibilityLabel={t(language, "galaxyName")}
-              placeholder={t(language, "galaxyName")}
-              value={galaxyName}
-              onChangeText={setGalaxyName}
-            />
-          </View>
-        ) : null}
-
-        <View style={styles.formGroup}>
-          <TextField
-            accessibilityLabel={t(language, "email")}
-            placeholder={t(language, "email")}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          <TextField
-            accessibilityLabel={t(language, "password")}
-            placeholder={t(language, "password")}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoCapitalize="none"
-          />
-        </View>
-
-        <GradientButton
-          label={authMode === "register" ? t(language, "register") : t(language, "login")}
-          onPress={handleSubmit}
-          style={styles.primaryCta}
-        />
-
-        <View style={styles.dividerRow}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>veya</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        <View style={styles.socialRow}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t(language, "continueWithGoogle")}
-            onPress={() => continueWithProvider("google")}
-            style={styles.socialButton}
-          >
-            <Text style={styles.socialIcon}>G</Text>
-            <Text style={styles.socialText}>Google</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t(language, "continueWithApple")}
-            onPress={() => continueWithProvider("apple")}
-            style={styles.socialButton}
-          >
-            <Text style={styles.socialIcon}></Text>
-            <Text style={styles.socialText}>Apple</Text>
-          </Pressable>
-        </View>
-
-        <Text style={styles.legalText}>
-          Devam ederek Gizlilik Politikası'nı ve{"\n"}Kullanım Şartları'nı kabul edersiniz.
-        </Text>
+      <View style={styles.sceneWrap}>
+        <SpaceScene variant={screen === "login" ? "auth-login" : "auth-register"} />
       </View>
+
+      <View style={[styles.sheet, { paddingHorizontal: horizontalPadding }]}>
+        {screen === "login" ? (
+          <>
+            <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleLineHeight }]}>Welcome Back</Text>
+            <Text style={styles.subtitle}>Login to continue your journey.</Text>
+
+            <View style={styles.form}>
+              <Text style={styles.label}>Email</Text>
+              <TextField
+                accessibilityLabel="Email"
+                placeholder="you@example.com"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+
+              <Text style={[styles.label, { marginTop: 12 }]}>Password</Text>
+              <TextField
+                accessibilityLabel="Password"
+                placeholder="••••••••"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!isPasswordVisible}
+                autoCapitalize="none"
+                right={
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={isPasswordVisible ? "Hide password" : "Show password"}
+                    onPress={() => setIsPasswordVisible((current) => !current)}
+                    style={styles.iconBtn}
+                  >
+                    <MaterialCommunityIcons name={isPasswordVisible ? "eye-off-outline" : "eye-outline"} size={18} color={colors.textMuted} />
+                  </Pressable>
+                }
+              />
+
+              <Pressable accessibilityRole="button" accessibilityLabel="Forgot password" style={styles.forgot}>
+                <Text style={styles.forgotText}>Forgot Password?</Text>
+              </Pressable>
+            </View>
+
+            <GradientButton label="Login" onPress={handleSubmit} />
+
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or continue with</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <View style={styles.socialRow}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Apple"
+                style={styles.socialIconBtn}
+                onPress={() => handleProviderLogin("apple")}
+              >
+                <MaterialCommunityIcons name="apple" size={20} color={colors.text} />
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Google"
+                style={styles.socialIconBtn}
+                onPress={() => handleProviderLogin("google")}
+              >
+                <MaterialCommunityIcons name="google" size={20} color={colors.text} />
+              </Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel="GitHub" style={styles.socialIconBtn}>
+                <MaterialCommunityIcons name="github" size={20} color={colors.text} />
+              </Pressable>
+            </View>
+
+            <Pressable accessibilityRole="button" accessibilityLabel="Go to register" onPress={() => { setAuthMode("register"); setRegisterStep(1); }}>
+              <Text style={styles.bottomLink}>
+                Don&apos;t have an account? <Text style={styles.bottomLinkStrong}>Register</Text>
+              </Text>
+            </Pressable>
+          </>
+        ) : screen === "register" ? (
+          <>
+            <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleLineHeight }]}>Create Account</Text>
+            <Text style={styles.subtitle}>Start your adventure.</Text>
+
+            <View style={styles.form}>
+              <Text style={styles.label}>Name</Text>
+              <TextField accessibilityLabel="Name" placeholder="Your name" value={fullName} onChangeText={setFullName} />
+
+              <Text style={[styles.label, { marginTop: 12 }]}>Email</Text>
+              <TextField
+                accessibilityLabel="Email"
+                placeholder="you@example.com"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+
+              <Text style={[styles.label, { marginTop: 12 }]}>Password</Text>
+              <TextField
+                accessibilityLabel="Password"
+                placeholder="Min. 8 characters"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!isPasswordVisible}
+                autoCapitalize="none"
+                right={
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={isPasswordVisible ? "Hide password" : "Show password"}
+                    onPress={() => setIsPasswordVisible((current) => !current)}
+                    style={styles.iconBtn}
+                  >
+                    <MaterialCommunityIcons name={isPasswordVisible ? "eye-off-outline" : "eye-outline"} size={18} color={colors.textMuted} />
+                  </Pressable>
+                }
+              />
+            </View>
+
+            <GradientButton label="Continue" onPress={handleSubmit} />
+
+            <Pressable accessibilityRole="button" accessibilityLabel="Go to login" onPress={() => setAuthMode("login")}>
+              <Text style={styles.bottomLink}>
+                Already have an account? <Text style={styles.bottomLinkStrong}>Login</Text>
+              </Text>
+            </Pressable>
+          </>
+        ) : (
+          <>
+            <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleLineHeight }]}>Almost There</Text>
+            <Text style={styles.subtitle}>Tell us a bit more about you.</Text>
+
+            <View style={styles.form}>
+              <Text style={styles.label}>Username</Text>
+              <TextField
+                accessibilityLabel="Username"
+                placeholder="Choose a username"
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+              />
+
+              <Text style={[styles.label, { marginTop: 12 }]}>Birthdate</Text>
+              <TextField
+                accessibilityLabel="Birthdate"
+                placeholder="Select your birthdate"
+                value={birthday}
+                onChangeText={setBirthday}
+                right={<MaterialCommunityIcons name="calendar-blank-outline" size={18} color={colors.textMuted} />}
+              />
+
+              <Text style={[styles.label, { marginTop: 12 }]}>Favorite Planet (Optional)</Text>
+              <TextField
+                accessibilityLabel="Favorite Planet"
+                placeholder="Choose your favorite"
+                value={favoritePlanet}
+                onChangeText={() => {}}
+                editable={false}
+                onPress={() => setIsPlanetModalOpen(true)}
+                right={<MaterialCommunityIcons name="chevron-down" size={20} color={colors.textMuted} />}
+              />
+
+              <View style={styles.termsRow}>
+                <Pressable
+                  accessibilityRole="checkbox"
+                  accessibilityLabel="Accept terms"
+                  accessibilityState={{ checked: acceptedTerms }}
+                  onPress={() => setAcceptedTerms((current) => !current)}
+                  style={[styles.checkbox, acceptedTerms ? styles.checkboxChecked : null]}
+                >
+                  {acceptedTerms ? <MaterialCommunityIcons name="check" size={14} color={colors.chineseBlack} /> : null}
+                </Pressable>
+                <Text style={styles.termsText}>
+                  I agree to the Terms of Service{"\n"}and Privacy Policy
+                </Text>
+              </View>
+            </View>
+
+            <GradientButton label="Create Account" onPress={handleSubmit} />
+          </>
+        )}
+      </View>
+
+      <Modal transparent visible={isPlanetModalOpen} animationType="fade" onRequestClose={() => setIsPlanetModalOpen(false)}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Close planet picker"
+          onPress={() => setIsPlanetModalOpen(false)}
+          style={styles.modalOverlay}
+        >
+          <Pressable
+            accessibilityRole="menu"
+            accessibilityLabel="Favorite planet options"
+            onPress={() => {}}
+            style={styles.modalSheet}
+          >
+            {planetOptions.map((option) => (
+              <Pressable
+                key={option}
+                accessibilityRole="button"
+                accessibilityLabel={`Select ${option}`}
+                onPress={() => {
+                  setFavoritePlanet(option);
+                  setIsPlanetModalOpen(false);
+                }}
+                style={styles.modalOption}
+              >
+                <Text style={styles.modalOptionText}>{option}</Text>
+                {favoritePlanet === option ? <MaterialCommunityIcons name="check" size={18} color={colors.primary} /> : null}
+              </Pressable>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flexGrow: 1, backgroundColor: colors.background },
-  hero: {
-    paddingTop: 64,
-    paddingBottom: 20,
+  topBar: {
+    paddingTop: 46,
     paddingHorizontal: spacing.xl,
-    alignItems: "center",
-    overflow: "hidden",
+    paddingBottom: 6,
   },
-  nebulaPrimary: {
-    position: "absolute",
-    top: -40,
-    left: -70,
-    width: 280,
-    height: 280,
-    borderRadius: 999,
-    backgroundColor: "rgba(88, 102, 255, 0.14)",
-    ...shadows.glow,
-  },
-  nebulaSecondary: {
-    position: "absolute",
-    top: 10,
-    right: -60,
-    width: 240,
-    height: 240,
-    borderRadius: 999,
-    backgroundColor: "rgba(255, 107, 157, 0.10)",
-    shadowColor: colors.danger,
-    shadowOpacity: 0.22,
-    shadowRadius: 40,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 10,
-  },
-  logoMark: {
-    width: 64,
-    height: 64,
+  backButton: {
+    width: 34,
+    height: 34,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: spacing.md,
+    backgroundColor: "rgba(255,255,255,0.05)",
     borderWidth: 1,
-    borderColor: "rgba(179, 191, 255, 0.18)",
-    backgroundColor: "rgba(13, 11, 43, 0.55)",
+    borderColor: colors.border,
   },
-  logoDotLarge: {
-    width: 10,
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: colors.periwinkle,
-    opacity: 0.75,
-  },
-  logoDotTop: {
-    position: "absolute",
-    top: 10,
-    left: 30,
-    width: 7,
-    height: 7,
-    borderRadius: 999,
-    backgroundColor: colors.periwinkle,
-    opacity: 0.9,
-  },
-  logoDotRight: {
-    position: "absolute",
-    top: 24,
-    right: 10,
-    width: 6,
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: colors.mediumSlateBlue,
-    opacity: 0.9,
-  },
-  logoDotBottom: {
-    position: "absolute",
-    bottom: 10,
-    left: 30,
-    width: 7,
-    height: 7,
-    borderRadius: 999,
-    backgroundColor: colors.danger,
-    opacity: 0.9,
-  },
-  logoDotLeft: {
-    position: "absolute",
-    top: 24,
-    left: 10,
-    width: 6,
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: colors.mediumSlateBlue,
-    opacity: 0.9,
-  },
-  appName: {
-    ...typography.title,
-    color: colors.text,
-    marginBottom: 8,
-  },
-  tagline: {
-    ...typography.body,
-    color: colors.textMuted,
-    textAlign: "center",
+  sceneWrap: {
+    paddingHorizontal: 0,
   },
   sheet: {
-    marginTop: 10,
-    backgroundColor: "rgba(7, 5, 26, 0.98)",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    marginTop: 6,
+    backgroundColor: "rgba(255,255,255,0.02)",
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
     paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
-    paddingBottom: 34,
+    paddingBottom: 28,
     borderWidth: 1,
-    borderColor: "rgba(179, 191, 255, 0.10)",
+    borderColor: colors.border,
     borderBottomWidth: 0,
   },
-  tabRow: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(179, 191, 255, 0.10)",
-    marginBottom: spacing.lg,
+  title: {
+    fontSize: 28,
+    lineHeight: 32,
+    color: colors.text,
+    letterSpacing: -0.3,
+    fontFamily: fontFamilies.display,
   },
-  tab: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 12,
-  },
-  tabActive: {
-    borderBottomWidth: 2,
-    borderBottomColor: colors.periwinkle,
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-  },
-  tabTextActive: {
-    color: colors.periwinkle,
-  },
-  formGroup: {
-    gap: 10,
-    marginBottom: spacing.md,
-  },
-  primaryCta: {
+  subtitle: {
     marginTop: 6,
-    ...shadows.soft,
+    color: colors.textMuted,
+    fontSize: 12.5,
+    fontFamily: fontFamilies.bodyRegular,
+  },
+  form: {
+    marginTop: 18,
+  },
+  label: {
+    marginBottom: 6,
+    fontSize: 11,
+    color: colors.textMuted,
+    fontFamily: fontFamilies.bodyRegular,
+  },
+  iconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  forgot: {
+    alignSelf: "flex-end",
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  forgotText: {
+    color: colors.primary,
+    fontSize: 11,
+    fontFamily: fontFamilies.body,
   },
   dividerRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginTop: spacing.lg,
-    marginBottom: spacing.md,
+    marginTop: 18,
+    marginBottom: 12,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "rgba(179, 191, 255, 0.10)",
+    backgroundColor: colors.border,
   },
   dividerText: {
     fontSize: 11,
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
+    color: colors.textMuted,
+    fontFamily: fontFamilies.bodyRegular,
   },
   socialRow: {
     flexDirection: "row",
-    gap: spacing.sm,
-    marginBottom: spacing.md,
+    gap: 10,
+    justifyContent: "center",
+    marginBottom: 14,
   },
-  socialButton: {
-    flex: 1,
-    flexDirection: "row",
-    gap: 8,
+  socialIconBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radii.md,
-    paddingVertical: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: "rgba(13, 11, 43, 0.45)",
+    backgroundColor: "rgba(255,255,255,0.04)",
   },
-  socialIcon: {
+  bottomLink: {
+    marginTop: 12,
+    textAlign: "center",
     color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: "800",
+    fontSize: 11,
+    fontFamily: fontFamilies.bodyRegular,
   },
-  socialText: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: "600",
+  bottomLinkStrong: {
+    color: colors.primary,
     fontFamily: fontFamilies.body,
   },
-  legalText: {
-    fontSize: 10,
-    color: colors.textFaint,
-    textAlign: "center",
-    lineHeight: 14,
+  termsRow: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "flex-start",
+    marginTop: 14,
+    marginBottom: 16,
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: "rgba(255,255,255,0.02)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkboxChecked: {
+    backgroundColor: colors.primary,
+    borderColor: "rgba(255,255,255,0.16)",
+  },
+  termsText: {
+    flex: 1,
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 15,
+    fontFamily: fontFamilies.bodyRegular,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    backgroundColor: "rgba(10, 17, 35, 0.98)",
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalOption: {
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.06)",
+  },
+  modalOptionText: {
+    color: colors.text,
+    fontSize: 13,
     fontFamily: fontFamilies.bodyRegular,
   },
 });

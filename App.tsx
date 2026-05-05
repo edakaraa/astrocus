@@ -26,7 +26,7 @@ export default function App() {
   if (!outfitLoaded || !dmSansLoaded || !spaceMonoLoaded) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.background, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator color={colors.periwinkle} />
+        <ActivityIndicator color={colors.primary} />
       </View>
     );
   }

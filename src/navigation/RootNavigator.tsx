@@ -29,7 +29,7 @@ const theme = {
 
 const LoadingScreen = () => (
   <View style={{ alignItems: "center", backgroundColor: colors.background, flex: 1, justifyContent: "center" }}>
-    <ActivityIndicator color={colors.periwinkle} />
+    <ActivityIndicator color={colors.primary} />
     <Text style={{ color: colors.text, marginTop: 12 }}>Astrocus</Text>
   </View>
 );
@@ -42,7 +42,7 @@ const MainTabs = () => {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarHideOnKeyboard: true,
-        tabBarActiveTintColor: colors.periwinkle,
+        tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textFaint,
         tabBarStyle: {
           backgroundColor: "rgba(7, 5, 26, 0.98)",

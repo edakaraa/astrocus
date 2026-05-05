@@ -17,7 +17,7 @@ export const ProgressRing = ({
   strokeWidth,
   progress,
   trackColor = "rgba(179, 191, 255, 0.10)",
-  progressColor = colors.periwinkle,
+  progressColor = colors.primary,
   children,
 }: ProgressRingProps) => {
   const clamped = Math.max(0, Math.min(progress, 1));

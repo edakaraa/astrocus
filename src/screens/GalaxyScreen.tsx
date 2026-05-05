@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   balanceText: {
-    color: colors.periwinkle,
+    color: colors.primary,
     fontSize: 12,
     fontWeight: "800",
   },
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   progressFill: {
     height: "100%",
     borderRadius: 999,
-    backgroundColor: colors.mediumSlateBlue,
+    backgroundColor: colors.primary,
   },
   starCard: {
     paddingVertical: 14,
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   starMeta: {
-    color: colors.periwinkle,
+    color: colors.primary,
     fontWeight: "800",
     fontSize: 11,
   },

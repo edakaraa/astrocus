@@ -8,18 +8,28 @@ type ApiOptions = {
 };
 
 const request = async <T>(path: string, options: ApiOptions = {}): Promise<T> => {
-  const response = await fetch(`${API_URL}${path}`, {
-    method: options.method ?? "GET",
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
-    },
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
+  const url = `${API_URL}${path}`;
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      method: options.method ?? "GET",
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+      },
+      body: options.body ? JSON.stringify(options.body) : undefined,
+    });
+  } catch (error) {
+    throw new Error(
+      `Network request failed (${url}). ` +
+        (error instanceof Error ? error.message : "Please check API URL / LAN access / firewall."),
+    );
+  }
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(errorText || "API request failed");
+    throw new Error(errorText || `API request failed (${url})`);
   }
 
   return response.json() as Promise<T>;

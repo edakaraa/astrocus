@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     fontSize: 54,
     fontWeight: "800",
-    color: colors.periwinkle,
+    color: colors.primary,
     letterSpacing: -1,
   },
   earnedLabel: {
