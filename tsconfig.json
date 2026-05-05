@@ -4,6 +4,10 @@
     "strict": true,
     "baseUrl": ".",
     "types": ["react", "react-native"],
+    "jsx": "react-jsx",
+    "lib": ["ES2019", "DOM"],
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "paths": {
       "@/*": ["src/*"]
     }

@@ -3,6 +3,7 @@ import { ActivityIndicator, Text, View } from "react-native";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/AppContext";
 import { AuthScreen } from "../screens/AuthScreen";
 import { GalaxyScreen } from "../screens/GalaxyScreen";
@@ -21,14 +22,14 @@ const theme = {
     background: colors.background,
     card: colors.surface,
     border: colors.border,
-    primary: colors.primaryStrong,
+    primary: colors.primary,
     text: colors.text,
   },
 };
 
 const LoadingScreen = () => (
   <View style={{ alignItems: "center", backgroundColor: colors.background, flex: 1, justifyContent: "center" }}>
-    <ActivityIndicator color={colors.primaryStrong} />
+    <ActivityIndicator color={colors.periwinkle} />
     <Text style={{ color: colors.text, marginTop: 12 }}>Astrocus</Text>
   </View>
 );
@@ -37,9 +38,47 @@ const MainTabs = () => {
   const { language } = useAppContext();
 
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false }}>
-      <Tab.Screen name="Session" component={SessionScreen} options={{ title: t(language, "session") }} />
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarHideOnKeyboard: true,
+        tabBarActiveTintColor: colors.periwinkle,
+        tabBarInactiveTintColor: colors.textFaint,
+        tabBarStyle: {
+          backgroundColor: "rgba(7, 5, 26, 0.98)",
+          borderTopColor: "rgba(179, 191, 255, 0.08)",
+          borderTopWidth: 1,
+          height: 74,
+          paddingBottom: 12,
+          paddingTop: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 9,
+          fontWeight: "700",
+        },
+        tabBarIconStyle: { marginBottom: 2 },
+        tabBarIcon: ({ focused, color }) => {
+          const name =
+            route.name === "Galaxy"
+              ? focused
+                ? "star-four-points"
+                : "star-four-points-outline"
+              : route.name === "Session"
+                ? focused
+                  ? "rocket-launch"
+                  : "rocket-launch-outline"
+                : route.name === "Profile"
+                  ? focused
+                    ? "account"
+                    : "account-outline"
+                  : "circle-outline";
+
+          return <MaterialCommunityIcons name={name} size={22} color={color} style={{ opacity: focused ? 1 : 0.6 }} />;
+        },
+      })}
+    >
       <Tab.Screen name="Galaxy" component={GalaxyScreen} options={{ title: t(language, "galaxy") }} />
+      <Tab.Screen name="Session" component={SessionScreen} options={{ title: t(language, "session") }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: t(language, "profile") }} />
     </Tab.Navigator>
   );
@@ -52,18 +91,10 @@ export const RootNavigator = () => {
     return <LoadingScreen />;
   }
 
-  if (!user) {
-    return <AuthScreen />;
-  }
-
-  if (!user.onboardingCompleted) {
-    return <OnboardingScreen />;
-  }
-
   return (
     <SafeAreaProvider>
       <NavigationContainer theme={theme}>
-        <MainTabs />
+        {!user ? <AuthScreen /> : !user.onboardingCompleted ? <OnboardingScreen /> : <MainTabs />}
       </NavigationContainer>
     </SafeAreaProvider>
   );

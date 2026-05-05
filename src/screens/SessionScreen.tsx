@@ -3,7 +3,11 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useAppContext } from "../context/AppContext";
 import { BACKGROUND_TOLERANCE_SECONDS, PAUSE_LIMIT } from "../shared/constants";
 import { t } from "../shared/i18n";
-import { colors, spacing } from "../shared/theme";
+import { colors, fontFamilies, radii, spacing, typography } from "../shared/theme";
+import { StarfieldBackground } from "../components/StarfieldBackground";
+import { SurfaceCard } from "../components/SurfaceCard";
+import { CelebrationModal } from "../components/CelebrationModal";
+import { ProgressRing } from "../components/ProgressRing";
 
 const formatSeconds = (seconds: number) => {
   const minutes = Math.floor(seconds / 60)
@@ -28,33 +32,76 @@ export const SessionScreen = () => {
     celebration,
     dismissCelebration,
     user,
+    unlockedStarIds,
+    stars,
   } = useAppContext();
 
   const actionButton = useMemo(() => {
     if (sessionState.status === "running") {
-      return { label: t(language, "pause"), onPress: pauseSession };
+      return { label: "⏸", onPress: pauseSession, a11y: t(language, "pause") };
     }
 
     if (sessionState.status === "paused") {
-      return { label: t(language, "resume"), onPress: resumeSession };
+      return { label: "▶", onPress: resumeSession, a11y: t(language, "resume") };
     }
 
-    return { label: t(language, "startSession"), onPress: startSession };
+    return { label: "▶", onPress: startSession, a11y: t(language, "startSession") };
   }, [language, pauseSession, resumeSession, sessionState.status, startSession]);
+
+  const selectedCategory = useMemo(
+    () => categories.find((item) => item.id === sessionState.selectedCategoryId) ?? categories[categories.length - 1],
+    [categories, sessionState.selectedCategoryId],
+  );
+
+  const unlockedStarLabel = useMemo(() => {
+    if (!celebration?.unlockedStarId) {
+      return null;
+    }
+    const star = stars.find((item) => item.id === celebration.unlockedStarId);
+    return star?.name ?? null;
+  }, [celebration?.unlockedStarId, stars]);
+
+  const progressRatio = useMemo(() => {
+    const totalSeconds = sessionState.selectedDurationMinutes * 60;
+    if (totalSeconds <= 0) {
+      return 0;
+    }
+    return 1 - Math.min(sessionState.remainingSeconds / totalSeconds, 1);
+  }, [sessionState.remainingSeconds, sessionState.selectedDurationMinutes]);
+
+  const ringColor = sessionState.status === "running" ? colors.periwinkle : colors.borderStrong;
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.heroCard}>
-        <Text style={styles.heroLabel}>{t(language, "targetStar")}</Text>
-        <Text style={styles.heroTitle}>{user?.galaxyName ?? "Astrocus"}</Text>
-        <Text style={styles.timer}>{formatSeconds(sessionState.remainingSeconds)}</Text>
-        <Text style={styles.helperText}>
-          {`AppState + timestamp ile korunan ${BACKGROUND_TOLERANCE_SECONDS} saniyelik tolerans.`}
-        </Text>
+      <StarfieldBackground density={28} />
+
+      <View style={styles.topRow}>
+        <View style={styles.categoryChip}>
+          <Text style={styles.categoryChipText}>{`${selectedCategory.emoji} ${t(language, `category_${selectedCategory.id}` as never)}`}</Text>
+        </View>
+        <View style={styles.statusPill}>
+          <Text style={styles.statusText}>{`Tolerans: ${BACKGROUND_TOLERANCE_SECONDS}s`}</Text>
+        </View>
       </View>
 
+      <SurfaceCard style={styles.timerCard} borderVariant="strong">
+        <Text style={styles.galaxyName}>{user?.galaxyName ?? "Astrocus"}</Text>
+
+        <ProgressRing size={240} strokeWidth={3} progress={progressRatio} progressColor={ringColor}>
+          <View style={styles.ringCenter}>
+            <Text style={styles.timerStar}>⭐</Text>
+            <Text style={styles.timerText}>{formatSeconds(sessionState.remainingSeconds)}</Text>
+            <Text style={styles.timerLabel}>dakika kaldı</Text>
+          </View>
+        </ProgressRing>
+
+        <Text style={styles.stardustPreview}>
+          {`✦ ~${sessionState.selectedDurationMinutes * 10} ✦ kazanacaksın`}
+        </Text>
+      </SurfaceCard>
+
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t(language, "minutes")}</Text>
+        <Text style={styles.sectionTitle}>Süre</Text>
         <View style={styles.row}>
           {[15, 25, 45, 60].map((minutes) => (
             <Pressable
@@ -81,7 +128,7 @@ export const SessionScreen = () => {
               key={category.id}
               onPress={() => setSelectedCategoryId(category.id)}
               style={[
-                styles.categoryChip,
+                styles.categoryOptionChip,
                 sessionState.selectedCategoryId === category.id ? styles.chipActive : null,
               ]}
             >
@@ -92,36 +139,49 @@ export const SessionScreen = () => {
       </View>
 
       <View style={styles.controls}>
-        <Pressable accessibilityRole="button" style={styles.primaryButton} onPress={actionButton.onPress}>
-          <Text style={styles.primaryButtonText}>{actionButton.label}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel="İstatistikler" style={styles.ctrlSm}>
+          <Text style={styles.ctrlText}>📊</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" style={styles.secondaryButton} onPress={resetSession}>
-          <Text style={styles.secondaryButtonText}>{t(language, "reset")}</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={actionButton.a11y}
+          style={styles.ctrlMain}
+          onPress={actionButton.onPress}
+        >
+          <Text style={styles.ctrlMainText}>{actionButton.label}</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t(language, "reset")}
+          style={styles.ctrlSm}
+          onPress={resetSession}
+        >
+          <Text style={styles.ctrlText}>↺</Text>
         </Pressable>
       </View>
 
-      <Text style={styles.helperText}>
-        {`Tek duraklatma hakkı: ${sessionState.pauseCount}/${PAUSE_LIMIT}`}
-      </Text>
+      <View style={styles.statsRow}>
+        <Text style={styles.statItem}>{`◎ ${sessionState.pauseCount} ara / ${PAUSE_LIMIT}`}</Text>
+        <Text style={styles.statItem}>{`⏱ ${sessionState.selectedDurationMinutes}:00 hedef`}</Text>
+        <Text style={styles.statItem}>{`🔥 Seri: ${user?.currentStreak ?? 0}`}</Text>
+      </View>
 
-      <View style={styles.summaryCard}>
+      <SurfaceCard style={styles.summaryCard}>
         <Text style={styles.sectionTitle}>{t(language, "dailySummary")}</Text>
-        <Text style={styles.summaryValue}>{`${dailySummary.totalMinutes} ${t(language, "minutes")}`}</Text>
+        <Text style={styles.summaryValue}>{`${dailySummary.totalMinutes} dk`}</Text>
         <Text style={styles.summaryMeta}>{`${dailySummary.completedSessions} tamamlanan seans`}</Text>
-      </View>
+        <Text style={styles.summaryMeta}>{`Açık yıldız: ${unlockedStarIds.length}`}</Text>
+      </SurfaceCard>
 
-      {celebration ? (
-        <View style={styles.celebrationCard}>
-          <Text style={styles.sectionTitle}>{t(language, "celebrationTitle")}</Text>
-          <Text style={styles.celebrationValue}>{`+${celebration.stardustEarned} Stardust`}</Text>
-          {celebration.unlockedStarId ? (
-            <Text style={styles.summaryMeta}>{t(language, "unlockedStar")}</Text>
-          ) : null}
-          <Pressable accessibilityRole="button" style={styles.secondaryButton} onPress={dismissCelebration}>
-            <Text style={styles.secondaryButtonText}>{t(language, "continue")}</Text>
-          </Pressable>
-        </View>
-      ) : null}
+      <CelebrationModal
+        visible={Boolean(celebration)}
+        stardustEarned={celebration?.stardustEarned ?? 0}
+        unlockedStarLabel={unlockedStarLabel}
+        durationMinutes={sessionState.selectedDurationMinutes}
+        currentStreak={user?.currentStreak ?? 0}
+        todayTotalMinutes={dailySummary.totalMinutes}
+        onClose={dismissCelebration}
+      />
     </ScrollView>
   );
 };
@@ -131,31 +191,72 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     gap: spacing.lg,
     padding: spacing.lg,
+    paddingTop: 54,
   },
-  heroCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: spacing.lg,
+  topRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: spacing.sm,
   },
-  heroLabel: {
-    color: colors.textMuted,
+  categoryChip: {
+    backgroundColor: "rgba(88, 102, 255, 0.16)",
+    borderColor: "rgba(88, 102, 255, 0.30)",
+    borderWidth: 1,
+    borderRadius: radii.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
-  heroTitle: {
-    color: colors.text,
-    fontSize: 24,
+  categoryChipText: {
+    color: colors.periwinkle,
+    fontSize: 11,
     fontWeight: "700",
-    marginTop: spacing.xs,
   },
-  timer: {
-    color: colors.primary,
-    fontSize: 52,
-    fontWeight: "800",
-    marginVertical: spacing.md,
+  statusPill: {
+    backgroundColor: "rgba(21, 18, 63, 0.55)",
+    borderColor: "rgba(179, 191, 255, 0.12)",
+    borderWidth: 1,
+    borderRadius: radii.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
-  helperText: {
+  statusText: {
     color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  timerCard: {
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    alignItems: "center",
+  },
+  galaxyName: {
+    ...typography.h2,
+    color: colors.text,
+    marginBottom: spacing.md,
+  },
+  ringCenter: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  timerStar: { fontSize: 46, marginBottom: 4 },
+  timerText: {
+    fontSize: 42,
+    fontWeight: "800",
+    color: colors.text,
+    letterSpacing: -0.6,
+    fontFamily: fontFamilies.mono,
+  },
+  timerLabel: {
+    marginTop: 5,
+    fontSize: 11,
+    color: colors.textFaint,
+  },
+  stardustPreview: {
+    marginTop: 8,
+    fontSize: 12,
+    color: colors.periwinkle,
+    fontWeight: "700",
   },
   section: {
     gap: spacing.md,
@@ -175,19 +276,24 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   chip: {
-    backgroundColor: colors.chip,
-    borderRadius: 999,
+    backgroundColor: "rgba(21, 18, 63, 0.55)",
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: "rgba(179, 191, 255, 0.10)",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
-  categoryChip: {
-    backgroundColor: colors.chip,
-    borderRadius: 999,
+  categoryOptionChip: {
+    backgroundColor: "rgba(21, 18, 63, 0.55)",
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: "rgba(179, 191, 255, 0.10)",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
   chipActive: {
-    backgroundColor: colors.primaryStrong,
+    backgroundColor: "rgba(88, 102, 255, 0.22)",
+    borderColor: "rgba(179, 191, 255, 0.24)",
   },
   chipText: {
     color: colors.text,
@@ -195,55 +301,57 @@ const styles = StyleSheet.create({
   },
   controls: {
     flexDirection: "row",
-    gap: spacing.md,
-  },
-  primaryButton: {
     alignItems: "center",
-    backgroundColor: colors.primaryStrong,
-    borderRadius: 16,
-    flex: 1,
-    paddingVertical: spacing.md,
+    justifyContent: "center",
+    gap: 24,
+    marginTop: 2,
   },
-  primaryButtonText: {
-    color: colors.background,
-    fontWeight: "700",
-  },
-  secondaryButton: {
+  ctrlSm: {
+    width: 44,
+    height: 44,
     alignItems: "center",
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 16,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    justifyContent: "center",
+    backgroundColor: "rgba(21, 18, 63, 0.55)",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(179, 191, 255, 0.10)",
   },
-  secondaryButtonText: {
-    color: colors.text,
-    fontWeight: "700",
+  ctrlMain: {
+    width: 64,
+    height: 64,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(21, 18, 63, 0.80)",
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: "rgba(179, 191, 255, 0.25)",
+    shadowColor: colors.periwinkle,
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
+  },
+  ctrlText: { fontSize: 16, color: colors.textMuted },
+  ctrlMainText: { fontSize: 22, color: colors.text },
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 20,
+  },
+  statItem: {
+    fontSize: 11,
+    color: colors.textFaint,
+    fontWeight: "600",
   },
   summaryCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
     gap: spacing.sm,
-    padding: spacing.lg,
   },
   summaryValue: {
-    color: colors.success,
+    color: colors.celadon,
     fontSize: 28,
     fontWeight: "800",
   },
   summaryMeta: {
     color: colors.textMuted,
-  },
-  celebrationCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.success,
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: spacing.md,
-    padding: spacing.lg,
-  },
-  celebrationValue: {
-    color: colors.warning,
-    fontSize: 32,
-    fontWeight: "800",
   },
 });

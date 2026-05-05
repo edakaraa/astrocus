@@ -4,6 +4,14 @@ node_modules/
 dist/
 coverage/
 *.log
+.env
+.env.*
+.npmrc
+
+# Editor / OS
+.vscode/
+.idea/
+Thumbs.db
 
 server/node_modules/
 server/data/
@@ -12,3 +20,5 @@ android/
 ios/
 
 .DS_Store
+
+.cursor/

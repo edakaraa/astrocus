@@ -39,4 +39,4 @@ const runtimeApiUrl =
   (Constants.expoConfig?.extra?.apiUrl as string | undefined) ??
   (Constants.manifest2?.extra?.expoClient?.extra?.apiUrl as string | undefined);
 
-export const API_URL = runtimeApiUrl ?? "http://192.168.1.103:8081";
+export const API_URL = runtimeApiUrl ?? "http://localhost:4000";
