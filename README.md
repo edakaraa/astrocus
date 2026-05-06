@@ -2,12 +2,6 @@
 
 ## Uygulama ekran görüntüleri (Mevcut)
 
-Ekran görüntülerini şu klasöre ekleyin:
-- `docs/screenshots/current/`
-
-> Önerilen isimlendirme: `01.jpg`, `02.jpg`, `03.jpg` ...
-
-<!-- Mevcut ekran görüntüleri -->
 |  |  |
 |---|---|
 | ![Mevcut - 01](docs/screenshots/current/01.jpg) | ![Mevcut - 02](docs/screenshots/current/02.jpg) |
@@ -20,19 +14,7 @@ Ekran görüntülerini şu klasöre ekleyin:
 
 ## Güncellenecek versiyon tasarımları
 
-Tasarım görsellerini şu klasöre ekleyin:
-- `docs/screenshots/upcoming/`
-
-> Önerilen isimlendirme: `01-home.png`, `02-detail.png`, `03-settings.png` ...
-
-<!-- Yeni versiyon tasarımları -->
 |  |  |
 |---|---|
 | ![Yeni - 01](docs/screenshots/upcoming/01.png) | ![Yeni - 02](docs/screenshots/upcoming/02.png) |
 | ![Yeni - 03](docs/screenshots/upcoming/03.png) |  |
-
-## Notlar
-
-- Görselleri ekledikten sonra yukarıdaki dosya adlarını birebir tutturursan README otomatik görüntüler.
-- Farklı ad kullanacaksan, sadece README’deki yolları güncellemen yeterli.
-
