@@ -1,5 +1,6 @@
 import React from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/AppContext";
 import { colors, fontFamilies, radii, spacing, typography } from "../shared/theme";
 import { t } from "../shared/i18n";
@@ -7,19 +8,30 @@ import { AVATARS } from "../shared/constants";
 import { StarfieldBackground } from "../components/StarfieldBackground";
 import { SurfaceCard } from "../components/SurfaceCard";
 import { GradientButton } from "../components/GradientButton";
+import { CelestialVisual } from "../components/CelestialVisual";
+
+const formatMinutes = (minutes: number) => {
+  if (minutes < 60) {
+    return `${minutes} dk`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  return remainder === 0 ? `${hours}s` : `${hours}s ${remainder}dk`;
+};
 
 export const ProfileScreen = () => {
   const {
     dailySummary,
     language,
     pendingSessions,
+    sessions,
     setLanguage,
     signOut,
     syncOfflineSessions,
     updateProfile,
     user,
     unlockedStarIds,
-    categories,
   } = useAppContext();
 
   if (!user) {
@@ -27,6 +39,15 @@ export const ProfileScreen = () => {
   }
 
   const goalProgress = user.dailyGoalMinutes > 0 ? Math.min(dailySummary.totalMinutes / user.dailyGoalMinutes, 1) : 0;
+  const totalFocusedMinutes = sessions.reduce((sum, session) => sum + session.durationMinutes, 0);
+  const achievements = [
+    { title: "İlk Adım", detail: "İlk yıldızı aç", unlocked: unlockedStarIds.length >= 1, variant: "badge" as const },
+    { title: "Odak Ustası", detail: "3 seans tamamla", unlocked: sessions.length >= 3, variant: "star" as const },
+    { title: "Gece Kuşu", detail: "7 gün seri", unlocked: user.currentStreak >= 7, variant: "planet" as const },
+    { title: "Derin Uzay", detail: "10 saat odak", unlocked: totalFocusedMinutes >= 600, variant: "galaxy" as const },
+    { title: "Yıldız Tozu", detail: "1000 ✦ kazan", unlocked: user.totalStardust >= 1000, variant: "badge" as const },
+    { title: "Zaman Bükücü", detail: "50 seans", unlocked: sessions.length >= 50, variant: "star" as const },
+  ];
 
   const handleSync = async () => {
     try {
@@ -39,110 +60,161 @@ export const ProfileScreen = () => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <StarfieldBackground density={22} />
+      <StarfieldBackground density={34} />
 
-      <View style={styles.header}>
-        <View style={styles.headerNebula} pointerEvents="none" />
-        <View style={styles.profileRow}>
+      <View style={styles.heroCard}>
+        <View style={styles.settingsButton}>
+          <MaterialCommunityIcons name="cog-outline" size={18} color={colors.textMuted} />
+        </View>
+        <View style={styles.heroGlow} pointerEvents="none" />
+        <View style={styles.avatarHalo}>
+          <CelestialVisual variant="planet" size={124} />
           <View style={styles.avatarShell}>
             <Text style={styles.avatarText}>{user.avatar}</Text>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.username}>{`@${user.username}`}</Text>
-            <Text style={styles.galaxy}>{`✦ ${user.galaxyName}`}</Text>
-          </View>
         </View>
+        <Text style={styles.username}>{user.username || "Kaşif"}</Text>
+        <Text style={styles.galaxy}>{`Seviye ${Math.max(unlockedStarIds.length, 1)} · ${user.totalStardust.toLocaleString()} XP`}</Text>
 
         <View style={styles.headerStats}>
           <View style={styles.pstat}>
-            <Text style={styles.pstatVal}>{unlockedStarIds.length}</Text>
-            <Text style={styles.pstatLabel}>Yıldız Açık</Text>
+            <Text style={styles.pstatVal}>{formatMinutes(totalFocusedMinutes)}</Text>
+            <Text style={styles.pstatLabel}>Toplam Odak</Text>
           </View>
           <View style={styles.pstat}>
-            <Text style={[styles.pstatVal, { color: colors.danger }]}>{`🔥 ${user.currentStreak}`}</Text>
-            <Text style={styles.pstatLabel}>Günlük Seri</Text>
+            <Text style={styles.pstatVal}>{sessions.length}</Text>
+            <Text style={styles.pstatLabel}>Seans</Text>
           </View>
           <View style={styles.pstat}>
-            <Text style={[styles.pstatVal, { fontSize: 16, color: colors.primary }]}>{user.totalStardust.toLocaleString()}</Text>
-            <Text style={styles.pstatLabel}>Yıldız Tozu</Text>
+            <Text style={styles.pstatVal}>{user.currentStreak}</Text>
+            <Text style={styles.pstatLabel}>Gün Seri</Text>
           </View>
         </View>
       </View>
 
-      <Text style={styles.sectionTitle}>Bugün</Text>
-      <SurfaceCard style={styles.dailyCard}>
-        <Text style={styles.dailyTotal}>{`🎯 ${dailySummary.totalMinutes} dk odaklandın`}</Text>
+      <SurfaceCard style={styles.progressCard} borderVariant="strong">
+        <View style={styles.cardTop}>
+          <View>
+            <Text style={styles.cardLabel}>Bugünkü İlerleme</Text>
+            <Text style={styles.cardTitle}>{formatMinutes(dailySummary.totalMinutes)}</Text>
+          </View>
+          <Text style={styles.progressPercent}>{`%${Math.round(goalProgress * 100)}`}</Text>
+        </View>
         <View style={styles.progressBg}>
           <View style={[styles.progressFill, { width: `${Math.round(goalProgress * 100)}%` }]} />
         </View>
-        <Text style={styles.progressLabel}>
-          {`Günlük hedefe %${Math.round(goalProgress * 100)} ulaşıldı · ${Math.round(user.dailyGoalMinutes / 60)} saat hedef`}
-        </Text>
-
-        {dailySummary.categoryBreakdown.slice(0, 3).map((item) => {
-          const category = categories.find((c) => c.id === item.categoryId);
-          const ratio = dailySummary.totalMinutes > 0 ? item.minutes / dailySummary.totalMinutes : 0;
-          const barColor =
-            item.categoryId === "coding"
-              ? colors.primary
-              : item.categoryId === "reading"
-                ? colors.warmOffWhite
-                : colors.ube;
-
-          return (
-            <View key={item.categoryId} style={styles.catRow}>
-              <Text style={styles.catIcon}>{category?.emoji ?? "✨"}</Text>
-              <Text style={styles.catName}>{t(language, `category_${item.categoryId}` as never)}</Text>
-              <Text style={styles.catDur}>{`${item.minutes}dk`}</Text>
-              <View style={styles.catBarBg}>
-                <View style={[styles.catBarFill, { width: `${Math.round(ratio * 100)}%`, backgroundColor: barColor }]} />
-              </View>
-            </View>
-          );
-        })}
+        <Text style={styles.progressLabel}>{`${formatMinutes(user.dailyGoalMinutes)} günlük hedef · ${dailySummary.completedSessions} seans bugün`}</Text>
       </SurfaceCard>
 
-      <Text style={styles.sectionTitle}>Seri</Text>
-      <SurfaceCard style={styles.streakCard} borderVariant="strong">
-        <Text style={styles.streakIcon}>🔥</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.streakCount}>{`${user.currentStreak} Gün!`}</Text>
-          <Text style={styles.streakLabel}>{`En uzun: ${user.longestStreak} gün`}</Text>
+      <View style={styles.listCard}>
+        <View style={styles.listItem}>
+          <View style={styles.listIcon}>
+            <MaterialCommunityIcons name="medal-outline" size={18} color={colors.primary} />
+          </View>
+          <Text style={styles.listText}>Rozetler</Text>
+          <Text style={styles.listMeta}>{`${achievements.filter((item) => item.unlocked).length} / ${achievements.length}`}</Text>
+          <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textFaint} />
+        </View>
+
+        <View style={styles.listItem}>
+          <View style={styles.listIcon}>
+            <MaterialCommunityIcons name="star-four-points-outline" size={18} color={colors.primary} />
+          </View>
+          <Text style={styles.listText}>Takımyıldızım</Text>
+          <Text style={styles.listMeta}>{`${unlockedStarIds.length} yıldız`}</Text>
+          <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textFaint} />
+        </View>
+
+        <View style={styles.listItem}>
+          <View style={styles.listIcon}>
+            <MaterialCommunityIcons name="cog-outline" size={18} color={colors.primary} />
+          </View>
+          <Text style={styles.listText}>Ayarlar</Text>
+          <Text style={styles.listMeta}>Profil</Text>
+          <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textFaint} />
+        </View>
+      </View>
+
+      <View style={styles.sectionTop}>
+        <Text style={styles.sectionTitle}>Rozetler</Text>
+        <Text style={styles.sectionMeta}>{`${achievements.filter((item) => item.unlocked).length}/${achievements.length}`}</Text>
+      </View>
+
+      <View style={styles.badgeGrid}>
+        {achievements.map((achievement) => (
+          <View key={achievement.title} style={[styles.badgeCard, !achievement.unlocked ? styles.badgeCardLocked : null]}>
+            <CelestialVisual variant={achievement.variant} size={68} muted={!achievement.unlocked} />
+            <Text style={styles.badgeTitle}>{achievement.title}</Text>
+            <Text style={styles.badgeDetail}>{achievement.unlocked ? "Açık" : achievement.detail}</Text>
+            {!achievement.unlocked ? (
+              <View style={styles.badgeLock}>
+                <MaterialCommunityIcons name="lock-outline" size={12} color={colors.textFaint} />
+              </View>
+            ) : null}
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.sectionTop}>
+        <Text style={styles.sectionTitle}>Ayarlar</Text>
+      </View>
+
+      <SurfaceCard style={styles.settingsCard}>
+        <View style={styles.settingRow}>
+          <View>
+            <Text style={styles.settingTitle}>Dil</Text>
+            <Text style={styles.settingSubtitle}>Uygulama metin dili</Text>
+          </View>
+          <View style={styles.languageSelector}>
+            {(["tr", "en"] as const).map((item) => (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${item.toUpperCase()} dilini seç`}
+                key={item}
+                style={[styles.languageChip, language === item ? styles.languageChipActive : null]}
+                onPress={() => setLanguage(item)}
+              >
+                <Text style={[styles.languageText, language === item ? styles.languageTextActive : null]}>{item.toUpperCase()}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.settingDivider} />
+
+        <View style={styles.settingBlock}>
+          <Text style={styles.settingTitle}>Avatar</Text>
+          <View style={styles.avatarRow}>
+            {AVATARS.map((avatar) => (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${avatar} avatarını seç`}
+                key={avatar}
+                style={[styles.avatarOption, user.avatar === avatar ? styles.avatarOptionActive : null]}
+                onPress={() => updateProfile({ avatar })}
+              >
+                <Text style={styles.avatarOptionText}>{avatar}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.settingDivider} />
+
+        <View style={styles.settingRow}>
+          <View>
+            <Text style={styles.settingTitle}>Offline Seanslar</Text>
+            <Text style={styles.settingSubtitle}>{`${pendingSessions.length} bekleyen kayıt`}</Text>
+          </View>
+          <GradientButton
+            label="Sync"
+            onPress={handleSync}
+            variant="soft"
+            style={styles.syncButton}
+            accessibilityLabel={t(language, "syncOffline")}
+          />
         </View>
       </SurfaceCard>
-
-      <Text style={styles.sectionTitle}>{t(language, "language")}</Text>
-      <View style={styles.selectorRow}>
-        {(["tr", "en"] as const).map((item) => (
-          <Pressable
-            accessibilityRole="button"
-            key={item}
-            style={[styles.selector, language === item ? styles.selectorActive : null]}
-            onPress={() => setLanguage(item)}
-          >
-            <Text style={[styles.selectorText, language === item ? styles.selectorTextActive : null]}>{item.toUpperCase()}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <Text style={styles.sectionTitle}>Avatar</Text>
-      <View style={styles.selectorRow}>
-        {AVATARS.map((avatar) => (
-          <Pressable
-            accessibilityRole="button"
-            key={avatar}
-            style={[styles.selector, user.avatar === avatar ? styles.selectorActive : null]}
-            onPress={() => updateProfile({ avatar })}
-          >
-            <Text style={[styles.selectorText, user.avatar === avatar ? styles.selectorTextActive : null]}>{avatar}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <GradientButton
-        label={`${t(language, "syncOffline")} (${pendingSessions.length})`}
-        onPress={handleSync}
-      />
 
       <Pressable accessibilityRole="button" style={styles.signOutButton} onPress={signOut}>
         <Text style={styles.signOutText}>{t(language, "signOut")}</Text>
@@ -155,120 +227,319 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.background,
     gap: spacing.md,
-    paddingTop: 0,
-    paddingBottom: 28,
+    padding: spacing.md,
+    paddingBottom: 104,
+    paddingTop: 44,
   },
-  header: {
-    paddingTop: 56,
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(179, 191, 255, 0.10)",
-    backgroundColor: "rgba(13, 11, 43, 0.75)",
+  heroCard: {
+    alignItems: "center",
+    backgroundColor: "rgba(5, 7, 23, 0.78)",
+    borderColor: colors.border,
+    borderRadius: 28,
+    borderWidth: 1,
+    overflow: "hidden",
+    padding: spacing.lg,
+    position: "relative",
+  },
+  settingsButton: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: colors.border,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    height: 34,
+    justifyContent: "center",
+    position: "absolute",
+    left: 14,
+    top: 14,
+    width: 34,
+  },
+  heroGlow: {
+    backgroundColor: "rgba(131,135,195,0.12)",
+    borderRadius: 999,
+    height: 220,
+    position: "absolute",
+    top: -50,
+    width: 220,
+  },
+  avatarHalo: {
+    alignItems: "center",
+    height: 126,
+    justifyContent: "center",
+    marginBottom: spacing.sm,
+    width: 126,
+  },
+  avatarShell: {
+    alignItems: "center",
+    backgroundColor: "rgba(5,7,23,0.78)",
+    borderColor: "rgba(232,230,200,0.24)",
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 58,
+    justifyContent: "center",
+    position: "absolute",
+    width: 58,
+  },
+  avatarText: { fontSize: 27 },
+  username: {
+    ...typography.h2,
+    color: colors.text,
+  },
+  galaxy: {
+    color: colors.textMuted,
+    fontFamily: fontFamilies.body,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  headerStats: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: spacing.lg,
+    width: "100%",
+  },
+  pstat: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flex: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+  },
+  pstatVal: {
+    color: colors.text,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  pstatLabel: {
+    color: colors.textFaint,
+    fontSize: 9,
+    marginTop: 4,
+    textAlign: "center",
+  },
+  progressCard: {
+    gap: spacing.sm,
+  },
+  cardTop: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  cardLabel: {
+    color: colors.textFaint,
+    fontFamily: fontFamilies.body,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  cardTitle: {
+    color: colors.text,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 24,
+    fontWeight: "800",
+    marginTop: 3,
+  },
+  progressPercent: {
+    color: colors.primary,
+    fontFamily: fontFamilies.mono,
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  progressBg: {
+    backgroundColor: "rgba(149,155,181,0.12)",
+    borderRadius: 999,
+    height: 7,
     overflow: "hidden",
   },
-  headerNebula: {
-    position: "absolute",
-    top: -40,
-    right: -30,
-    width: 220,
-    height: 220,
+  progressFill: {
+    backgroundColor: colors.primary,
     borderRadius: 999,
-    backgroundColor: "rgba(88, 102, 255, 0.12)",
+    height: "100%",
   },
-  profileRow: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: spacing.md },
-  avatarShell: {
-    width: 60,
-    height: 60,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(88, 102, 255, 0.22)",
-    borderWidth: 2,
-    borderColor: "rgba(179, 191, 255, 0.30)",
+  progressLabel: {
+    color: colors.textFaint,
+    fontSize: 11,
   },
-  avatarText: { fontSize: 28 },
-  username: { ...typography.h3, color: colors.text },
-  galaxy: { marginTop: 2, color: colors.textMuted, fontSize: 12 },
-  headerStats: { flexDirection: "row", gap: 8 },
-  pstat: {
-    flex: 1,
-    backgroundColor: "rgba(7, 5, 26, 0.55)",
+  listCard: {
+    backgroundColor: "rgba(13, 11, 43, 0.88)",
+    borderColor: colors.border,
+    borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: "rgba(179, 191, 255, 0.08)",
-    borderRadius: radii.sm,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    alignItems: "center",
+    overflow: "hidden",
   },
-  pstatVal: { fontSize: 20, fontWeight: "800", color: colors.text },
-  pstatLabel: { marginTop: 2, fontSize: 9, color: colors.textFaint, textAlign: "center" },
-  sectionTitle: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: 10,
-    paddingBottom: 6,
+  listItem: {
+    alignItems: "center",
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 15,
+  },
+  listIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(131,135,195,0.14)",
+    borderRadius: radii.pill,
+    height: 34,
+    justifyContent: "center",
+    width: 34,
+  },
+  listText: {
+    flex: 1,
+    color: colors.text,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  listMeta: {
+    color: colors.textFaint,
     fontSize: 11,
     fontWeight: "700",
-    color: colors.textFaint,
-    textTransform: "uppercase",
-    letterSpacing: 1.2,
-    fontFamily: fontFamilies.body,
   },
-  dailyCard: { marginHorizontal: 16, padding: 16 },
-  dailyTotal: { ...typography.h3, color: colors.text, marginBottom: 10 },
-  progressBg: {
-    height: 6,
-    borderRadius: 999,
-    overflow: "hidden",
-    backgroundColor: "rgba(179, 191, 255, 0.10)",
-    marginBottom: 6,
-  },
-  progressFill: { height: "100%", backgroundColor: colors.primary, borderRadius: 999 },
-  progressLabel: { fontSize: 10, color: colors.textFaint, marginBottom: 14 },
-  catRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
-  catIcon: { width: 20, textAlign: "center", fontSize: 14, color: colors.textMuted },
-  catName: { width: 70, color: colors.textMuted, fontSize: 11, fontFamily: fontFamilies.bodyRegular },
-  catDur: { width: 42, color: colors.text, fontSize: 11, fontWeight: "800", fontFamily: fontFamilies.monoRegular },
-  catBarBg: { flex: 1, height: 4, borderRadius: 999, backgroundColor: "rgba(179, 191, 255, 0.08)", overflow: "hidden" },
-  catBarFill: { height: "100%", borderRadius: 999 },
-  streakCard: {
-    marginHorizontal: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+  sectionTop: {
+    alignItems: "center",
     flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    borderColor: "rgba(255, 107, 157, 0.20)",
+    justifyContent: "space-between",
+    marginTop: 4,
   },
-  streakIcon: { fontSize: 34 },
-  streakCount: { fontSize: 26, fontWeight: "900", color: colors.danger, letterSpacing: -0.4 },
-  streakLabel: { marginTop: 3, fontSize: 11, color: colors.textMuted },
-  selectorRow: { flexDirection: "row", gap: 10, paddingHorizontal: spacing.xl },
-  selector: {
-    flex: 1,
+  sectionTitle: {
+    color: colors.text,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 17,
+    fontWeight: "800",
+  },
+  sectionMeta: {
+    color: colors.textFaint,
+    fontFamily: fontFamilies.monoRegular,
+    fontSize: 12,
+  },
+  badgeGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  badgeCard: {
     alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: "rgba(13, 11, 43, 0.88)",
+    borderColor: colors.border,
     borderRadius: radii.md,
-    paddingVertical: spacing.md,
     borderWidth: 1,
-    borderColor: "rgba(179, 191, 255, 0.10)",
-    backgroundColor: "rgba(21, 18, 63, 0.45)",
+    minHeight: 132,
+    padding: 10,
+    position: "relative",
+    width: "31.7%",
   },
-  selectorActive: {
-    backgroundColor: "rgba(88, 102, 255, 0.22)",
-    borderColor: "rgba(179, 191, 255, 0.26)",
+  badgeCardLocked: {
+    opacity: 0.68,
   },
-  selectorText: { color: colors.textMuted, fontWeight: "800" },
-  selectorTextActive: { color: colors.text },
-  signOutButton: {
-    marginTop: 6,
-    marginHorizontal: spacing.xl,
-    borderRadius: radii.xl,
-    paddingVertical: spacing.md,
+  badgeTitle: {
+    color: colors.text,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 11,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  badgeDetail: {
+    color: colors.textFaint,
+    fontSize: 9,
+    marginTop: 3,
+    textAlign: "center",
+  },
+  badgeLock: {
     alignItems: "center",
+    backgroundColor: "rgba(5,7,23,0.7)",
+    borderRadius: radii.pill,
+    height: 22,
+    justifyContent: "center",
+    position: "absolute",
+    right: 7,
+    top: 7,
+    width: 22,
+  },
+  settingsCard: {
+    gap: spacing.md,
+  },
+  settingRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  settingBlock: {
+    gap: spacing.sm,
+  },
+  settingTitle: {
+    color: colors.text,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  settingSubtitle: {
+    color: colors.textFaint,
+    fontSize: 11,
+    marginTop: 3,
+  },
+  settingDivider: {
+    backgroundColor: colors.border,
+    height: 1,
+  },
+  languageSelector: {
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: colors.border,
+    borderRadius: radii.pill,
     borderWidth: 1,
-    borderColor: "rgba(179, 191, 255, 0.10)",
-    backgroundColor: "rgba(13, 11, 43, 0.55)",
+    flexDirection: "row",
+    padding: 3,
+  },
+  languageChip: {
+    borderRadius: radii.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  languageChipActive: {
+    backgroundColor: colors.primary,
+  },
+  languageText: {
+    color: colors.textFaint,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  languageTextActive: {
+    color: colors.warmOffWhite,
+  },
+  avatarRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  avatarOption: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flex: 1,
+    paddingVertical: 10,
+  },
+  avatarOptionActive: {
+    backgroundColor: "rgba(131,135,195,0.2)",
+    borderColor: "rgba(232,230,200,0.24)",
+  },
+  avatarOptionText: {
+    fontSize: 20,
+  },
+  syncButton: {
+    minWidth: 78,
+  },
+  signOutButton: {
+    alignItems: "center",
+    backgroundColor: "rgba(13, 11, 43, 0.72)",
+    borderColor: colors.border,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    paddingVertical: spacing.md,
   },
   signOutText: { color: colors.textMuted, fontWeight: "800" },
 });

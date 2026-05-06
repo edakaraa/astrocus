@@ -7,6 +7,7 @@ export const STORAGE_KEYS = {
   onboardingSeen: "astrocus.onboardingSeen",
   pendingSessions: "astrocus.pendingSessions",
   analyticsEvents: "astrocus.analyticsEvents",
+  demoAuthPayload: "astrocus.demoAuthPayload",
 } as const;
 
 export const DEFAULT_DURATION_MINUTES = 25;
@@ -26,11 +27,11 @@ export const CATEGORIES: Category[] = [
 ];
 
 export const STARS: Star[] = [
-  { id: "luna", name: "Luna", description: "Sessiz ve parlak bir başlangıç yıldızı.", requiredStardust: 0 },
-  { id: "solis", name: "Solis", description: "İlk istikrarın sıcaklığı.", requiredStardust: 250 },
-  { id: "nova", name: "Nova", description: "İlerlemenin görünür hale geldiği an.", requiredStardust: 600 },
-  { id: "aurora", name: "Aurora", description: "Düzenli odakla açılan renkli yıldız.", requiredStardust: 1000 },
-  { id: "zenith", name: "Zenith", description: "MVP yolculuğunun zirve yıldızı.", requiredStardust: 1500 },
+  { id: "luna", name: "İlk Adım", description: "Odak yolculuğunun ilk yıldızı.", requiredStardust: 0 },
+  { id: "solis", name: "Odak Ustası", description: "Düzenli seanslarla açılan güçlü yıldız.", requiredStardust: 250 },
+  { id: "nova", name: "Gece Kuşu", description: "Sessiz saatlerde istikrar kazananlara.", requiredStardust: 600 },
+  { id: "aurora", name: "Derin Uzay", description: "Uzun odak serilerinin mor ışıltısı.", requiredStardust: 1000 },
+  { id: "zenith", name: "Yıldız Tozu", description: "Galaksini büyüten son parlak ödül.", requiredStardust: 1500 },
 ];
 
 export const AVATARS = ["🌙", "🪐", "☄️", "🌠", "✨"];

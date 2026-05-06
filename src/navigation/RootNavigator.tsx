@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -42,15 +42,21 @@ const MainTabs = () => {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarHideOnKeyboard: true,
-        tabBarActiveTintColor: colors.primary,
+        tabBarActiveTintColor: colors.warmOffWhite,
         tabBarInactiveTintColor: colors.textFaint,
         tabBarStyle: {
-          backgroundColor: "rgba(7, 5, 26, 0.98)",
-          borderTopColor: "rgba(179, 191, 255, 0.08)",
+          position: "absolute",
+          left: 14,
+          right: 14,
+          bottom: 10,
+          backgroundColor: "rgba(6, 7, 22, 0.94)",
+          borderColor: "rgba(149, 155, 181, 0.12)",
           borderTopWidth: 1,
-          height: 74,
-          paddingBottom: 12,
-          paddingTop: 8,
+          borderWidth: 1,
+          borderRadius: 26,
+          height: 70,
+          paddingBottom: 10,
+          paddingTop: 9,
         },
         tabBarLabelStyle: {
           fontSize: 9,
@@ -59,15 +65,15 @@ const MainTabs = () => {
         tabBarIconStyle: { marginBottom: 2 },
         tabBarIcon: ({ focused, color }) => {
           const name =
-            route.name === "Galaxy"
+            route.name === "Session"
+              ? focused
+                ? "timer"
+                : "timer-outline"
+              : route.name === "Galaxy"
               ? focused
                 ? "star-four-points"
                 : "star-four-points-outline"
-              : route.name === "Session"
-                ? focused
-                  ? "rocket-launch"
-                  : "rocket-launch-outline"
-                : route.name === "Profile"
+              : route.name === "Profile"
                   ? focused
                     ? "account"
                     : "account-outline"
@@ -77,8 +83,8 @@ const MainTabs = () => {
         },
       })}
     >
-      <Tab.Screen name="Galaxy" component={GalaxyScreen} options={{ title: t(language, "galaxy") }} />
       <Tab.Screen name="Session" component={SessionScreen} options={{ title: t(language, "session") }} />
+      <Tab.Screen name="Galaxy" component={GalaxyScreen} options={{ title: t(language, "galaxy") }} />
       <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: t(language, "profile") }} />
     </Tab.Navigator>
   );
@@ -86,6 +92,7 @@ const MainTabs = () => {
 
 export const RootNavigator = () => {
   const { isReady, user } = useAppContext();
+  const [hasCompletedIntro, setHasCompletedIntro] = useState(false);
 
   if (!isReady) {
     return <LoadingScreen />;
@@ -94,7 +101,13 @@ export const RootNavigator = () => {
   return (
     <SafeAreaProvider>
       <NavigationContainer theme={theme}>
-        {!user ? <AuthScreen /> : !user.onboardingCompleted ? <OnboardingScreen /> : <MainTabs />}
+        {!hasCompletedIntro ? (
+          <OnboardingScreen onComplete={() => setHasCompletedIntro(true)} />
+        ) : !user ? (
+          <AuthScreen />
+        ) : (
+          <MainTabs />
+        )}
       </NavigationContainer>
     </SafeAreaProvider>
   );

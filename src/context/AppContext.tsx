@@ -100,6 +100,46 @@ const createGuestSessionState = (): SessionState => ({
 
 const getDateKey = (value: string) => new Date(value).toLocaleDateString("en-CA");
 
+const DEV_DEMO = {
+  tokenPrefix: "dev-demo",
+  emailAliases: ["demo", "demo@astrocus.dev"] as string[],
+  password: "demo1234",
+} as const;
+
+const createDevDemoPayload = (input: { email: string }): AuthPayload => {
+  const now = Date.now();
+  const user: User = {
+    id: `${DEV_DEMO.tokenPrefix}-user`,
+    email: input.email.includes("@") ? input.email : "demo@astrocus.dev",
+    username: "demo",
+    avatar: "🌙",
+    galaxyName: "Astrocus",
+    language: "tr",
+    totalStardust: 0,
+    currentStreak: 0,
+    longestStreak: 0,
+    lastSessionDate: null,
+    targetStarId: STARS[0].id,
+    onboardingCompleted: true,
+    dailyGoalMinutes: 120,
+  };
+
+  return {
+    token: `${DEV_DEMO.tokenPrefix}:${now}`,
+    user,
+    sessions: [],
+    unlockedStarIds: [STARS[0].id],
+  };
+};
+
+const isDevDemoToken = (token: string | null) => Boolean(token && token.startsWith(`${DEV_DEMO.tokenPrefix}:`));
+
+const matchesDevDemoCredentials = (input: { email: string; password: string }) => {
+  const email = input.email.trim().toLowerCase();
+  const password = input.password.trim();
+  return DEV_DEMO.emailAliases.includes(email) && password === DEV_DEMO.password;
+};
+
 const getCategoryBonus = (categoryId: string, completedAt: string) => {
   const hours = new Date(completedAt).getHours();
 
@@ -196,6 +236,25 @@ export const AppProvider = ({ children }: PropsWithChildren) => {
       setPendingSessions(storedPendingSessions);
 
       if (storedToken) {
+        if (isDevDemoToken(storedToken)) {
+          const storedDemoPayload = await asyncStorage.get<AuthPayload | null>(STORAGE_KEYS.demoAuthPayload, null);
+          if (storedDemoPayload?.token === storedToken) {
+            const nextState = mapPayload(storedDemoPayload);
+            setToken(nextState.token);
+            setUser(nextState.user);
+            setSessions(nextState.sessions);
+            setUnlockedStarIds(nextState.unlockedStarIds);
+            setSessionState((current) => ({
+              ...current,
+              selectedDurationMinutes: DEFAULT_DURATION_MINUTES,
+              remainingSeconds: DEFAULT_DURATION_MINUTES * 60,
+            }));
+            setIsOnline(false);
+            setIsReady(true);
+            return;
+          }
+        }
+
         try {
           const payload = await api.bootstrap(storedToken);
           const nextState = mapPayload(payload);
@@ -211,6 +270,7 @@ export const AppProvider = ({ children }: PropsWithChildren) => {
           setIsOnline(true);
         } catch {
           await secureStorage.remove(STORAGE_KEYS.authToken);
+          await asyncStorage.remove(STORAGE_KEYS.demoAuthPayload);
           setIsOnline(false);
         }
       }
@@ -324,6 +384,14 @@ export const AppProvider = ({ children }: PropsWithChildren) => {
   };
 
   const login = async (input: { email: string; password: string }) => {
+    if (__DEV__ && matchesDevDemoCredentials(input)) {
+      const payload = createDevDemoPayload({ email: input.email.trim() });
+      await asyncStorage.set(STORAGE_KEYS.demoAuthPayload, payload);
+      await applyAuthPayload(payload);
+      setIsOnline(false);
+      return;
+    }
+
     const payload = await api.login(input);
     await applyAuthPayload(payload);
   };
@@ -521,6 +589,7 @@ export const AppProvider = ({ children }: PropsWithChildren) => {
     setCelebration(null);
     setSessionState(createGuestSessionState());
     await secureStorage.remove(STORAGE_KEYS.authToken);
+    await asyncStorage.remove(STORAGE_KEYS.demoAuthPayload);
     await asyncStorage.remove(STORAGE_KEYS.pendingSessions);
   };
 

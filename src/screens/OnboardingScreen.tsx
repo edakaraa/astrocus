@@ -7,7 +7,11 @@ import { colors, fontFamilies, spacing } from "../shared/theme";
 import { GradientButton } from "../components/GradientButton";
 import { SpaceScene } from "../components/SpaceScene";
 
-export const OnboardingScreen = () => {
+type OnboardingScreenProps = {
+  onComplete?: () => void;
+};
+
+export const OnboardingScreen = ({ onComplete }: OnboardingScreenProps) => {
   const { completeOnboarding } = useAppContext();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -61,6 +65,11 @@ export const OnboardingScreen = () => {
       const nextIndex = pageIndex + 1;
       setPageIndex(nextIndex);
       listRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+      return;
+    }
+
+    if (onComplete) {
+      onComplete();
       return;
     }
 
