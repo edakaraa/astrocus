@@ -39,3 +39,4 @@
 - [ ] `npm run typecheck`
 - [ ] `npm --prefix server run typecheck`
 - [ ] `GET /health` 200 donuyor
+- [ ] Postgres ayakta ve `server` icinde `npm run db:push` basarili

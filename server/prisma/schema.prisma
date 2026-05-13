@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String   @id @default(uuid())
+  email               String   @unique
+  passwordHash        String
+  username            String
+  avatar              String
+  galaxyName          String
+  language            String   @default("tr")
+  totalStardust       Int      @default(0)
+  currentStreak       Int      @default(0)
+  longestStreak       Int      @default(0)
+  lastSessionDate     String?
+  targetStarId        String
+  onboardingCompleted Boolean  @default(false)
+  dailyGoalMinutes    Int      @default(120)
+  sessions            Session[]
+  authTokens          AuthToken[]
+}
+
+model Session {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId       String
+  durationMinutes  Int
+  stardustEarned   Int
+  startedAt        DateTime
+  completedAt      DateTime
+  isOffline        Boolean  @default(false)
+
+  @@index([userId])
+}
+
+model AuthToken {
+  id     String @id @default(uuid())
+  token  String @unique
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

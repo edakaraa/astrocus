@@ -32,6 +32,9 @@ import {
   TimerStatus,
   User,
 } from "../shared/types";
+import { createDevDemoPayload, isDevDemoToken, matchesDevDemoCredentials } from "./app-context/devDemo";
+import { createDailySummary, calculateStardust, getUnlockedStars } from "./app-context/stardust";
+import { getDateKey } from "./app-context/dateKey";
 
 type CelebrationState = {
   stardustEarned: number;
@@ -97,105 +100,6 @@ const createGuestSessionState = (): SessionState => ({
   pauseCount: 0,
   startedAt: null,
 });
-
-const getDateKey = (value: string) => new Date(value).toLocaleDateString("en-CA");
-
-const DEV_DEMO = {
-  tokenPrefix: "dev-demo",
-  emailAliases: ["demo", "demo@astrocus.dev"] as string[],
-  password: "demo1234",
-} as const;
-
-const createDevDemoPayload = (input: { email: string }): AuthPayload => {
-  const now = Date.now();
-  const user: User = {
-    id: `${DEV_DEMO.tokenPrefix}-user`,
-    email: input.email.includes("@") ? input.email : "demo@astrocus.dev",
-    username: "demo",
-    avatar: "🌙",
-    galaxyName: "Astrocus",
-    language: "tr",
-    totalStardust: 0,
-    currentStreak: 0,
-    longestStreak: 0,
-    lastSessionDate: null,
-    targetStarId: STARS[0].id,
-    onboardingCompleted: true,
-    dailyGoalMinutes: 120,
-  };
-
-  return {
-    token: `${DEV_DEMO.tokenPrefix}:${now}`,
-    user,
-    sessions: [],
-    unlockedStarIds: [STARS[0].id],
-  };
-};
-
-const isDevDemoToken = (token: string | null) => Boolean(token && token.startsWith(`${DEV_DEMO.tokenPrefix}:`));
-
-const matchesDevDemoCredentials = (input: { email: string; password: string }) => {
-  const email = input.email.trim().toLowerCase();
-  const password = input.password.trim();
-  return DEV_DEMO.emailAliases.includes(email) && password === DEV_DEMO.password;
-};
-
-const getCategoryBonus = (categoryId: string, completedAt: string) => {
-  const hours = new Date(completedAt).getHours();
-
-  if (hours >= 6 && hours < 9 && ["meditation", "sports", "reading"].includes(categoryId)) {
-    return 0.2;
-  }
-
-  if (hours >= 9 && hours < 17 && ["work", "coding", "project"].includes(categoryId)) {
-    return 0.2;
-  }
-
-  if (hours >= 20 && hours < 23 && categoryId === "creativity") {
-    return 0.2;
-  }
-
-  return 0;
-};
-
-const calculateStardust = (input: {
-  durationMinutes: number;
-  categoryId: string;
-  currentStreak: number;
-  pauseCount: number;
-  completedAt: string;
-}) => {
-  const base = input.durationMinutes * 10;
-  const streakBonus = Math.min(input.currentStreak * 0.1, 0.5);
-  const categoryBonus = getCategoryBonus(input.categoryId, input.completedAt);
-  const fullSessionBonus = input.pauseCount === 0 ? 0.1 : 0;
-  const totalBonus = streakBonus + categoryBonus + fullSessionBonus;
-
-  return Math.round(base + base * totalBonus);
-};
-
-const getUnlockedStars = (totalStardust: number) => {
-  return STARS.filter((star) => star.requiredStardust <= totalStardust).map((star) => star.id);
-};
-
-const createDailySummary = (sessions: SessionRecord[], user: User | null): DailySummary => {
-  const todayKey = getDateKey(new Date().toISOString());
-  const todaySessions = sessions.filter((session) => getDateKey(session.completedAt) === todayKey);
-  const totalMinutes = todaySessions.reduce((sum, session) => sum + session.durationMinutes, 0);
-  const categoryBreakdown = CATEGORIES.map((category) => ({
-    categoryId: category.id,
-    minutes: todaySessions
-      .filter((session) => session.categoryId === category.id)
-      .reduce((sum, session) => sum + session.durationMinutes, 0),
-  })).filter((item) => item.minutes > 0);
-
-  return {
-    totalMinutes,
-    completedSessions: todaySessions.length,
-    goalProgress: user ? Math.min(totalMinutes / user.dailyGoalMinutes, 1) : 0,
-    categoryBreakdown,
-  };
-};
 
 const mapPayload = (payload: AuthPayload) => {
   const sessions = Array.isArray(payload.sessions) ? payload.sessions : [];

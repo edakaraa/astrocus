@@ -22,3 +22,5 @@ ios/
 .DS_Store
 
 .cursor/
+
+/generated/prisma

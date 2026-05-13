@@ -1,6 +1,8 @@
-import { db, ServerUser } from "./db";
+import type { User } from "@prisma/client";
 
 export const getDateKey = (value: string) => new Date(value).toLocaleDateString("en-CA");
+
+export type StreakUser = Pick<User, "lastSessionDate" | "currentStreak" | "longestStreak">;
 
 export const categoryBonus = (categoryId: string, completedAt: string) => {
   const hour = new Date(completedAt).getHours();
@@ -20,7 +22,7 @@ export const categoryBonus = (categoryId: string, completedAt: string) => {
   return 0;
 };
 
-export const nextStreak = (user: ServerUser, completedAt: string) => {
+export const nextStreak = (user: StreakUser, completedAt: string) => {
   const completedDate = getDateKey(completedAt);
 
   if (!user.lastSessionDate) {
@@ -54,20 +56,4 @@ export const calculateStardust = (input: {
   const fullSessionBonus = input.pauseCount === 0 ? 0.1 : 0;
   const totalBonus = streakBonus + categoryBonus(input.categoryId, input.completedAt) + fullSessionBonus;
   return Math.round(base + base * totalBonus);
-};
-
-export const payloadForUser = (user: ServerUser, token: string) => {
-  const currentDb = db.readDb();
-  return {
-    token,
-    user,
-    sessions: currentDb.sessions.filter((session) => session.userId === user.id),
-    unlockedStarIds: db.getUnlockedStarIds(user.totalStardust),
-  };
-};
-
-export const requireUser = (authorizationHeader?: string | string[]) => {
-  const rawToken = typeof authorizationHeader === "string" ? authorizationHeader.replace("Bearer ", "") : "";
-  const user = db.getUserByToken(rawToken);
-  return { rawToken, user };
 };

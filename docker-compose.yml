@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: astrocus
+      POSTGRES_PASSWORD: astrocus
+      POSTGRES_DB: astrocus
+    ports:
+      - "5432:5432"
+    volumes:
+      - astrocus_pg_data:/var/lib/postgresql/data
+
+volumes:
+  astrocus_pg_data:

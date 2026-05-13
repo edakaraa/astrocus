@@ -1,14 +1,10 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { db, ServerSession } from "../db";
-import {
-  calculateStardust,
-  getDateKey,
-  nextStreak,
-  payloadForUser,
-  requireUser,
-} from "../helpers";
+import { buildAuthPayload, getUnlockedStarIds } from "../authPayload";
+import { calculateStardust, getDateKey, nextStreak } from "../helpers";
+import { prisma } from "../lib/prisma";
+import { getAuthContext } from "../middlewares/auth";
 
 const router = Router();
 
@@ -32,8 +28,8 @@ const syncSessionsSchema = z.object({
   ),
 });
 
-router.post("/sessions/complete", (request, response) => {
-  const { rawToken, user } = requireUser(request.headers.authorization);
+router.post("/sessions/complete", async (request, response) => {
+  const { rawToken, user } = await getAuthContext(request.headers.authorization);
 
   if (!user) {
     response.status(401).send("Unauthorized");
@@ -50,8 +46,7 @@ router.post("/sessions/complete", (request, response) => {
   const verifiedDuration = Math.max(
     5,
     Math.round(
-      (new Date(parsed.data.completedAt).getTime() - new Date(parsed.data.startedAt).getTime()) /
-        (1000 * 60),
+      (new Date(parsed.data.completedAt).getTime() - new Date(parsed.data.startedAt).getTime()) / (1000 * 60),
     ),
   );
   const streak = nextStreak(user, parsed.data.completedAt);
@@ -63,50 +58,47 @@ router.post("/sessions/complete", (request, response) => {
     pauseCount: parsed.data.pauseCount,
   });
 
-  const currentDb = db.readDb();
-  const session: ServerSession = {
-    id: randomUUID(),
-    userId: user.id,
-    categoryId: parsed.data.categoryId,
-    durationMinutes: verifiedDuration,
-    stardustEarned: stardust,
-    startedAt: parsed.data.startedAt,
-    completedAt: parsed.data.completedAt,
-    isOffline: false,
-  };
+  const previousUnlocked = getUnlockedStarIds(user.totalStardust);
+  const sessionId = randomUUID();
 
-  currentDb.sessions.push(session);
-  currentDb.users = currentDb.users.map((item) => {
-    if (item.id !== user.id) {
-      return item;
-    }
+  const updatedUser = await prisma.$transaction(async (tx) => {
+    await tx.session.create({
+      data: {
+        id: sessionId,
+        userId: user.id,
+        categoryId: parsed.data.categoryId,
+        durationMinutes: verifiedDuration,
+        stardustEarned: stardust,
+        startedAt: new Date(parsed.data.startedAt),
+        completedAt: new Date(parsed.data.completedAt),
+        isOffline: false,
+      },
+    });
 
-    const nextTotalStardust = item.totalStardust + stardust;
-
-    return {
-      ...item,
-      totalStardust: nextTotalStardust,
-      currentStreak: streak,
-      longestStreak: Math.max(item.longestStreak, streak),
-      lastSessionDate: getDateKey(parsed.data.completedAt),
-    };
+    return tx.user.update({
+      where: { id: user.id },
+      data: {
+        totalStardust: user.totalStardust + stardust,
+        currentStreak: streak,
+        longestStreak: Math.max(user.longestStreak, streak),
+        lastSessionDate: getDateKey(parsed.data.completedAt),
+      },
+    });
   });
-  db.writeDb(currentDb);
 
-  const updatedUser = currentDb.users.find((item) => item.id === user.id)!;
-  const previousUnlocked = db.getUnlockedStarIds(user.totalStardust);
-  const nextUnlocked = db.getUnlockedStarIds(updatedUser.totalStardust);
+  const nextUnlocked = getUnlockedStarIds(updatedUser.totalStardust);
   const unlockedStarId = nextUnlocked.find((starId) => !previousUnlocked.includes(starId)) ?? null;
 
+  const payload = await buildAuthPayload(updatedUser.id, rawToken);
   response.json({
-    payload: payloadForUser(updatedUser, rawToken),
+    payload,
     stardustEarned: stardust,
     unlockedStarId,
   });
 });
 
-router.post("/sessions/sync", (request, response) => {
-  const { rawToken, user } = requireUser(request.headers.authorization);
+router.post("/sessions/sync", async (request, response) => {
+  const { rawToken, user } = await getAuthContext(request.headers.authorization);
 
   if (!user) {
     response.status(401).send("Unauthorized");
@@ -120,11 +112,10 @@ router.post("/sessions/sync", (request, response) => {
     return;
   }
 
-  const currentDb = db.readDb();
   let nextUser = user;
 
   for (const syncedSession of parsed.data.sessions) {
-    const alreadyExists = currentDb.sessions.some((session) => session.id === syncedSession.id);
+    const alreadyExists = await prisma.session.findUnique({ where: { id: syncedSession.id } });
 
     if (alreadyExists) {
       continue;
@@ -139,29 +130,34 @@ router.post("/sessions/sync", (request, response) => {
       pauseCount: 0,
     });
 
-    currentDb.sessions.push({
-      id: syncedSession.id,
-      userId: user.id,
-      categoryId: syncedSession.categoryId,
-      durationMinutes: syncedSession.durationMinutes,
-      stardustEarned: stardust,
-      startedAt: syncedSession.startedAt,
-      completedAt: syncedSession.completedAt,
-      isOffline: true,
-    });
+    nextUser = await prisma.$transaction(async (tx) => {
+      await tx.session.create({
+        data: {
+          id: syncedSession.id,
+          userId: user.id,
+          categoryId: syncedSession.categoryId,
+          durationMinutes: syncedSession.durationMinutes,
+          stardustEarned: stardust,
+          startedAt: new Date(syncedSession.startedAt),
+          completedAt: new Date(syncedSession.completedAt),
+          isOffline: true,
+        },
+      });
 
-    nextUser = {
-      ...nextUser,
-      totalStardust: nextUser.totalStardust + stardust,
-      currentStreak: streak,
-      longestStreak: Math.max(nextUser.longestStreak, streak),
-      lastSessionDate: getDateKey(syncedSession.completedAt),
-    };
+      return tx.user.update({
+        where: { id: user.id },
+        data: {
+          totalStardust: nextUser.totalStardust + stardust,
+          currentStreak: streak,
+          longestStreak: Math.max(nextUser.longestStreak, streak),
+          lastSessionDate: getDateKey(syncedSession.completedAt),
+        },
+      });
+    });
   }
 
-  currentDb.users = currentDb.users.map((item) => (item.id === user.id ? nextUser : item));
-  db.writeDb(currentDb);
-  response.json(payloadForUser(nextUser, rawToken));
+  const payload = await buildAuthPayload(nextUser.id, rawToken);
+  response.json(payload);
 });
 
 export default router;

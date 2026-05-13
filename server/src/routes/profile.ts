@@ -1,22 +1,25 @@
 import { Router } from "express";
 import { z } from "zod";
-import { db } from "../db";
-import { payloadForUser, requireUser } from "../helpers";
+import { buildAuthPayload } from "../authPayload";
+import { prisma } from "../lib/prisma";
+import { getAuthContext } from "../middlewares/auth";
 
 const router = Router();
 
-const profileSchema = z.object({
-  username: z.string().min(2).optional(),
-  avatar: z.string().optional(),
-  galaxyName: z.string().min(2).optional(),
-  language: z.enum(["tr", "en"]).optional(),
-  targetStarId: z.string().optional(),
-  onboardingCompleted: z.boolean().optional(),
-  dailyGoalMinutes: z.number().min(15).max(480).optional(),
-}).partial();
+const profileSchema = z
+  .object({
+    username: z.string().min(2).optional(),
+    avatar: z.string().optional(),
+    galaxyName: z.string().min(2).optional(),
+    language: z.enum(["tr", "en"]).optional(),
+    targetStarId: z.string().optional(),
+    onboardingCompleted: z.boolean().optional(),
+    dailyGoalMinutes: z.number().min(15).max(480).optional(),
+  })
+  .partial();
 
-router.patch("/profile", (request, response) => {
-  const { rawToken, user } = requireUser(request.headers.authorization);
+router.patch("/profile", async (request, response) => {
+  const { rawToken, user } = await getAuthContext(request.headers.authorization);
 
   if (!user) {
     response.status(401).send("Unauthorized");
@@ -30,21 +33,13 @@ router.patch("/profile", (request, response) => {
     return;
   }
 
-  const currentDb = db.readDb();
-  const nextUsers = currentDb.users.map((item) =>
-    item.id === user.id
-      ? {
-          ...item,
-          ...parsed.data,
-        }
-      : item,
-  );
+  await prisma.user.update({
+    where: { id: user.id },
+    data: parsed.data,
+  });
 
-  currentDb.users = nextUsers;
-  db.writeDb(currentDb);
-
-  const updatedUser = nextUsers.find((item) => item.id === user.id)!;
-  response.json(payloadForUser(updatedUser, rawToken));
+  const payload = await buildAuthPayload(user.id, rawToken);
+  response.json(payload);
 });
 
 export default router;

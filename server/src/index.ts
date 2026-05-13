@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import systemRoutes from "./routes/system";
@@ -14,6 +15,9 @@ app.use(authRoutes);
 app.use(profileRoutes);
 app.use(sessionRoutes);
 
-app.listen(4000, "0.0.0.0", () => {
-  console.log("Astrocus API listening on http://0.0.0.0:4000");
+const port = Number(process.env.PORT ?? 4000);
+const host = process.env.HOST ?? "0.0.0.0";
+
+app.listen(port, host, () => {
+  console.log(`Astrocus API listening on http://${host}:${port}`);
 });
