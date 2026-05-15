@@ -22,16 +22,16 @@ import {
   STARS,
 } from "../shared/constants";
 import { api } from "../shared/api";
+import { fetchAnalyticsSummary } from "../services/analyticsApi";
 import { fetchGalacticAdvice } from "../services/galacticAdvice";
 import { asyncStorage } from "../shared/storage";
 import { trackEvent } from "../shared/analytics";
 import { cancelScheduledNotification, scheduleBackgroundWarning } from "../shared/notifications";
-import { AuthPayload, PendingSession, SessionRecord, TimerStatus, User } from "../shared/types";
+import { AnalyticsSummary, AuthPayload, PendingSession, SessionRecord, TimerStatus } from "../shared/types";
 import { useAuth } from "./AuthContext";
 import { isDevDemoToken } from "./auth/devDemo";
 import type { AstrocusInfraRefs } from "./AuthContext";
-import { calculateStardust, createDailySummary, getUnlockedStars } from "./session/stardust";
-import { getDateKey } from "./session/dateKey";
+import { createDailySummary, getUnlockedStars } from "./session/stardust";
 
 type SessionState = {
   selectedDurationMinutes: number;
@@ -51,6 +51,8 @@ export type SessionContextValue = {
   categories: typeof CATEGORIES;
   avatars: typeof AVATARS;
   dailySummary: ReturnType<typeof createDailySummary>;
+  analyticsSummary: AnalyticsSummary | null;
+  refreshAnalytics: () => Promise<void>;
   setSelectedDurationMinutes: (minutes: number) => void;
   setSelectedCategoryId: (categoryId: string) => void;
   startSession: () => Promise<void>;
@@ -82,7 +84,7 @@ export const SessionProvider = ({
   sessionSetPendingRef,
   uiSetCelebrationRef,
 }: SessionProviderProps) => {
-  const { token, user, isReady, applyAuthPayload, setIsOnline, patchLocalUser } = useAuth();
+  const { token, user, isReady, applyAuthPayload, setIsOnline, apiUrl } = useAuth();
   const prevTokenRef = useRef<string | null>(null);
   const sessionBootstrapPrimedRef = useRef(false);
 
@@ -90,8 +92,26 @@ export const SessionProvider = ({
   const [unlockedStarIds, setUnlockedStarIds] = useState<string[]>([STARS[0].id]);
   const [pendingSessions, setPendingSessions] = useState<PendingSession[]>([]);
   const [sessionState, setSessionState] = useState<SessionState>(createGuestSessionState());
+  const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummary | null>(null);
   const backgroundedAtRef = useRef<string | null>(null);
   const scheduledNotificationRef = useRef<string | null>(null);
+
+  const refreshAnalytics = useCallback(async () => {
+    if (!token || !apiUrl?.trim() || isDevDemoToken(token)) {
+      setAnalyticsSummary(null);
+      return;
+    }
+    try {
+      const data = await fetchAnalyticsSummary(apiUrl, token);
+      setAnalyticsSummary(data);
+    } catch {
+      setAnalyticsSummary(null);
+    }
+  }, [apiUrl, token]);
+
+  useEffect(() => {
+    void refreshAnalytics();
+  }, [refreshAnalytics]);
 
   useLayoutEffect(() => {
     sessionHydrateRef.current = (payload: AuthPayload) => {
@@ -178,47 +198,14 @@ export const SessionProvider = ({
     return () => clearInterval(intervalId);
   }, [sessionState.status]);
 
-  const applyOptimisticSession = useCallback(
-    (pendingSession: PendingSession, pauseCount: number) => {
-      if (!user) {
-        return;
-      }
-
-      const nextStardust = calculateStardust({
-        durationMinutes: pendingSession.durationMinutes,
-        categoryId: pendingSession.categoryId,
-        currentStreak: user.currentStreak + 1,
-        pauseCount,
-        completedAt: pendingSession.completedAt,
-      });
-      const nextSession: SessionRecord = {
-        id: pendingSession.id,
-        userId: user.id,
-        categoryId: pendingSession.categoryId,
-        durationMinutes: pendingSession.durationMinutes,
-        stardustEarned: nextStardust,
-        startedAt: pendingSession.startedAt,
-        completedAt: pendingSession.completedAt,
-        isOffline: true,
-      };
-      const nextUser: User = {
-        ...user,
-        totalStardust: user.totalStardust + nextStardust,
-        currentStreak: user.currentStreak + 1,
-        longestStreak: Math.max(user.longestStreak, user.currentStreak + 1),
-        lastSessionDate: getDateKey(pendingSession.completedAt),
-      };
-
-      setSessions((current) => [...current, nextSession]);
-      setUnlockedStarIds(getUnlockedStars(nextUser.totalStardust));
-      patchLocalUser(nextUser);
-      uiSetCelebrationRef.current?.({
-        stardustEarned: nextStardust,
-        unlockedStarId: null,
-      });
-    },
-    [patchLocalUser, uiSetCelebrationRef, user],
-  );
+  const notifyQueuedForSync = useCallback(() => {
+    uiSetCelebrationRef.current?.({
+      pendingSync: true,
+      stardustEarned: 0,
+      xpEarned: 0,
+      unlockedStarId: null,
+    });
+  }, [uiSetCelebrationRef]);
 
   const finalizeSession = useCallback(async () => {
     if (!token || !user || !sessionState.startedAt) {
@@ -236,8 +223,9 @@ export const SessionProvider = ({
     };
 
     try {
-      const response = await api.completeSession(token, payload, user);
+      const response = await api.completeSession(token, payload, user, unlockedStarIds);
       await applyAuthPayload(response.payload);
+      void refreshAnalytics();
       let galacticAdvice: string | undefined;
       if (!isDevDemoToken(token)) {
         try {
@@ -255,6 +243,8 @@ export const SessionProvider = ({
       }
       uiSetCelebrationRef.current?.({
         stardustEarned: response.stardustEarned,
+        xpEarned: response.xpEarned,
+        streakCount: response.streakCount,
         unlockedStarId: response.unlockedStarId,
         galacticAdvice,
       });
@@ -275,13 +265,14 @@ export const SessionProvider = ({
         void asyncStorage.set(STORAGE_KEYS.pendingSessions, nextPendingSessions);
         return nextPendingSessions;
       });
-      applyOptimisticSession(pendingSession, sessionState.pauseCount);
+      notifyQueuedForSync();
     } finally {
       setSessionState(createGuestSessionState());
     }
   }, [
     applyAuthPayload,
-    applyOptimisticSession,
+    notifyQueuedForSync,
+    refreshAnalytics,
     sessionState.pauseCount,
     sessionState.selectedCategoryId,
     sessionState.selectedDurationMinutes,
@@ -289,6 +280,7 @@ export const SessionProvider = ({
     setIsOnline,
     token,
     uiSetCelebrationRef,
+    unlockedStarIds,
     user,
   ]);
 
@@ -401,7 +393,8 @@ export const SessionProvider = ({
     setPendingSessions([]);
     await asyncStorage.set(STORAGE_KEYS.pendingSessions, []);
     setIsOnline(true);
-  }, [applyAuthPayload, pendingSessions, setIsOnline, token]);
+    void refreshAnalytics();
+  }, [applyAuthPayload, pendingSessions, refreshAnalytics, setIsOnline, token]);
 
   const dailySummary = useMemo(() => createDailySummary(sessions, user), [sessions, user]);
 
@@ -415,6 +408,8 @@ export const SessionProvider = ({
       categories: CATEGORIES,
       avatars: AVATARS,
       dailySummary,
+      analyticsSummary,
+      refreshAnalytics,
       setSelectedDurationMinutes: (minutes: number) =>
         setSessionState((current) => ({
           ...current,
@@ -434,9 +429,11 @@ export const SessionProvider = ({
       syncOfflineQueue,
     }),
     [
+      analyticsSummary,
       dailySummary,
       pauseSession,
       pendingSessions,
+      refreshAnalytics,
       resetSession,
       resumeSession,
       sessionState,

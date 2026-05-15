@@ -1,18 +1,72 @@
 import { supabase } from "../lib/supabase";
 import {
   buildAuthPayload,
-  mapProfileToUser,
   profileUpdateFromUser,
   type ProfileRow,
   type SessionRow,
 } from "../services/profileMapper";
-import { calculateStardust, getUnlockedStars } from "../context/session/stardust";
+import { getUnlockedStars } from "../context/session/stardust";
 import { getDateKey } from "../context/session/dateKey";
-import { createDevDemoPayload, isDevDemoToken, matchesDevDemoCredentials } from "../context/auth/devDemo";
+import {
+  createDevDemoPayload,
+  isDevDemoToken,
+  matchesDevDemoCredentials,
+  simulateDemoSessionReward,
+} from "../context/auth/devDemo";
 import { AuthPayload, PendingSession, User } from "./types";
 
-const fetchUserData = async (userId: string, accessToken: string): Promise<AuthPayload> => {
-  const [profileRes, sessionsRes] = await Promise.all([
+type CompleteFocusSessionRpc = {
+  session_id: string;
+  xp_earned: number;
+  stardust_earned: number;
+  streak_count: number;
+  longest_streak: number;
+  level: number;
+  total_xp: number;
+  total_stardust: number;
+  new_badges: unknown;
+};
+
+const parseCompleteFocusSessionResult = (data: unknown): CompleteFocusSessionRpc => {
+  if (!data || typeof data !== "object") {
+    throw new Error("complete_focus_session: geçersiz yanıt");
+  }
+  const row = data as Record<string, unknown>;
+  const num = (key: string, fallback = 0) => {
+    const v = row[key];
+    if (typeof v === "number" && Number.isFinite(v)) {
+      return v;
+    }
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
+  };
+  const sessionId = row.session_id;
+  if (typeof sessionId !== "string" || !sessionId) {
+    throw new Error("complete_focus_session: session_id eksik");
+  }
+
+  return {
+    session_id: sessionId,
+    xp_earned: num("xp_earned"),
+    stardust_earned: num("stardust_earned"),
+    streak_count: num("streak_count"),
+    longest_streak: num("longest_streak"),
+    level: num("level", 1),
+    total_xp: num("total_xp"),
+    total_stardust: num("total_stardust"),
+    new_badges: row.new_badges,
+  };
+};
+
+const normalizeBadgeList = (raw: unknown): string[] => {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.filter((item): item is string => typeof item === "string");
+};
+
+export const fetchUserData = async (userId: string, accessToken: string): Promise<AuthPayload> => {
+  const [profileRes, sessionsRes, starsRes] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", userId).single(),
     supabase
       .from("sessions")
@@ -20,6 +74,7 @@ const fetchUserData = async (userId: string, accessToken: string): Promise<AuthP
       .eq("user_id", userId)
       .order("completed_at", { ascending: false })
       .limit(200),
+    supabase.from("user_stars").select("star_id").eq("user_id", userId).order("unlocked_at", { ascending: true }),
   ]);
 
   if (profileRes.error || !profileRes.data) {
@@ -29,10 +84,16 @@ const fetchUserData = async (userId: string, accessToken: string): Promise<AuthP
     throw new Error(sessionsRes.error.message);
   }
 
+  const fromDb =
+    !starsRes.error && starsRes.data && starsRes.data.length > 0
+      ? starsRes.data.map((r) => (r as { star_id: string }).star_id)
+      : null;
+
   return buildAuthPayload(
     accessToken,
     profileRes.data as ProfileRow,
     (sessionsRes.data ?? []) as SessionRow[],
+    fromDb,
   );
 };
 
@@ -175,68 +236,80 @@ export const api = {
       pauseCount: number;
     },
     user: User,
+    previousUnlockedStarIds: readonly string[],
   ): Promise<{
     payload: AuthPayload;
     stardustEarned: number;
+    xpEarned: number;
+    streakCount: number;
     unlockedStarId: string | null;
+    newBadges: string[];
   }> {
     if (isDevDemoToken(token)) {
-      const stardustEarned = calculateStardust({
+      const streakAfter = user.currentStreak + 1;
+      const { stardustEarned, xpEarned, streakCount } = simulateDemoSessionReward({
         durationMinutes: input.durationMinutes,
-        categoryId: input.categoryId,
-        currentStreak: user.currentStreak + 1,
         pauseCount: input.pauseCount,
-        completedAt: input.completedAt,
+        streakAfterSession: streakAfter,
       });
+      const totalXp = user.totalXp + xpEarned;
       const nextUser: User = {
         ...user,
         totalStardust: user.totalStardust + stardustEarned,
-        currentStreak: user.currentStreak + 1,
-        longestStreak: Math.max(user.longestStreak, user.currentStreak + 1),
+        totalXp,
+        level: Math.max(1, Math.floor(totalXp / 250) + 1),
+        currentStreak: streakCount,
+        longestStreak: Math.max(user.longestStreak, streakCount),
         lastSessionDate: getDateKey(input.completedAt),
       };
       const demo = createDevDemoPayload({ email: user.email });
+      const unlockedStarIds = getUnlockedStars(nextUser.totalStardust);
+      const before = new Set(previousUnlockedStarIds);
+      const unlockedStarId = unlockedStarIds.find((id) => !before.has(id)) ?? null;
       return {
         payload: {
           ...demo,
           token,
           user: nextUser,
-          unlockedStarIds: getUnlockedStars(nextUser.totalStardust),
+          sessions: [...demo.sessions],
+          unlockedStarIds: unlockedStarIds.length > 0 ? unlockedStarIds : [demo.unlockedStarIds[0]],
         },
         stardustEarned,
-        unlockedStarId: null,
+        xpEarned,
+        streakCount,
+        unlockedStarId,
+        newBadges: [],
       };
     }
 
-    const stardustEarned = calculateStardust({
-      durationMinutes: input.durationMinutes,
-      categoryId: input.categoryId,
-      currentStreak: user.currentStreak,
-      pauseCount: input.pauseCount,
-      completedAt: input.completedAt,
-    });
-
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const { data, error } = await supabase.rpc("complete_focus_session", {
       p_category_id: input.categoryId,
       p_duration_minutes: input.durationMinutes,
       p_started_at: input.startedAt,
       p_completed_at: input.completedAt,
-      p_pause_count: input.pauseCount,
-      p_stardust_earned: stardustEarned,
+      p_pause_used: input.pauseCount > 0,
+      p_is_offline: false,
+      p_timezone: tz,
     });
 
     if (error) {
       throw new Error(error.message);
     }
 
-    const result = data as { stardust_earned: number; unlocked_star_id: string | null };
+    const result = parseCompleteFocusSessionResult(data);
     const session = await requireSession();
     const payload = await fetchUserData(session.user.id, session.access_token);
+    const before = new Set(previousUnlockedStarIds);
+    const unlockedStarId = payload.unlockedStarIds.find((id) => !before.has(id)) ?? null;
 
     return {
       payload,
-      stardustEarned: result.stardust_earned ?? stardustEarned,
-      unlockedStarId: result.unlocked_star_id ?? null,
+      stardustEarned: result.stardust_earned,
+      xpEarned: result.xp_earned,
+      streakCount: result.streak_count,
+      unlockedStarId,
+      newBadges: normalizeBadgeList(result.new_badges),
     };
   },
 
@@ -246,30 +319,21 @@ export const api = {
     }
 
     const authSession = await requireSession();
-    const profileRes = await supabase.from("profiles").select("*").eq("id", authSession.user.id).single();
-    if (profileRes.error || !profileRes.data) {
-      throw new Error(profileRes.error?.message ?? "Profile not found");
-    }
-
-    const profile = mapProfileToUser(profileRes.data as ProfileRow);
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
     for (const pending of sessions) {
-      const stardust = calculateStardust({
-        durationMinutes: pending.durationMinutes,
-        categoryId: pending.categoryId,
-        currentStreak: profile.currentStreak,
-        pauseCount: 0,
-        completedAt: pending.completedAt,
-      });
-
-      await supabase.rpc("complete_focus_session", {
+      const { error } = await supabase.rpc("complete_focus_session", {
         p_category_id: pending.categoryId,
         p_duration_minutes: pending.durationMinutes,
         p_started_at: pending.startedAt,
         p_completed_at: pending.completedAt,
-        p_pause_count: 0,
-        p_stardust_earned: stardust,
+        p_pause_used: false,
+        p_is_offline: true,
+        p_timezone: tz,
       });
+      if (error) {
+        throw new Error(error.message);
+      }
     }
 
     return fetchUserData(authSession.user.id, authSession.access_token);

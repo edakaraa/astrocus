@@ -6,171 +6,63 @@ Bu dosya, projede şimdiye kadar yapılan işleri, seçilen yaklaşımı, tamaml
 
 ---
 
-### 2026-05-15 — Ders teslim kriterleri hizalaması
+### 2026-05-15 — Frontend–Backend Entegrasyonu (Anti-cheat + Express Analytics)
 
-**Bağlam:** 8 haftalık proje gereksinimleri (etkileşimli uygulama, LLM API, ayrı FE/BE, canlı deploy, GitHub yapısı, zorunlu dokümanlar, demo video) bundan sonraki tüm geliştirmeler için referans alındı.
+**Bağlam:** Mobil uygulamada seans sonu ödüllerinin cihaz içinde hesaplanması hem PRD anti-cheat ilkesine hem de üretim güvenine aykırıydı. Backend’de hazır olan `complete_focus_session` RPC ve Express analitik endpoint’i ile Expo istemcisi hizalandı.
 
 **Yapılanlar:**
-- `prodocs/` oluşturuldu: `PRD.md`, `tech-stack.md`, `Plan.md`, `DesignSystem.md`, `COMPLIANCE.md`, `STRUCTURE.md`, `README.md`
-- Kök `.env.example` ve `server/.env.example` eklendi (LLM anahtarları için placeholder, commit edilmez)
-- `README.md` one-pager + klasör eşlemesi güncellendi
-- Uyum analizi: LLM entegrasyonu ve `/frontend` `/backend` fiziksel klasörleri **henüz tamamlanmadı** — `prodocs/COMPLIANCE.md` ve `prodocs/Plan.md` Faz 2
+* **Seans tamamlama:** `frontend/src/shared/api.ts` üzerinden yalnızca Supabase RPC çağrısı; parametreler `p_pause_used`, `p_is_offline`, `p_timezone` ile veritabanı şemasına uyumlu. İstemci tarafında stardust/XP çarpan matematiği kaldırıldı (`context/session/stardust.ts` yalnızca günlük özet + yıldız eşiği yardımcıları).
+* **Yanıt işleme:** RPC dönüşü (`xp_earned`, `stardust_earned`, `streak_count`, `new_badges`) kutlama modalına bağlandı; yıldız unlock farkı `user_stars` + `fetchUserData` ile önceki `unlockedStarIds` kümesine göre tespit ediliyor.
+* **Offline kuyruk:** Ağ hatasında sahte ödül yerine `pendingSync` durumu ve dürüst kullanıcı mesajı. `syncSessions` döngüsünde her kayıt için aynı RPC, `p_is_offline: true`.
+* **Profil / şema eşlemesi:** `profileMapper` — `streak_count` | `current_streak`, `total_xp`, `level`, session’da `pause_used` / `xp_earned`. `User` tipine `totalXp` ve `level` eklendi.
+* **Analytics API:** `frontend/src/services/analyticsApi.ts` ile `GET /analytics/summary` (Bearer JWT); `SessionContext` içinde `analyticsSummary` + `refreshAnalytics`. `ProfileScreen` `useFocusEffect` ile sekme odağında yenileme; toplam odak, seri ve kategori dağılımı API’den besleniyor (yoksa yerel `sessions` yedeği).
+* **Haftalık çubuklar:** `SessionScreen` önce `weekFocusMinutes` (backend ile tarih dilimi tutarlı), yoksa yerel session toplamı.
+* **Konfigürasyon:** `EXPO_PUBLIC_API_URL` (`frontend/.env.example` — LAN / emülatör notları); `app.config.ts` `extra.apiUrl` ile uyumlu.
 
-**Kararlar:**
-- Geliştirme şimdilik mevcut yapıda (kök = frontend, `server/` = backend); teslim öncesi `git mv` ile `frontend/` + `backend/` planlandı (`prodocs/STRUCTURE.md`)
-- LLM yalnızca backend’de; ilk özellik: seans sonu `POST /ai/session-insight` (`prodocs/Plan.md` US-05)
-- Her PR/commit öncesi bu dosyaya kısa kayıt eklenecek
-
-**Açık riskler (teslim):**
-- ❌ LLM henüz kodda yok (ders zorunluluğu)
-- 🟡 Canlı demo URL’leri README’de net değil
-- 🟡 Demo video çekilmedi
+**Sonraki Adım:**
+* Fiziksel cihazda `EXPO_PUBLIC_API_URL` ile uçtan uca regresyon testi (seans → RPC → profil grafikleri).
+* İstenirse `POST /ai/galactic-advice` ve rozet listesinin `user_badges` ile tam senkronu.
 
 ---
 
-### 2026-05-15 — Backend tamamen kaldırıldı (sıfırdan kurulum)
+### 2026-05-15 — Backend Mimarisinin Supabase ve Node.js ile Kurulumu
 
-**İstek:** Frontend klasör yapısı korunarak tüm backend ve gereksiz dosyalar temizlensin.
+[cite_start]**Bağlam:** MVP aşamasındaki dosya tabanlı geçici veritabanı tamamen çöpe atıldı ve bitirme projesi gereksinimleri doğrultusunda [cite: 4] [cite_start]Supabase destekli, LLM entegrasyonuna hazır [cite: 10] [cite_start]ayrık backend mimarisi [cite: 11] inşa edildi.
 
-**Silinenler:**
-- `server/` (Express, Prisma, routes, railway.toml, api.http, package.json, vb.)
-- `docker-compose.yml` (Postgres)
-- `docs/API_CONTRACT.md`
-- `server/.env.example` (klasörle birlikte)
+**Yapılanlar:**
+* **Veritabanı Şeması (Migration):** Supabase CLI ile `profiles`, `categories`, `sessions`, `stardust_ledger`, `stars`, `user_stars`, `badges` ve `user_badges` tabloları oluşturuldu ve `ON DELETE CASCADE` ilişkileri kuruldu.
+* **RPC ve Oyunlaştırma (Gamification) Motoru:** Hileleri engellemek ve atomik işlemler yapmak için Supabase SQL Editor üzerinden `complete_focus_session` RPC fonksiyonu yazıldı. XP, yıldız tozu ve streak hesaplamaları veritabanı seviyesine çekildi.
+* **Express API Kurulumu:** `/backend` klasörü altında Node.js + Express iskeleti oluşturuldu. `cors`, `dotenv`, `@supabase/supabase-js`, `@google/generative-ai` ve `zod` paketleri kurularak TypeScript konfigürasyonu tamamlandı.
+* **Güvenlik Katmanı:** Çekirdek özellikleri destekleyecek API anahtarları (`GEMINI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) sadece `backend/.env` dosyasında izole edildi. [cite_start]Repoya `backend/.env.example` şablonu eklendi[cite: 28]. RLS (Row Level Security) kuralları Supabase panelinden aktif edildi.
 
-**Güncellenenler:**
-- `package.json`: `server` / `server:typecheck` script’leri kaldırıldı; `dev` = `expo start`; `concurrently` devDependency silindi
-- `.github/workflows/ci.yml`: yalnızca frontend typecheck
-- `.gitignore`: `server/*` satırları kaldırıldı
-- `docs/SETUP.md`, `docs/ARCHITECTURE.md`, `docs/QA_CHECKLIST.md`: backend bölümleri kaldırıldı
-- `prodocs/STRUCTURE.md`, `COMPLIANCE.md`, `PRD.md`, `tech-stack.md`, `Plan.md`: backend durumu “yeniden kurulacak”
-
-**Korunan (frontend):**
-- `app/`, `src/`, `App.tsx`, `app.config.ts`, `src/shared/api.ts` (URL `localhost:4000` — backend gelince bağlanır)
-- Offline kuyruk ve lokal state mantığı
-
-**Sonraki adım:** `backend/` klasöründe yeni API iskeleti.
+**Sonraki Adım (güncel):**
+* `POST /ai/galactic-advice` üretim kalitesinde sabitleme ve hata sınırları.
+* `backend` .env / `frontend` `EXPO_PUBLIC_*` ile staging veya canlı deploy denemesi.
 
 ---
 
-### 2026-05-15 — Future Talent modernizasyonu (tam uygulama)
+### 2026-05-15 — Future Talent Modernizasyonu ve Klasör Yapılandırması
+
+[cite_start]**Bağlam:** 8 haftalık proje gereksinimleri (etkileşimli uygulama, LLM API, ayrı FE/BE, canlı deploy, GitHub yapısı, zorunlu dokümanlar, demo video) [cite: 4, 10, 11, 12, 14, 25, 36] referans alınarak repo düzenlendi.
 
 **Yapılanlar:**
-- Monorepo: tüm Expo kodu `frontend/` altına taşındı
-- `backend/`: Supabase migration (profiles, sessions, stardust_ledger, RLS, RPC), Node API (Gemini, hesap silme)
-- Frontend: Supabase Auth/veri, Galaktik Tavsiyeler, gizlilik + hesap silme ekranları
-- `App.tsx`, `RootNavigator` kaldırıldı (yalnızca Expo Router)
-- `prodocs/`: architecture, tech-stack, PRD, Plan, COMPLIANCE güncellendi
-- CI: frontend + backend typecheck
+* Monorepo mimarisine geçildi. [cite_start]Tüm Expo kodu `/frontend` klasörüne, veritabanı/API kodları `/backend` klasörüne taşındı[cite: 16, 17].
+* Gereksiz dosyalar (eski `server/` klasörü, Prisma, `docker-compose.yml`) tamamen silinerek yapı sadeleştirildi.
+* [cite_start]`prodocs/` klasörü altındaki zorunlu dokümanlar (`PRD.md`, `tech-stack.md`, `Plan.md`, vb.) mimariye uygun olarak revize edildi[cite: 19, 29, 30].
+* CI/CD (GitHub Actions) iş akışları sadece frontend ve backend typecheck işlemlerini yapacak şekilde güncellendi.
 
-**Env:** `frontend/.env.example`, `backend/.env.example`
-
-**Sonraki:** Supabase projesi bağla, `db push`, API deploy, demo video.
+**Açık Riskler (Teslim Öncesi):**
+* [cite_start]🟡 LLM entegrasyonu kod bazında henüz tamamlanmadı (ders zorunluluğu)[cite: 10].
+* 🟡 Mobil ↔ Supabase RPC + Express analytics birlikte gerçek cihaz / LAN üzerinde sınırlı test edildi; prod ağ ve store build doğrulanmalı.
+* [cite_start]🟡 Canlı deploy (API yayını) yapılmadı[cite: 12].
+* [cite_start]🟡 Demo video henüz çekilmedi[cite: 36].
 
 ---
 
 ### Yaklaşım (Approach)
 
-- **Önce PRD/MVP’yi teknik olarak tutarlı hale getir, sonra MVP’yi “çalışan iskelet” olarak ayağa kaldır.**
-- **MVP’de vendor/kütüphane kilidi yerine ürün davranışını sabitle, teknik detayları sade tut.**
-- **Mobil (Expo/React Native) + basit API (Express) ile uçtan uca akış çalışsın.**
-- **Offline kuyruk ve minimal analytics ile prototip güvenilirliğini artır.**
-- **Expo Go ile hızlı iterasyon**; Expo Go uyumsuzluklarında SDK hizalama / dev-build stratejisi.
-
-### Yapılanlar (Özet)
-
-#### Dokümantasyon & Kapsam
-
-- `astrocusPRD.md` teknik çelişkiler giderilerek **v1.2**’ye revize edildi.
-  - MVP kapsamı daraltıldı: social, ambient, share, push engagement, dark mode vb. **post-MVP**.
-- `MVP_SCOPE.md` PRD v1.2 ile hizalandı.
-- `plan.md` oluşturuldu: tiklenebilir kapsam + yapılanlar/kalanlar takibi.
-- `docs/SETUP.md`, `docs/QA_CHECKLIST.md`, `docs/ANALYTICS_EVENTS.md` eklendi.
-
-#### Repo ve İskelet
-
-- Root Node workspace hazırlandı (`package.json`, `package-lock.json`, `.gitignore`, `tsconfig.json`, `babel.config.js`, `app.json`).
-- `src/` altında mobil uygulama yapısı kuruldu.
-- `server/` altında API katmanı kuruldu.
-
-#### Mobil (Expo / React Native)
-
-- Giriş: `App.tsx` → `AppProvider` → `RootNavigator`.
-- Navigation: Bottom Tabs (Session / Galaxy / Profile).
-- Ekranlar:
-  - `AuthScreen` (login/register + demo provider butonları)
-  - `OnboardingScreen` (3 adım + yıldız seçimi)
-  - `SessionScreen` (timer + kategori + duraklat/continue/reset + kutlama kartı)
-  - `GalaxyScreen` (kilitli/açık yıldız ilerlemesi)
-  - `ProfileScreen` (streak + toplam stardust + dil + avatar + offline sync)
-- State/iş mantığı: `src/context/AppContext.tsx`
-  - token saklama (SecureStore)
-  - UI tercihleri ve offline kuyruk (AsyncStorage)
-  - seans döngüsü, stardust/streak hesapları
-  - AppState + timestamp tolerans mantığı
-  - offline fallback (API yoksa optimistic + pending queue)
-- Lokalizasyon: `src/shared/i18n.ts` (TR/EN key-value).
-- Bildirim: `expo-notifications` ile 10. saniye uyarısı için scheduling helper.
-- Analytics: local event log (şimdilik console + AsyncStorage).
-
-#### Backend (Express API)
-
-- `server/src/index.ts` içinde Express + Zod validation + bcrypt hash.
-- “DB” yaklaşımı: `server/data/db.json` dosyası (Git’te yok; `.gitignore` ile dışarıda).
-- Endpoint’ler:
-  - `GET /health`
-  - `GET /bootstrap`
-  - `POST /auth/register`
-  - `POST /auth/login`
-  - `POST /auth/provider` (demo)
-  - `PATCH /profile`
-  - `POST /sessions/complete`
-  - `POST /sessions/sync`
-- Varsayılan port: **4000** (Metro/Expo portlarıyla çakışmaması için).
-
-### Expo Go / SDK Uyumluluk Süreci
-
-- Başta Expo SDK 55 ile başlanmıştı.
-- Expo Go sürümü **54.0.6** olduğu için şu hata alındı:
-  - “Project is incompatible with this version of Expo Go”
-- Çözüm:
-  - Proje **Expo SDK 54**’e düşürüldü (`expo@~54.0.0`) ve `expo install --fix` ile sürümler hizalandı.
-  - `babel-preset-expo` eksikliği yüzünden bundling hatası alındı; paket eklendi.
-  - Web bağımlılık uyarısı alındı; `app.json` `platforms` sadece `ios/android` olacak şekilde düzeltildi.
-- Sonuç: Expo Go ile QR okutunca uygulama açılır hale geldi.
-
-### API URL / Telefonda Test
-
-- Telefonda `localhost` bilgisayarı değil telefonu gösterdiği için, API URL’i telefon testinde PC IP’ye göre ayarlanmalı.
-- `src/shared/constants.ts` içinde API URL artık `app.json` → `expo.extra.apiUrl` üzerinden runtime okunuyor (fallback mevcut).
-- GitHub’a atarken IP’yi temizlemek için `app.json`’daki `apiUrl` genelde `localhost` tutuluyor; telefonda testte tekrar PC IP yazmak gerekiyor.
-
-### Şu anki “problem / failure” (son durum)
-
-> **Kritik problem çözüldü**: Expo Go uyumsuzluğu ve bundling hataları giderildi.
-
-Şu an aktif olarak takip ettiğimiz kalan riskler:
-
-- **Telefon → API erişimi**: API çalışsa bile telefonun `http://<PC_IP>:4000` erişimi firewall/ağ izolasyonu yüzünden bazen sorun çıkarabiliyor.
-- **Port çakışmaları**: Metro (8081/8082/8084 gibi) ile API’nin aynı portu dinlememesi gerekiyor; API 4000’de.
-- **DX (Developer Experience)**: PowerShell’de `&&` çalışmadığı için bazı komut zincirleri tek satırda fail olabiliyor; script’lerin PowerShell uyumlu olması gerekiyor.
-
-### Post-MVP Teknik Borç (Public Beta Öncesi Yapılacaklar)
-
-- [ ] **JSON DB → PostgreSQL geçişi**
-  - Neden: File-based JSON DB eşzamanlı yazmalarda race condition yaratır; 10+ kullanıcıda veri kaybı riski var.
-  - Ne zaman: MVP hipotezi doğrulandıktan sonra, public beta / production öncesinde.
-  - Kapsam: `users`, `sessions`, `tokens` tabloları; `db.ts` yerine repository katmanı; 8 route refactor.
-  - Tercih: `PostgreSQL + Drizzle ORM`.
-  - Tahmini süre: 1-2 tam gün.
-- [ ] **OpenAPI 3.0 / Swagger dokümantasyonu eklenmesi**
-  - Neden: Endpoint'lerin standart ve test edilebilir şekilde görünür olması gerekir.
-  - Ne zaman: DB geçişiyle birlikte veya hemen sonrasında.
-
-### Çalıştırma (kısa)
-
-- API:
-  - `cd server`
-  - `npm run dev`
-- Expo:
-  - `npx expo start --lan --clear`
+* **Önce PRD/MVP’yi teknik olarak tutarlı hale getir, sonra MVP’yi “çalışan iskelet” olarak ayağa kaldır.**
+* **MVP’de vendor/kütüphane kilidi yerine ürün davranışını sabitle, teknik detayları sade tut.**
+* **Yapay Zeka Odaklılık:** LLM servisi (Gemini) uygulamanın çekirdek motivasyon mekaniğine API üzerinden entegre edilecek. Prompt injection koruması için anahtarlar backend'de izole kalacak.
+* **Expo Go ile Hızlı İterasyon:** Mobil geliştirme sürecinde Expo SDK 54 ve dosya tabanlı routing için Expo Router kullanılarak ilerlenmektedir.
+* **Veri Tutarlılığı:** Tüm kritik oyunlaştırma hesaplamaları (streak, XP, ödül) sunucu tarafında atomik RPC fonksiyonları ile doğrulanmaktadır.

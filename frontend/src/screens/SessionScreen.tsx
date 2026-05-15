@@ -35,6 +35,7 @@ const weekDays = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"] as const;
 
 export const SessionScreen = () => {
   const {
+    analyticsSummary,
     categories,
     dailySummary,
     language,
@@ -83,6 +84,9 @@ export const SessionScreen = () => {
   const selectedCategoryLabel = t(language, `category_${selectedCategory.id}` as never);
 
   const weeklyMinutes = useMemo(() => {
+    if (analyticsSummary?.weekFocusMinutes?.length === 7) {
+      return analyticsSummary.weekFocusMinutes;
+    }
     const today = new Date();
     const firstDay = new Date(today);
     const day = today.getDay() === 0 ? 6 : today.getDay() - 1;
@@ -97,7 +101,9 @@ export const SessionScreen = () => {
         .filter((session) => new Date(session.completedAt).toLocaleDateString("en-CA") === key)
         .reduce((sum, session) => sum + session.durationMinutes, 0);
     });
-  }, [sessions]);
+  }, [analyticsSummary?.weekFocusMinutes, sessions]);
+
+  const streakForCelebration = celebration?.streakCount ?? user?.currentStreak ?? 0;
 
   const handleStartSession = () => {
     void startSession();
@@ -163,10 +169,12 @@ export const SessionScreen = () => {
         <CelebrationModal
           visible={Boolean(celebration)}
           stardustEarned={celebration?.stardustEarned ?? 0}
+          xpEarned={celebration?.xpEarned}
+          pendingSync={celebration?.pendingSync}
           unlockedStarLabel={unlockedStarLabel}
           galacticAdvice={celebration?.galacticAdvice}
           durationMinutes={sessionState.selectedDurationMinutes}
-          currentStreak={user?.currentStreak ?? 0}
+          currentStreak={streakForCelebration}
           todayTotalMinutes={dailySummary.totalMinutes}
           onClose={dismissCelebration}
         />
@@ -345,10 +353,12 @@ export const SessionScreen = () => {
       <CelebrationModal
         visible={Boolean(celebration)}
         stardustEarned={celebration?.stardustEarned ?? 0}
+        xpEarned={celebration?.xpEarned}
+        pendingSync={celebration?.pendingSync}
         unlockedStarLabel={unlockedStarLabel}
         galacticAdvice={celebration?.galacticAdvice}
         durationMinutes={sessionState.selectedDurationMinutes}
-        currentStreak={user?.currentStreak ?? 0}
+        currentStreak={streakForCelebration}
         todayTotalMinutes={dailySummary.totalMinutes}
         onClose={dismissCelebration}
       />

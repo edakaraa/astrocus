@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/AppContext";
 import { colors, fontFamilies, radii, spacing, typography } from "../shared/theme";
@@ -24,9 +24,11 @@ const formatMinutes = (minutes: number) => {
 export const ProfileScreen = () => {
   const router = useRouter();
   const {
+    analyticsSummary,
     dailySummary,
     language,
     pendingSessions,
+    refreshAnalytics,
     sessions,
     setLanguage,
     signOut,
@@ -36,12 +38,22 @@ export const ProfileScreen = () => {
     unlockedStarIds,
   } = useAppContext();
 
+  useFocusEffect(
+    useCallback(() => {
+      void refreshAnalytics();
+      return undefined;
+    }, [refreshAnalytics]),
+  );
+
   if (!user) {
     return null;
   }
 
+  const totalFocusedMinutes =
+    analyticsSummary?.totalFocusMinutes ?? sessions.reduce((sum, session) => sum + session.durationMinutes, 0);
+
+  const piePreview = analyticsSummary?.categoryDistribution?.slice(0, 3) ?? [];
   const goalProgress = user.dailyGoalMinutes > 0 ? Math.min(dailySummary.totalMinutes / user.dailyGoalMinutes, 1) : 0;
-  const totalFocusedMinutes = sessions.reduce((sum, session) => sum + session.durationMinutes, 0);
   const achievements = [
     { title: "İlk Adım", detail: "İlk yıldızı aç", unlocked: unlockedStarIds.length >= 1, variant: "badge" as const },
     { title: "Odak Ustası", detail: "3 seans tamamla", unlocked: sessions.length >= 3, variant: "star" as const },
@@ -54,6 +66,7 @@ export const ProfileScreen = () => {
   const handleSync = async () => {
     try {
       await syncOfflineSessions();
+      void refreshAnalytics();
       Alert.alert("Astrocus", "Offline seanslar senkronize edildi.");
     } catch (error) {
       Alert.alert("Astrocus", error instanceof Error ? error.message : "Sync failed");
@@ -76,7 +89,7 @@ export const ProfileScreen = () => {
           </View>
         </View>
         <Text style={styles.username}>{user.username || "Kaşif"}</Text>
-        <Text style={styles.galaxy}>{`Seviye ${Math.max(unlockedStarIds.length, 1)} · ${user.totalStardust.toLocaleString()} XP`}</Text>
+        <Text style={styles.galaxy}>{`Seviye ${user.level} · ${user.totalXp.toLocaleString()} XP · ${user.totalStardust.toLocaleString()} ✦`}</Text>
 
         <View style={styles.headerStats}>
           <View style={styles.pstat}>
@@ -88,7 +101,7 @@ export const ProfileScreen = () => {
             <Text style={styles.pstatLabel}>Seans</Text>
           </View>
           <View style={styles.pstat}>
-            <Text style={styles.pstatVal}>{user.currentStreak}</Text>
+            <Text style={styles.pstatVal}>{analyticsSummary?.streakCount ?? user.currentStreak}</Text>
             <Text style={styles.pstatLabel}>Gün Seri</Text>
           </View>
         </View>
@@ -107,6 +120,17 @@ export const ProfileScreen = () => {
         </View>
         <Text style={styles.progressLabel}>{`${formatMinutes(user.dailyGoalMinutes)} günlük hedef · ${dailySummary.completedSessions} seans bugün`}</Text>
       </SurfaceCard>
+
+      {piePreview.length > 0 ? (
+        <SurfaceCard style={styles.distributionCard}>
+          <Text style={styles.cardLabel}>Kategori dağılımı</Text>
+          {piePreview.map((row) => (
+            <Text key={row.categoryId} style={styles.distributionRow}>
+              {`${row.categoryId} · ${formatMinutes(row.minutes)} (${row.percentage}%)`}
+            </Text>
+          ))}
+        </SurfaceCard>
+      ) : null}
 
       <View style={styles.listCard}>
         <View style={styles.listItem}>
@@ -346,6 +370,14 @@ const styles = StyleSheet.create({
   },
   progressCard: {
     gap: spacing.sm,
+  },
+  distributionCard: {
+    gap: 6,
+  },
+  distributionRow: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 2,
   },
   cardTop: {
     alignItems: "center",

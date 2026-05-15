@@ -4,7 +4,7 @@ import React, { PropsWithChildren, useMemo, useRef } from "react";
 import { AuthProvider, useAuth, type AstrocusInfraRefs } from "./AuthContext";
 import { SessionProvider, useSession } from "./SessionContext";
 import { UIProvider, useUI } from "./UIContext";
-import { AuthPayload, Language, PendingSession } from "../shared/types";
+import { AuthPayload, CelebrationPayload, Language, PendingSession } from "../shared/types";
 
 export { AuthProvider, useAuth, type AstrocusInfraRefs } from "./AuthContext";
 export { SessionProvider, useSession } from "./SessionContext";
@@ -15,14 +15,7 @@ export const useAstrocusInfrastructureRefs = (): AstrocusInfraRefs => {
   const sessionSetPendingRef = useRef<((sessions: PendingSession[]) => void) | null>(null);
   const uiSetLanguageRef = useRef<((language: Language) => void) | null>(null);
   const uiSetCelebrationRef = useRef<
-    | ((
-        state: {
-          stardustEarned: number;
-          unlockedStarId: string | null;
-          galacticAdvice?: string;
-        } | null,
-      ) => void)
-    | null
+    ((state: CelebrationPayload) => void) | null
   >(null);
 
   return useMemo(
@@ -69,6 +62,8 @@ export const useAppContext = () => {
     categories: session.categories,
     avatars: session.avatars,
     dailySummary: session.dailySummary,
+    analyticsSummary: session.analyticsSummary,
+    refreshAnalytics: session.refreshAnalytics,
     setAuthMode: auth.setAuthMode,
     setLanguage: ui.setLanguage,
     setSelectedDurationMinutes: session.setSelectedDurationMinutes,

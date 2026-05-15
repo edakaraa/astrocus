@@ -22,6 +22,8 @@ export type User = {
   galaxyName: string;
   language: Language;
   totalStardust: number;
+  totalXp: number;
+  level: number;
   currentStreak: number;
   longestStreak: number;
   lastSessionDate: string | null;
@@ -36,6 +38,8 @@ export type SessionRecord = {
   categoryId: string;
   durationMinutes: number;
   stardustEarned: number;
+  xpEarned: number;
+  pauseUsed: boolean;
   startedAt: string;
   completedAt: string;
   isOffline: boolean;
@@ -62,6 +66,27 @@ export type DailySummary = {
   goalProgress: number;
   categoryBreakdown: Array<{ categoryId: string; minutes: number }>;
 };
+
+/** Express GET /analytics/summary */
+export type AnalyticsSummary = {
+  totalFocusMinutes: number;
+  weekFocusMinutes: number[];
+  categoryDistribution: Array<{ categoryId: string; minutes: number; percentage: number }>;
+  streakCount: number;
+  longestStreak: number;
+  level: number;
+  totalXp: number;
+  totalStardust: number;
+};
+
+export type CelebrationPayload = {
+  stardustEarned: number;
+  xpEarned?: number;
+  streakCount?: number;
+  pendingSync?: boolean;
+  unlockedStarId: string | null;
+  galacticAdvice?: string;
+} | null;
 
 export type AuthPayload = {
   token: string;

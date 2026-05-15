@@ -3,7 +3,6 @@
 ## Uygulama ekran görüntüleri (Mevcut)
 
 |  |  |
-
 | ![Mevcut - 01](docs/screenshots/current/01.jpg) | ![Mevcut - 02](docs/screenshots/current/02.jpg) |
 | ![Mevcut - 03](docs/screenshots/current/03.jpg) | ![Mevcut - 04](docs/screenshots/current/04.jpg) |
 | ![Mevcut - 05](docs/screenshots/current/05.jpg) | ![Mevcut - 06](docs/screenshots/current/06.jpg) |

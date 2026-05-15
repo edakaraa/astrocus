@@ -10,7 +10,11 @@ export type ProfileRow = {
   galaxy_name: string;
   language: "tr" | "en";
   total_stardust: number;
-  current_streak: number;
+  total_xp?: number | null;
+  level?: number | null;
+  /** Supabase migration uses streak_count; legacy drafts used current_streak */
+  streak_count?: number | null;
+  current_streak?: number | null;
   longest_streak: number;
   last_session_date: string | null;
   target_star_id: string;
@@ -24,11 +28,15 @@ export type SessionRow = {
   category_id: string;
   duration_minutes: number;
   stardust_earned: number;
+  xp_earned?: number | null;
+  pause_used?: boolean | null;
   started_at: string;
   completed_at: string;
-  pause_count: number;
   is_offline: boolean;
 };
+
+const streakFromProfile = (row: ProfileRow): number =>
+  row.streak_count ?? row.current_streak ?? 0;
 
 export const mapProfileToUser = (row: ProfileRow): User => ({
   id: row.id,
@@ -38,7 +46,9 @@ export const mapProfileToUser = (row: ProfileRow): User => ({
   galaxyName: row.galaxy_name,
   language: row.language,
   totalStardust: row.total_stardust,
-  currentStreak: row.current_streak,
+  totalXp: row.total_xp ?? 0,
+  level: row.level ?? 1,
+  currentStreak: streakFromProfile(row),
   longestStreak: row.longest_streak,
   lastSessionDate: row.last_session_date,
   targetStarId: row.target_star_id,
@@ -52,24 +62,35 @@ export const mapSessionRow = (row: SessionRow): SessionRecord => ({
   categoryId: row.category_id,
   durationMinutes: row.duration_minutes,
   stardustEarned: row.stardust_earned,
+  xpEarned: row.xp_earned ?? 0,
+  pauseUsed: Boolean(row.pause_used),
   startedAt: row.started_at,
   completedAt: row.completed_at,
   isOffline: row.is_offline,
 });
 
+const fallbackUnlockedStars = (user: User): string[] => {
+  const fromThreshold = getUnlockedStars(user.totalStardust);
+  return fromThreshold.length > 0 ? fromThreshold : [STARS[0].id];
+};
+
 export const buildAuthPayload = (
   accessToken: string,
   profile: ProfileRow,
   sessions: SessionRow[],
+  unlockedStarIdsFromDb: string[] | null,
 ): AuthPayload => {
   const user = mapProfileToUser(profile);
+  const unlockedStarIds =
+    unlockedStarIdsFromDb && unlockedStarIdsFromDb.length > 0
+      ? unlockedStarIdsFromDb
+      : fallbackUnlockedStars(user);
+
   return {
     token: accessToken,
     user,
     sessions: sessions.map(mapSessionRow),
-    unlockedStarIds: getUnlockedStars(user.totalStardust).length
-      ? getUnlockedStars(user.totalStardust)
-      : [STARS[0].id],
+    unlockedStarIds,
   };
 };
 

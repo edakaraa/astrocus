@@ -16,23 +16,14 @@ import { supabase } from "../lib/supabase";
 import { asyncStorage, secureStorage } from "../shared/storage";
 import { STORAGE_KEYS } from "../shared/constants";
 import { trackEvent } from "../shared/analytics";
-import { AuthMode, AuthPayload, PendingSession, User } from "../shared/types";
+import { AuthMode, AuthPayload, CelebrationPayload, PendingSession, User } from "../shared/types";
 import { createDevDemoPayload, isDevDemoToken, matchesDevDemoCredentials } from "./auth/devDemo";
 
 export type AstrocusInfraRefs = {
   sessionHydrateRef: React.MutableRefObject<((payload: AuthPayload) => void) | null>;
   sessionSetPendingRef: React.MutableRefObject<((sessions: PendingSession[]) => void) | null>;
   uiSetLanguageRef: React.MutableRefObject<((language: User["language"]) => void) | null>;
-  uiSetCelebrationRef: React.MutableRefObject<
-    | ((
-        state: {
-          stardustEarned: number;
-          unlockedStarId: string | null;
-          galacticAdvice?: string;
-        } | null,
-      ) => void)
-    | null
-  >;
+  uiSetCelebrationRef: React.MutableRefObject<((state: CelebrationPayload) => void) | null>;
 };
 
 export type AuthContextValue = {

@@ -7,6 +7,8 @@ import { GradientButton } from "./GradientButton";
 type CelebrationModalProps = {
   visible: boolean;
   stardustEarned: number;
+  xpEarned?: number;
+  pendingSync?: boolean;
   unlockedStarLabel?: string | null;
   galacticAdvice?: string | null;
   durationMinutes: number;
@@ -28,6 +30,8 @@ const formatToday = (minutes: number) => {
 export const CelebrationModal = ({
   visible,
   stardustEarned,
+  xpEarned = 0,
+  pendingSync = false,
   unlockedStarLabel,
   galacticAdvice,
   durationMinutes,
@@ -35,7 +39,12 @@ export const CelebrationModal = ({
   todayTotalMinutes,
   onClose,
 }: CelebrationModalProps) => {
-  const headline = useMemo(() => (unlockedStarLabel ? "✨ Yeni yıldız açıldı!" : "Seans tamamlandı"), [unlockedStarLabel]);
+  const headline = useMemo(() => {
+    if (pendingSync) {
+      return "Kuyruğa alındı";
+    }
+    return unlockedStarLabel ? "✨ Yeni yıldız açıldı!" : "Seans tamamlandı";
+  }, [pendingSync, unlockedStarLabel]);
 
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
@@ -46,12 +55,27 @@ export const CelebrationModal = ({
           <View style={styles.burst} pointerEvents="none" />
           <Text style={styles.bigStar}>{unlockedStarLabel ? "🌟" : "⭐"}</Text>
           <Text style={styles.headline}>{headline}</Text>
-          {unlockedStarLabel ? <Text style={styles.sub}>{unlockedStarLabel} artık senin</Text> : null}
+          {pendingSync ? (
+            <Text style={styles.sub}>
+              Bağlantı gelince sunucuya iletilecek; ödüller yalnızca senkron sonrası hesaplanır.
+            </Text>
+          ) : null}
+          {!pendingSync && unlockedStarLabel ? <Text style={styles.sub}>{unlockedStarLabel} artık senin</Text> : null}
 
-          <Text style={styles.earned}>{`+${stardustEarned} ✦`}</Text>
-          <Text style={styles.earnedLabel}>Yıldız Tozu Kazandın</Text>
+          {pendingSync ? (
+            <>
+              <Text style={styles.earnedMuted}>—</Text>
+              <Text style={styles.earnedLabel}>Yıldız tozu (beklemede)</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.earned}>{`+${stardustEarned} ✦`}</Text>
+              <Text style={styles.earnedLabel}>Yıldız Tozu Kazandın</Text>
+              {xpEarned > 0 ? <Text style={styles.xpLine}>{`+${xpEarned} XP`}</Text> : null}
+            </>
+          )}
 
-          {galacticAdvice ? (
+          {galacticAdvice && !pendingSync ? (
             <View style={styles.adviceBox}>
               <Text style={styles.adviceLabel}>Galaktik Tavsiye</Text>
               <Text style={styles.adviceText}>{galacticAdvice}</Text>
@@ -68,7 +92,7 @@ export const CelebrationModal = ({
               <Text style={styles.statLabel}>Seri</Text>
             </View>
             <View style={styles.stat}>
-              <Text style={styles.statVal}>{formatToday(todayTotalMinutes)}</Text>
+              <Text style={styles.statVal}>{pendingSync ? "—" : formatToday(todayTotalMinutes)}</Text>
               <Text style={styles.statLabel}>Bugün Toplam</Text>
             </View>
           </View>
@@ -125,6 +149,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
     color: colors.textMuted,
     fontSize: 13,
+    textAlign: "center",
+    paddingHorizontal: spacing.sm,
   },
   earned: {
     marginTop: 14,
@@ -133,10 +159,24 @@ const styles = StyleSheet.create({
     color: colors.primary,
     letterSpacing: -1,
   },
+  earnedMuted: {
+    marginTop: 14,
+    fontSize: 44,
+    fontWeight: "800",
+    color: colors.textFaint,
+    letterSpacing: -1,
+  },
   earnedLabel: {
     marginTop: 4,
     color: colors.textMuted,
     fontSize: 13,
+  },
+  xpLine: {
+    marginTop: 8,
+    fontSize: 15,
+    fontWeight: "800",
+    color: colors.text,
+    letterSpacing: 0.3,
   },
   adviceBox: {
     marginTop: 14,
@@ -208,4 +248,3 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 });
-

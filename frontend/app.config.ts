@@ -1,4 +1,14 @@
 import type { ExpoConfig, ConfigContext } from "expo/config";
+import path from "node:path";
+import { loadProjectEnv } from "@expo/env";
+
+// app.config.ts değerlendirilirken .env bazen henüz yüklenmemiş olabilir; ayrıca expo start genelde proje kökünden çalışır.
+const projectRoot = process.env.EXPO_PROJECT_ROOT ?? process.cwd();
+loadProjectEnv(projectRoot, { force: true, silent: true });
+// app.config.ts başka bir çalışma dizininden derlenirse yedek:
+if (!process.env.EXPO_PUBLIC_SUPABASE_URL?.trim()) {
+  loadProjectEnv(path.resolve(__dirname), { force: true, silent: true });
+}
 
 const resolveApiUrl = (isDev: boolean): string => {
   const fromEnv = process.env.EXPO_PUBLIC_API_URL?.trim();

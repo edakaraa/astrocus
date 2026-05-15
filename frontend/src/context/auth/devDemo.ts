@@ -9,6 +9,22 @@ export const DEV_DEMO = {
   password: "demo1234",
 } as const;
 
+/** Sadece __DEV__ demo oturumunda — üretim RPC ile aynı temel formül (yaklaşık). */
+export const simulateDemoSessionReward = (input: {
+  durationMinutes: number;
+  pauseCount: number;
+  /** Seri +1 varsayımı ile demo kutlaması */
+  streakAfterSession: number;
+}) => {
+  const baseXp = input.durationMinutes * 2;
+  const baseStardust = input.durationMinutes * 10;
+  const streakBonus = Math.min(input.streakAfterSession * 0.1, 0.5);
+  const pauseBonus = input.pauseCount === 0 ? 0.1 : 0;
+  const totalBonus = streakBonus + pauseBonus;
+  const stardustEarned = Math.round(baseStardust + baseStardust * totalBonus);
+  return { stardustEarned, xpEarned: baseXp, streakCount: input.streakAfterSession };
+};
+
 export const createDevDemoPayload = (input: { email: string }): AuthPayload => {
   const now = Date.now();
   const user: User = {
@@ -19,6 +35,8 @@ export const createDevDemoPayload = (input: { email: string }): AuthPayload => {
     galaxyName: "Astrocus",
     language: "tr",
     totalStardust: 0,
+    totalXp: 0,
+    level: 1,
     currentStreak: 0,
     longestStreak: 0,
     lastSessionDate: null,

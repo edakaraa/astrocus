@@ -13,15 +13,11 @@ import React, {
 import { asyncStorage } from "../shared/storage";
 import { STORAGE_KEYS } from "../shared/constants";
 import { api } from "../shared/api";
-import { Language } from "../shared/types";
+import type { CelebrationPayload, Language } from "../shared/types";
 import { useAuth } from "./AuthContext";
 import type { AstrocusInfraRefs } from "./AuthContext";
 
-export type CelebrationState = {
-  stardustEarned: number;
-  unlockedStarId: string | null;
-  galacticAdvice?: string;
-} | null;
+export type CelebrationState = CelebrationPayload;
 
 export type UIContextValue = {
   language: Language;
