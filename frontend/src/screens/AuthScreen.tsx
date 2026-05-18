@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/AppContext";
@@ -7,9 +8,12 @@ import { colors, fontFamilies, radii, spacing } from "../shared/theme";
 import { SpaceScene } from "../components/SpaceScene";
 import { TextField } from "../components/TextField";
 import { GradientButton } from "../components/GradientButton";
+import { AstroAlertModal } from "../components/AstroAlertModal";
+import { oauthUserMessage } from "../lib/oauthErrors";
 
 export const AuthScreen = () => {
-  const { authMode, setAuthMode, register, login, continueWithProvider } = useAppContext();
+  const router = useRouter();
+  const { authMode, setAuthMode, register, login, continueWithProvider, resetPassword } = useAppContext();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("");
@@ -23,6 +27,11 @@ export const AuthScreen = () => {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isPlanetModalOpen, setIsPlanetModalOpen] = useState(false);
+  const [astroAlert, setAstroAlert] = useState<{ title: string; message: string } | null>(null);
+
+  const showAstroAlert = useCallback((title: string, message: string) => {
+    setAstroAlert({ title, message });
+  }, []);
 
   const planetOptions = useMemo(
     () => ["Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune"],
@@ -51,7 +60,15 @@ export const AuthScreen = () => {
         return;
       }
 
-      await register({ email, password, username: username || fullName || "explorer", galaxyName });
+      await register({
+        email,
+        password,
+        username: username || fullName || "explorer",
+        galaxyName,
+        displayName: fullName || username,
+        birthdate: birthday || undefined,
+        favoritePlanet: favoritePlanet || undefined,
+      });
     } catch (error) {
       Alert.alert("Astrocus", error instanceof Error ? error.message : "Unknown error");
     }
@@ -61,7 +78,8 @@ export const AuthScreen = () => {
     try {
       await continueWithProvider(provider);
     } catch (error) {
-      Alert.alert("Astrocus", error instanceof Error ? error.message : "Network request failed");
+      const { title, message } = oauthUserMessage(error);
+      showAstroAlert(title, message);
     }
   };
 
@@ -132,7 +150,23 @@ export const AuthScreen = () => {
                 }
               />
 
-              <Pressable accessibilityRole="button" accessibilityLabel="Forgot password" style={styles.forgot}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Forgot password"
+                style={styles.forgot}
+                onPress={async () => {
+                  if (!email.trim()) {
+                    Alert.alert("Astrocus", "Enter your email first.");
+                    return;
+                  }
+                  try {
+                    await resetPassword(email);
+                    Alert.alert("Astrocus", "Password reset link sent to your email.");
+                  } catch (error) {
+                    Alert.alert("Astrocus", error instanceof Error ? error.message : "Request failed");
+                  }
+                }}
+              >
                 <Text style={styles.forgotText}>Forgot Password?</Text>
               </Pressable>
             </View>
@@ -162,7 +196,12 @@ export const AuthScreen = () => {
               >
                 <MaterialCommunityIcons name="google" size={20} color={colors.text} />
               </Pressable>
-              <Pressable accessibilityRole="button" accessibilityLabel="GitHub" style={styles.socialIconBtn}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="GitHub"
+                style={styles.socialIconBtn}
+                onPress={() => Alert.alert("Astrocus", "GitHub sign-in is not configured yet.")}
+              >
                 <MaterialCommunityIcons name="github" size={20} color={colors.text} />
               </Pressable>
             </View>
@@ -267,7 +306,10 @@ export const AuthScreen = () => {
                   {acceptedTerms ? <MaterialCommunityIcons name="check" size={14} color={colors.chineseBlack} /> : null}
                 </Pressable>
                 <Text style={styles.termsText}>
-                  I agree to the Terms of Service{"\n"}and Privacy Policy
+                  I agree to the{" "}
+                  <Text style={styles.termsLink} onPress={() => router.push("/legal/privacy-policy")}>
+                    Privacy Policy
+                  </Text>
                 </Text>
               </View>
             </View>
@@ -276,6 +318,14 @@ export const AuthScreen = () => {
           </>
         )}
       </View>
+
+      <AstroAlertModal
+        visible={astroAlert !== null}
+        title={astroAlert?.title ?? "Astro Account Check"}
+        message={astroAlert?.message ?? ""}
+        confirmLabel="OK"
+        onClose={() => setAstroAlert(null)}
+      />
 
       <Modal transparent visible={isPlanetModalOpen} animationType="fade" onRequestClose={() => setIsPlanetModalOpen(false)}>
         <Pressable
@@ -454,6 +504,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 15,
     fontFamily: fontFamilies.bodyRegular,
+  },
+  termsLink: {
+    color: colors.primary,
+    fontFamily: fontFamilies.body,
   },
   modalOverlay: {
     flex: 1,

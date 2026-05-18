@@ -18,6 +18,9 @@ export type User = {
   id: string;
   email: string;
   username: string;
+  displayName?: string | null;
+  birthdate?: string | null;
+  favoritePlanet?: string | null;
   avatar: string;
   galaxyName: string;
   language: Language;
@@ -53,13 +56,6 @@ export type PendingSession = {
   completedAt: string;
 };
 
-export type SessionReward = {
-  stardustEarned: number;
-  unlockedStarId: string | null;
-  currentStreak: number;
-  longestStreak: number;
-};
-
 export type DailySummary = {
   totalMinutes: number;
   completedSessions: number;
@@ -85,6 +81,7 @@ export type CelebrationPayload = {
   streakCount?: number;
   pendingSync?: boolean;
   unlockedStarId: string | null;
+  newBadgeIds?: string[];
   galacticAdvice?: string;
 } | null;
 
@@ -93,6 +90,7 @@ export type AuthPayload = {
   user: User;
   sessions: SessionRecord[];
   unlockedStarIds: string[];
+  earnedBadgeIds: string[];
 };
 
 export type TimerStatus = "idle" | "running" | "paused" | "completed" | "failed";

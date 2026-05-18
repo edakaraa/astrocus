@@ -37,7 +37,13 @@ User data:
 - Total stardust: ${input.totalStardust}
 Give a "Galactic Tip" that motivates without being cheesy.`;
 
-  const result = await model.generateContent(prompt);
+  const timeoutMs = Number(process.env.GEMINI_TIMEOUT_MS) || 12_000;
+  const result = await Promise.race([
+    model.generateContent(prompt),
+    new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("Gemini request timed out")), timeoutMs);
+    }),
+  ]);
   const text = result.response.text().trim();
   if (!text) {
     throw new Error("Empty Gemini response");

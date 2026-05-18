@@ -14,6 +14,8 @@ backend/node_modules/
 .expo/
 .expo-shared/
 dist/
+backend/dist/
+backend/supabase/.temp/
 coverage/
 android/
 ios/

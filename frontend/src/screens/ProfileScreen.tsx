@@ -5,7 +5,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/AppContext";
 import { colors, fontFamilies, radii, spacing, typography } from "../shared/theme";
 import { t } from "../shared/i18n";
-import { AVATARS } from "../shared/constants";
+import { AVATARS, BADGES } from "../shared/constants";
 import { StarfieldBackground } from "../components/StarfieldBackground";
 import { SurfaceCard } from "../components/SurfaceCard";
 import { GradientButton } from "../components/GradientButton";
@@ -36,6 +36,7 @@ export const ProfileScreen = () => {
     updateProfile,
     user,
     unlockedStarIds,
+    earnedBadgeIds,
   } = useAppContext();
 
   useFocusEffect(
@@ -54,14 +55,14 @@ export const ProfileScreen = () => {
 
   const piePreview = analyticsSummary?.categoryDistribution?.slice(0, 3) ?? [];
   const goalProgress = user.dailyGoalMinutes > 0 ? Math.min(dailySummary.totalMinutes / user.dailyGoalMinutes, 1) : 0;
-  const achievements = [
-    { title: "İlk Adım", detail: "İlk yıldızı aç", unlocked: unlockedStarIds.length >= 1, variant: "badge" as const },
-    { title: "Odak Ustası", detail: "3 seans tamamla", unlocked: sessions.length >= 3, variant: "star" as const },
-    { title: "Gece Kuşu", detail: "7 gün seri", unlocked: user.currentStreak >= 7, variant: "planet" as const },
-    { title: "Derin Uzay", detail: "10 saat odak", unlocked: totalFocusedMinutes >= 600, variant: "galaxy" as const },
-    { title: "Yıldız Tozu", detail: "1000 ✦ kazan", unlocked: user.totalStardust >= 1000, variant: "badge" as const },
-    { title: "Zaman Bükücü", detail: "50 seans", unlocked: sessions.length >= 50, variant: "star" as const },
-  ];
+  const earnedSet = new Set(earnedBadgeIds);
+  const badgeVariants = ["badge", "star", "planet"] as const;
+  const achievements = BADGES.map((badge, index) => ({
+    title: badge.name,
+    detail: badge.description,
+    unlocked: earnedSet.has(badge.id),
+    variant: badgeVariants[index % badgeVariants.length],
+  }));
 
   const handleSync = async () => {
     try {
@@ -78,9 +79,14 @@ export const ProfileScreen = () => {
       <StarfieldBackground density={34} />
 
       <View style={styles.heroCard}>
-        <View style={styles.settingsButton}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Ayarlar"
+          onPress={() => router.push("/legal/privacy-policy")}
+          style={styles.settingsButton}
+        >
           <MaterialCommunityIcons name="cog-outline" size={18} color={colors.textMuted} />
-        </View>
+        </Pressable>
         <View style={styles.heroGlow} pointerEvents="none" />
         <View style={styles.avatarHalo}>
           <CelestialVisual variant="planet" size={124} />
@@ -139,26 +145,35 @@ export const ProfileScreen = () => {
           </View>
           <Text style={styles.listText}>Rozetler</Text>
           <Text style={styles.listMeta}>{`${achievements.filter((item) => item.unlocked).length} / ${achievements.length}`}</Text>
-          <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textFaint} />
         </View>
 
-        <View style={styles.listItem}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Takımyıldızım"
+          onPress={() => router.push("/(tabs)/galaxy")}
+          style={styles.listItem}
+        >
           <View style={styles.listIcon}>
             <MaterialCommunityIcons name="star-four-points-outline" size={18} color={colors.primary} />
           </View>
           <Text style={styles.listText}>Takımyıldızım</Text>
           <Text style={styles.listMeta}>{`${unlockedStarIds.length} yıldız`}</Text>
           <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textFaint} />
-        </View>
+        </Pressable>
 
-        <View style={styles.listItem}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Gizlilik politikası"
+          onPress={() => router.push("/legal/privacy-policy")}
+          style={styles.listItem}
+        >
           <View style={styles.listIcon}>
             <MaterialCommunityIcons name="cog-outline" size={18} color={colors.primary} />
           </View>
           <Text style={styles.listText}>Ayarlar</Text>
-          <Text style={styles.listMeta}>Profil</Text>
+          <Text style={styles.listMeta}>Gizlilik</Text>
           <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textFaint} />
-        </View>
+        </Pressable>
       </View>
 
       <View style={styles.sectionTop}>

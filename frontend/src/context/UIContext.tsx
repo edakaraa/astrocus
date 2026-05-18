@@ -1,11 +1,8 @@
-// [GÖREV 3] — Dil, kutlama ve onboarding görüldü bilgisi UIContext’e taşındı
-
 import React, {
   createContext,
   PropsWithChildren,
   useCallback,
   useContext,
-  useEffect,
   useLayoutEffect,
   useMemo,
   useState,
@@ -22,11 +19,8 @@ export type CelebrationState = CelebrationPayload;
 export type UIContextValue = {
   language: Language;
   celebration: CelebrationState;
-  onboardingSeen: boolean;
   setLanguage: (language: Language) => Promise<void>;
-  triggerCelebration: (state: CelebrationState) => void;
   dismissCelebration: () => void;
-  setOnboardingSeen: (seen: boolean) => Promise<void>;
 };
 
 const UIContext = createContext<UIContextValue | null>(null);
@@ -37,28 +31,15 @@ export const UIProvider = ({ children, uiSetLanguageRef, uiSetCelebrationRef }: 
   const { token, applyAuthPayload, setIsOnline } = useAuth();
   const [language, setLanguageState] = useState<Language>("tr");
   const [celebration, setCelebration] = useState<CelebrationState>(null);
-  const [onboardingSeen, setOnboardingSeenState] = useState(false);
 
   useLayoutEffect(() => {
-    uiSetLanguageRef.current = (nextLanguage) => {
-      setLanguageState(nextLanguage);
-    };
-    uiSetCelebrationRef.current = (next) => {
-      setCelebration(next);
-    };
+    uiSetLanguageRef.current = setLanguageState;
+    uiSetCelebrationRef.current = setCelebration;
     return () => {
       uiSetLanguageRef.current = null;
       uiSetCelebrationRef.current = null;
     };
   }, [uiSetCelebrationRef, uiSetLanguageRef]);
-
-  useEffect(() => {
-    const load = async () => {
-      const seen = await asyncStorage.get<boolean>(STORAGE_KEYS.onboardingSeen, false);
-      setOnboardingSeenState(seen);
-    };
-    void load();
-  }, []);
 
   const setLanguage = useCallback(
     async (nextLanguage: Language) => {
@@ -77,30 +58,18 @@ export const UIProvider = ({ children, uiSetLanguageRef, uiSetCelebrationRef }: 
     [applyAuthPayload, setIsOnline, token],
   );
 
-  const triggerCelebration = useCallback((state: CelebrationState) => {
-    setCelebration(state);
-  }, []);
-
   const dismissCelebration = useCallback(() => {
     setCelebration(null);
-  }, []);
-
-  const setOnboardingSeen = useCallback(async (seen: boolean) => {
-    setOnboardingSeenState(seen);
-    await asyncStorage.set(STORAGE_KEYS.onboardingSeen, seen);
   }, []);
 
   const value = useMemo<UIContextValue>(
     () => ({
       language,
       celebration,
-      onboardingSeen,
       setLanguage,
-      triggerCelebration,
       dismissCelebration,
-      setOnboardingSeen,
     }),
-    [celebration, dismissCelebration, language, onboardingSeen, setLanguage, setOnboardingSeen, triggerCelebration],
+    [celebration, dismissCelebration, language, setLanguage],
   );
 
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>;

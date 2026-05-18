@@ -1,5 +1,3 @@
-// [GÖREV 3] — Oturum state’i ayrı AuthContext’e taşındı; SecureStore ve kimlik API’leri burada
-
 import React, {
   createContext,
   PropsWithChildren,
@@ -11,7 +9,7 @@ import React, {
 } from "react";
 import Constants from "expo-constants";
 import { api } from "../shared/api";
-import { deleteRemoteAccount } from "../services/galacticAdvice";
+import { deleteRemoteAccount } from "../services/accountApi";
 import { supabase } from "../lib/supabase";
 import { asyncStorage, secureStorage } from "../shared/storage";
 import { STORAGE_KEYS } from "../shared/constants";
@@ -37,13 +35,17 @@ export type AuthContextValue = {
   setAuthMode: (mode: AuthMode) => void;
   setIsOnline: (online: boolean) => void;
   applyAuthPayload: (payload: AuthPayload) => Promise<void>;
-  patchLocalUser: (nextUser: User) => void;
   register: (input: {
     email: string;
     password: string;
     username: string;
     galaxyName: string;
+    displayName?: string;
+    birthdate?: string;
+    favoritePlanet?: string;
   }) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  unlockStar: (starId: string) => Promise<void>;
   login: (input: { email: string; password: string }) => Promise<void>;
   continueWithProvider: (provider: "google" | "apple") => Promise<void>;
   completeOnboarding: (targetStarId: string) => Promise<void>;
@@ -88,10 +90,6 @@ export const AuthProvider = ({
     [sessionHydrateRef, uiSetLanguageRef],
   );
 
-  const patchLocalUser = useCallback((nextUser: User) => {
-    setUser(nextUser);
-  }, []);
-
   useEffect(() => {
     const bootstrap = async () => {
       const [storedToken, storedLanguage, storedPendingSessions] = await Promise.all([
@@ -134,12 +132,35 @@ export const AuthProvider = ({
   }, [applyAuthPayload, sessionSetPendingRef, uiSetLanguageRef]);
 
   const register = useCallback(
-    async (input: { email: string; password: string; username: string; galaxyName: string }) => {
+    async (input: {
+      email: string;
+      password: string;
+      username: string;
+      galaxyName: string;
+      displayName?: string;
+      birthdate?: string;
+      favoritePlanet?: string;
+    }) => {
       const payload = await api.register(input);
       await applyAuthPayload(payload);
       await trackEvent("signup_completed");
     },
     [applyAuthPayload],
+  );
+
+  const resetPassword = useCallback(async (email: string) => {
+    await api.resetPassword(email);
+  }, []);
+
+  const unlockStar = useCallback(
+    async (starId: string) => {
+      if (!token || isDevDemoToken(token)) {
+        return;
+      }
+      const payload = await api.unlockStar(token, starId);
+      await applyAuthPayload(payload);
+    },
+    [applyAuthPayload, token],
   );
 
   const login = useCallback(
@@ -197,14 +218,14 @@ export const AuthProvider = ({
   );
 
   const logout = useCallback(async () => {
-    setToken(null);
-    setUser(null);
     uiSetCelebrationRef.current?.(null);
     try {
       await api.signOut();
     } catch {
-      /* offline */
+      /* offline — still clear local session */
     }
+    setToken(null);
+    setUser(null);
     await secureStorage.remove(STORAGE_KEYS.authToken);
     await asyncStorage.remove(STORAGE_KEYS.demoAuthPayload);
     await asyncStorage.remove(STORAGE_KEYS.pendingSessions);
@@ -217,7 +238,12 @@ export const AuthProvider = ({
 
     if (!isDevDemoToken(token)) {
       await deleteRemoteAccount(token);
+    }
+
+    try {
       await api.signOut();
+    } catch {
+      /* session may already be invalid after server-side delete */
     }
 
     await logout();
@@ -249,12 +275,13 @@ export const AuthProvider = ({
       setAuthMode,
       setIsOnline,
       applyAuthPayload,
-      patchLocalUser,
       register,
+      resetPassword,
       login,
       continueWithProvider,
       completeOnboarding,
       updateProfile,
+      unlockStar,
       logout,
       refreshUser,
       deleteAccount,
@@ -270,10 +297,11 @@ export const AuthProvider = ({
       isReady,
       login,
       logout,
-      patchLocalUser,
       refreshUser,
       register,
+      resetPassword,
       token,
+      unlockStar,
       updateProfile,
       user,
     ],

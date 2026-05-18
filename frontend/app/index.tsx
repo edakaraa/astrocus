@@ -46,6 +46,10 @@ export default function Index() {
       return "/(auth)";
     }
 
+    if (!user.onboardingCompleted) {
+      return "/(onboarding)/star-pick";
+    }
+
     return "/(tabs)/session";
   }, [hasSeenOnboarding, isReady, user]);
 

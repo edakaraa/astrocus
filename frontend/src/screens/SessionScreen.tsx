@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/AppContext";
-import { BACKGROUND_TOLERANCE_SECONDS, PAUSE_LIMIT } from "../shared/constants";
+import { BACKGROUND_TOLERANCE_SECONDS, BADGES, PAUSE_LIMIT } from "../shared/constants";
 import { t } from "../shared/i18n";
 import { colors, fontFamilies, radii, spacing, typography } from "../shared/theme";
 import { StarfieldBackground } from "../components/StarfieldBackground";
@@ -66,6 +66,15 @@ export const SessionScreen = () => {
     const star = stars.find((item) => item.id === celebration.unlockedStarId);
     return star?.name ?? null;
   }, [celebration?.unlockedStarId, stars]);
+
+  const newBadgeLabels = useMemo(() => {
+    if (!celebration?.newBadgeIds?.length) {
+      return undefined;
+    }
+    return celebration.newBadgeIds
+      .map((id) => BADGES.find((badge) => badge.id === id)?.name ?? id)
+      .filter(Boolean);
+  }, [celebration?.newBadgeIds]);
 
   const progressRatio = useMemo(() => {
     const totalSeconds = sessionState.selectedDurationMinutes * 60;
@@ -172,6 +181,7 @@ export const SessionScreen = () => {
           xpEarned={celebration?.xpEarned}
           pendingSync={celebration?.pendingSync}
           unlockedStarLabel={unlockedStarLabel}
+          newBadgeLabels={newBadgeLabels}
           galacticAdvice={celebration?.galacticAdvice}
           durationMinutes={sessionState.selectedDurationMinutes}
           currentStreak={streakForCelebration}
@@ -356,6 +366,7 @@ export const SessionScreen = () => {
         xpEarned={celebration?.xpEarned}
         pendingSync={celebration?.pendingSync}
         unlockedStarLabel={unlockedStarLabel}
+        newBadgeLabels={newBadgeLabels}
         galacticAdvice={celebration?.galacticAdvice}
         durationMinutes={sessionState.selectedDurationMinutes}
         currentStreak={streakForCelebration}

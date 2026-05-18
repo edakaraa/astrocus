@@ -3,15 +3,18 @@
     "name": "Astrocus",
     "slug": "astrocus",
     "version": "1.0.0",
+    "scheme": "astrocus",
     "platforms": ["ios", "android"],
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "plugins": [
       "expo-localization",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-notifications"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.astrocus.app"
     },
     "android": {
       "package": "com.astrocus.app"

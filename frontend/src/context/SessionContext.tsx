@@ -1,5 +1,3 @@
-// [GÖREV 3] — Odak seansı, offline kuyruk ve stardust hesapları SessionContext’e taşındı
-
 import React, {
   createContext,
   PropsWithChildren,
@@ -31,7 +29,7 @@ import { AnalyticsSummary, AuthPayload, PendingSession, SessionRecord, TimerStat
 import { useAuth } from "./AuthContext";
 import { isDevDemoToken } from "./auth/devDemo";
 import type { AstrocusInfraRefs } from "./AuthContext";
-import { createDailySummary, getUnlockedStars } from "./session/stardust";
+import { createDailySummary } from "./session/stardust";
 
 type SessionState = {
   selectedDurationMinutes: number;
@@ -45,6 +43,7 @@ type SessionState = {
 export type SessionContextValue = {
   sessions: SessionRecord[];
   unlockedStarIds: string[];
+  earnedBadgeIds: string[];
   pendingSessions: PendingSession[];
   sessionState: SessionState;
   stars: typeof STARS;
@@ -90,6 +89,7 @@ export const SessionProvider = ({
 
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [unlockedStarIds, setUnlockedStarIds] = useState<string[]>([STARS[0].id]);
+  const [earnedBadgeIds, setEarnedBadgeIds] = useState<string[]>([]);
   const [pendingSessions, setPendingSessions] = useState<PendingSession[]>([]);
   const [sessionState, setSessionState] = useState<SessionState>(createGuestSessionState());
   const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummary | null>(null);
@@ -119,9 +119,10 @@ export const SessionProvider = ({
       const nextUnlocked =
         Array.isArray(payload.unlockedStarIds) && payload.unlockedStarIds.length > 0
           ? payload.unlockedStarIds
-          : getUnlockedStars(payload.user?.totalStardust ?? 0);
+          : [STARS[0].id];
       setSessions(nextSessions);
       setUnlockedStarIds(nextUnlocked);
+      setEarnedBadgeIds(Array.isArray(payload.earnedBadgeIds) ? payload.earnedBadgeIds : []);
     };
 
     sessionSetPendingRef.current = (pending: PendingSession[]) => {
@@ -223,7 +224,7 @@ export const SessionProvider = ({
     };
 
     try {
-      const response = await api.completeSession(token, payload, user, unlockedStarIds);
+      const response = await api.completeSession(token, payload, user, unlockedStarIds, earnedBadgeIds);
       await applyAuthPayload(response.payload);
       void refreshAnalytics();
       let galacticAdvice: string | undefined;
@@ -246,6 +247,7 @@ export const SessionProvider = ({
         xpEarned: response.xpEarned,
         streakCount: response.streakCount,
         unlockedStarId: response.unlockedStarId,
+        newBadgeIds: response.newBadges.length > 0 ? response.newBadges : undefined,
         galacticAdvice,
       });
       await trackEvent("session_completed", {
@@ -280,6 +282,7 @@ export const SessionProvider = ({
     setIsOnline,
     token,
     uiSetCelebrationRef,
+    earnedBadgeIds,
     unlockedStarIds,
     user,
   ]);
@@ -402,6 +405,7 @@ export const SessionProvider = ({
     () => ({
       sessions,
       unlockedStarIds,
+      earnedBadgeIds,
       pendingSessions,
       sessionState,
       stars: STARS,
@@ -437,6 +441,7 @@ export const SessionProvider = ({
       resetSession,
       resumeSession,
       sessionState,
+      earnedBadgeIds,
       sessions,
       startSession,
       syncOfflineQueue,

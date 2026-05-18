@@ -5,8 +5,11 @@ import {
   type ProfileRow,
   type SessionRow,
 } from "../services/profileMapper";
-import { getUnlockedStars } from "../context/session/stardust";
+import { STARS } from "./constants";
 import { getDateKey } from "../context/session/dateKey";
+import { signInWithOAuthProvider } from "../lib/oauth";
+import { syncEligibleStarUnlocks } from "../services/starsApi";
+import Constants from "expo-constants";
 import {
   createDevDemoPayload,
   isDevDemoToken,
@@ -65,8 +68,13 @@ const normalizeBadgeList = (raw: unknown): string[] => {
   return raw.filter((item): item is string => typeof item === "string");
 };
 
+const resolveApiUrl = (): string => {
+  const raw = Constants.expoConfig?.extra?.apiUrl;
+  return typeof raw === "string" ? raw.trim() : "";
+};
+
 export const fetchUserData = async (userId: string, accessToken: string): Promise<AuthPayload> => {
-  const [profileRes, sessionsRes, starsRes] = await Promise.all([
+  const [profileRes, sessionsRes, starsRes, badgesRes] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", userId).single(),
     supabase
       .from("sessions")
@@ -75,6 +83,7 @@ export const fetchUserData = async (userId: string, accessToken: string): Promis
       .order("completed_at", { ascending: false })
       .limit(200),
     supabase.from("user_stars").select("star_id").eq("user_id", userId).order("unlocked_at", { ascending: true }),
+    supabase.from("user_badges").select("badge_id").eq("user_id", userId),
   ]);
 
   if (profileRes.error || !profileRes.data) {
@@ -89,11 +98,17 @@ export const fetchUserData = async (userId: string, accessToken: string): Promis
       ? starsRes.data.map((r) => (r as { star_id: string }).star_id)
       : null;
 
+  const earnedBadgeIds =
+    !badgesRes.error && badgesRes.data
+      ? badgesRes.data.map((row) => (row as { badge_id: string }).badge_id)
+      : [];
+
   return buildAuthPayload(
     accessToken,
     profileRes.data as ProfileRow,
     (sessionsRes.data ?? []) as SessionRow[],
     fromDb,
+    earnedBadgeIds,
   );
 };
 
@@ -111,6 +126,9 @@ export const api = {
     password: string;
     username: string;
     galaxyName: string;
+    displayName?: string;
+    birthdate?: string;
+    favoritePlanet?: string;
   }): Promise<AuthPayload> {
     const { data, error } = await supabase.auth.signUp({
       email: input.email.trim(),
@@ -135,6 +153,9 @@ export const api = {
       .update({
         username: input.username.trim(),
         galaxy_name: input.galaxyName.trim(),
+        display_name: input.displayName?.trim() || input.username.trim(),
+        birthdate: input.birthdate?.trim() || null,
+        favorite_planet: input.favoritePlanet?.trim() || null,
       })
       .eq("id", data.user.id);
 
@@ -159,34 +180,16 @@ export const api = {
   },
 
   async continueWithProvider(input: { provider: "google" | "apple" }): Promise<AuthPayload> {
-    const email = `${input.provider}-demo@astrocus.dev`;
-    const password = `Astrocus_${input.provider}_2026!`;
+    const session = await signInWithOAuthProvider(input.provider);
+    return fetchUserData(session.user.id, session.access_token);
+  },
 
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (!signInError && signInData.session) {
-      return fetchUserData(signInData.user.id, signInData.session.access_token);
+  async resetPassword(email: string): Promise<void> {
+    const redirectTo = "astrocus://auth/reset";
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
+    if (error) {
+      throw new Error(error.message);
     }
-
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          username: input.provider === "google" ? "Google Kaşifi" : "Apple Kaşifi",
-          galaxy_name: "Astrocus",
-        },
-      },
-    });
-
-    if (error || !data.session || !data.user) {
-      throw new Error(error?.message ?? "Provider sign-in failed");
-    }
-
-    return fetchUserData(data.user.id, data.session.access_token);
   },
 
   async bootstrap(token: string): Promise<AuthPayload> {
@@ -237,6 +240,7 @@ export const api = {
     },
     user: User,
     previousUnlockedStarIds: readonly string[],
+    previousEarnedBadgeIds: readonly string[],
   ): Promise<{
     payload: AuthPayload;
     stardustEarned: number;
@@ -263,16 +267,16 @@ export const api = {
         lastSessionDate: getDateKey(input.completedAt),
       };
       const demo = createDevDemoPayload({ email: user.email });
-      const unlockedStarIds = getUnlockedStars(nextUser.totalStardust);
       const before = new Set(previousUnlockedStarIds);
-      const unlockedStarId = unlockedStarIds.find((id) => !before.has(id)) ?? null;
+      const unlockedStarId = before.size < 1 ? STARS[1]?.id ?? null : null;
       return {
         payload: {
           ...demo,
           token,
           user: nextUser,
           sessions: [...demo.sessions],
-          unlockedStarIds: unlockedStarIds.length > 0 ? unlockedStarIds : [demo.unlockedStarIds[0]],
+          unlockedStarIds: demo.unlockedStarIds,
+          earnedBadgeIds: demo.earnedBadgeIds,
         },
         stardustEarned,
         xpEarned,
@@ -299,9 +303,19 @@ export const api = {
 
     const result = parseCompleteFocusSessionResult(data);
     const session = await requireSession();
+    const apiUrl = resolveApiUrl();
+    if (apiUrl) {
+      try {
+        await syncEligibleStarUnlocks(apiUrl, session.access_token);
+      } catch {
+        /* unlock sync is best-effort */
+      }
+    }
     const payload = await fetchUserData(session.user.id, session.access_token);
     const before = new Set(previousUnlockedStarIds);
     const unlockedStarId = payload.unlockedStarIds.find((id) => !before.has(id)) ?? null;
+    const previousBadges = new Set(previousEarnedBadgeIds);
+    const newBadges = normalizeBadgeList(result.new_badges).filter((id) => !previousBadges.has(id));
 
     return {
       payload,
@@ -309,8 +323,19 @@ export const api = {
       xpEarned: result.xp_earned,
       streakCount: result.streak_count,
       unlockedStarId,
-      newBadges: normalizeBadgeList(result.new_badges),
+      newBadges,
     };
+  },
+
+  async unlockStar(token: string, starId: string): Promise<AuthPayload> {
+    const apiUrl = resolveApiUrl();
+    if (!apiUrl) {
+      throw new Error("API URL not configured");
+    }
+    const { unlockStarViaApi } = await import("../services/starsApi");
+    await unlockStarViaApi(apiUrl, token, starId);
+    const session = await requireSession();
+    return fetchUserData(session.user.id, session.access_token);
   },
 
   async syncSessions(token: string, sessions: PendingSession[]): Promise<AuthPayload> {

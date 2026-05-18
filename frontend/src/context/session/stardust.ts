@@ -1,12 +1,6 @@
-// Günlük özet ve yıldız eşikleri (sunucu ödülleri burada hesaplanmaz)
-
-import { CATEGORIES, STARS } from "../../shared/constants";
+import { CATEGORIES } from "../../shared/constants";
 import { SessionRecord, User } from "../../shared/types";
 import { getDateKey } from "./dateKey";
-
-export const getUnlockedStars = (totalStardust: number) => {
-  return STARS.filter((star) => star.requiredStardust <= totalStardust).map((star) => star.id);
-};
 
 export const createDailySummary = (sessions: SessionRecord[], user: User | null) => {
   const todayKey = getDateKey(new Date().toISOString());

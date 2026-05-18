@@ -10,6 +10,7 @@ type CelebrationModalProps = {
   xpEarned?: number;
   pendingSync?: boolean;
   unlockedStarLabel?: string | null;
+  newBadgeLabels?: string[];
   galacticAdvice?: string | null;
   durationMinutes: number;
   currentStreak: number;
@@ -33,6 +34,7 @@ export const CelebrationModal = ({
   xpEarned = 0,
   pendingSync = false,
   unlockedStarLabel,
+  newBadgeLabels,
   galacticAdvice,
   durationMinutes,
   currentStreak,
@@ -74,6 +76,13 @@ export const CelebrationModal = ({
               {xpEarned > 0 ? <Text style={styles.xpLine}>{`+${xpEarned} XP`}</Text> : null}
             </>
           )}
+
+          {newBadgeLabels && newBadgeLabels.length > 0 && !pendingSync ? (
+            <View style={styles.adviceBox}>
+              <Text style={styles.adviceLabel}>Yeni rozet</Text>
+              <Text style={styles.adviceText}>{newBadgeLabels.join(" · ")}</Text>
+            </View>
+          ) : null}
 
           {galacticAdvice && !pendingSync ? (
             <View style={styles.adviceBox}>

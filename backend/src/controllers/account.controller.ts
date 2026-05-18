@@ -1,6 +1,6 @@
 import type { Response } from "express";
 import type { AuthedRequest } from "../middleware/auth";
-import { supabaseAdmin } from "../lib/supabaseAdmin";
+import { deleteAuthUserPermanently } from "../services/accountDeletion";
 
 export const deleteAccount = async (req: AuthedRequest, res: Response) => {
   try {
@@ -9,17 +9,13 @@ export const deleteAccount = async (req: AuthedRequest, res: Response) => {
       return;
     }
 
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(req.userId);
+    await deleteAuthUserPermanently(req.userId);
 
-    if (error) {
-      console.error("[account/delete]", error);
-      res.status(500).json({ error: "Failed to delete account", code: error.message });
-      return;
-    }
-
+    console.info("[account/delete] auth user removed", { userId: req.userId });
     res.status(204).send();
   } catch (error) {
-    console.error("[account/delete]", error);
-    res.status(500).json({ error: "Internal server error" });
+    const message = error instanceof Error ? error.message : "Internal server error";
+    console.error("[account/delete]", { userId: req.userId, message });
+    res.status(500).json({ error: "Failed to delete account", code: message });
   }
 };

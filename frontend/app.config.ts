@@ -2,12 +2,13 @@ import type { ExpoConfig, ConfigContext } from "expo/config";
 import path from "node:path";
 import { loadProjectEnv } from "@expo/env";
 
-// app.config.ts değerlendirilirken .env bazen henüz yüklenmemiş olabilir; ayrıca expo start genelde proje kökünden çalışır.
+// app.config.ts değerlendirilirken .env bazen henüz yüklenmemiş olabilir.
+const frontendRoot = path.resolve(__dirname);
 const projectRoot = process.env.EXPO_PROJECT_ROOT ?? process.cwd();
-loadProjectEnv(projectRoot, { force: true, silent: true });
-// app.config.ts başka bir çalışma dizininden derlenirse yedek:
+
+loadProjectEnv(frontendRoot, { force: true, silent: true });
 if (!process.env.EXPO_PUBLIC_SUPABASE_URL?.trim()) {
-  loadProjectEnv(path.resolve(__dirname), { force: true, silent: true });
+  loadProjectEnv(projectRoot, { force: true, silent: true });
 }
 
 const resolveApiUrl = (isDev: boolean): string => {
@@ -21,9 +22,12 @@ const resolveApiUrl = (isDev: boolean): string => {
   throw new Error("EXPO_PUBLIC_API_URL production ortamında tanımlanmalıdır.");
 };
 
-const requireEnv = (key: string, value: string | undefined): string => {
+const requireEnv = (key: string, value: string | undefined, isDev: boolean): string => {
   const trimmed = value?.trim();
   if (!trimmed) {
+    if (!isDev) {
+      throw new Error(`[Astrocus] ${key} production ortamında zorunludur.`);
+    }
     console.warn(`[Astrocus] ${key} tanımlı değil.`);
     return "";
   }
@@ -36,6 +40,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
   return {
     ...config,
+    scheme: config.scheme ?? "astrocus",
     android: {
       ...config.android,
       usesCleartextTraffic: isDev,
@@ -43,10 +48,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     extra: {
       ...config.extra,
       apiUrl: resolveApiUrl(isDev),
-      supabaseUrl: requireEnv("EXPO_PUBLIC_SUPABASE_URL", process.env.EXPO_PUBLIC_SUPABASE_URL),
+      supabaseUrl: requireEnv("EXPO_PUBLIC_SUPABASE_URL", process.env.EXPO_PUBLIC_SUPABASE_URL, isDev),
       supabaseAnonKey: requireEnv(
         "EXPO_PUBLIC_SUPABASE_ANON_KEY",
         process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+        isDev,
       ),
       appEnv,
     },

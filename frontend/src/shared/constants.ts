@@ -1,5 +1,3 @@
-// [GÖREV 1] — API_URL kaldırıldı; taban URL artık yalnızca api.ts içinde extra.apiUrl ile
-
 import { Category, Star } from "./types";
 
 export const STORAGE_KEYS = {
@@ -33,6 +31,18 @@ export const STARS: Star[] = [
   { id: "nova", name: "Gece Kuşu", description: "Sessiz saatlerde istikrar kazananlara.", requiredStardust: 600 },
   { id: "aurora", name: "Derin Uzay", description: "Uzun odak serilerinin mor ışıltısı.", requiredStardust: 1000 },
   { id: "zenith", name: "Yıldız Tozu", description: "Galaksini büyüten son parlak ödül.", requiredStardust: 1500 },
+];
+
+export type BadgeDefinition = {
+  id: string;
+  name: string;
+  description: string;
+};
+
+export const BADGES: BadgeDefinition[] = [
+  { id: "first_step", name: "İlk Adım", description: "İlk odak seansını tamamla." },
+  { id: "focus_master", name: "Odak Ustası", description: "Toplam 10 saat odaklan." },
+  { id: "discipline", name: "Disiplin", description: "7 günlük seri yakala." },
 ];
 
 export const AVATARS = ["🌙", "🪐", "☄️", "🌠", "✨"];

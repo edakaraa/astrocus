@@ -1,12 +1,29 @@
 import React from "react";
-import { Tabs } from "expo-router";
+import { ActivityIndicator, View } from "react-native";
+import { Redirect, Tabs } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors } from "../../src/shared/theme";
 import { useAppContext } from "../../src/context/AppContext";
 import { t } from "../../src/shared/i18n";
 
 export default function TabsLayout() {
-  const { language } = useAppContext();
+  const { language, isReady, user } = useAppContext();
+
+  if (!isReady) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.background }}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (!user) {
+    return <Redirect href="/(auth)" />;
+  }
+
+  if (!user.onboardingCompleted) {
+    return <Redirect href="/(onboarding)/star-pick" />;
+  }
 
   return (
     <Tabs
@@ -67,4 +84,3 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
-

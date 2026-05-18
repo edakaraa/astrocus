@@ -1,5 +1,3 @@
-// [GÖREV 3] — app-context altından auth modülüne taşındı (demo oturum yardımcıları)
-
 import { AuthPayload, User } from "../../shared/types";
 import { STARS } from "../../shared/constants";
 
@@ -50,6 +48,7 @@ export const createDevDemoPayload = (input: { email: string }): AuthPayload => {
     user,
     sessions: [],
     unlockedStarIds: [STARS[0].id],
+    earnedBadgeIds: [],
   };
 };
 

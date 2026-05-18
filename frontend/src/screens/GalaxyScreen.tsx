@@ -1,14 +1,15 @@
 import React, { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/AppContext";
 import { colors, fontFamilies, radii, spacing, typography } from "../shared/theme";
 import { StarfieldBackground } from "../components/StarfieldBackground";
 import { SurfaceCard } from "../components/SurfaceCard";
 import { CelestialVisual } from "../components/CelestialVisual";
+import { GradientButton } from "../components/GradientButton";
 
 export const GalaxyScreen = () => {
-  const { stars, unlockedStarIds, user } = useAppContext();
+  const { stars, unlockedStarIds, user, unlockStar } = useAppContext();
   const [filter, setFilter] = useState<"all" | "unlocked" | "locked">("all");
   const [selectedStarId, setSelectedStarId] = useState(unlockedStarIds[unlockedStarIds.length - 1] ?? stars[0]?.id);
   const totalStardust = user?.totalStardust ?? 0;
@@ -32,6 +33,22 @@ export const GalaxyScreen = () => {
 
   const selectedStar = stars.find((star) => star.id === selectedStarId) ?? stars[0];
   const selectedStarUnlocked = Boolean(selectedStar && unlockedStarIds.includes(selectedStar.id));
+  const canUnlockSelected =
+    Boolean(selectedStar) &&
+    !selectedStarUnlocked &&
+    totalStardust >= (selectedStar?.requiredStardust ?? 0);
+
+  const handleUnlockSelected = async () => {
+    if (!selectedStar || selectedStarUnlocked) {
+      return;
+    }
+    try {
+      await unlockStar(selectedStar.id);
+      Alert.alert("Astrocus", `${selectedStar.name} gökyüzüne eklendi.`);
+    } catch (error) {
+      Alert.alert("Astrocus", error instanceof Error ? error.message : "Yıldız açılamadı");
+    }
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -126,6 +143,12 @@ export const GalaxyScreen = () => {
               <Text style={styles.rewardText}>{selectedStarUnlocked ? "Rozet aktif" : "Odaklanarak açılır"}</Text>
             </View>
           </View>
+          {canUnlockSelected ? (
+            <GradientButton
+              label={`Aç (${selectedStar.requiredStardust.toLocaleString()} ✦)`}
+              onPress={handleUnlockSelected}
+            />
+          ) : null}
         </SurfaceCard>
       ) : null}
     </ScrollView>

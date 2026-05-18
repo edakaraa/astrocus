@@ -1,6 +1,5 @@
 import { STARS } from "../shared/constants";
 import { AuthPayload, SessionRecord, User } from "../shared/types";
-import { getUnlockedStars } from "../context/session/stardust";
 
 export type ProfileRow = {
   id: string;
@@ -20,6 +19,9 @@ export type ProfileRow = {
   target_star_id: string;
   onboarding_completed: boolean;
   daily_goal_minutes: number;
+  display_name?: string | null;
+  birthdate?: string | null;
+  favorite_planet?: string | null;
 };
 
 export type SessionRow = {
@@ -42,6 +44,9 @@ export const mapProfileToUser = (row: ProfileRow): User => ({
   id: row.id,
   email: row.email,
   username: row.username,
+  displayName: row.display_name ?? null,
+  birthdate: row.birthdate ?? null,
+  favoritePlanet: row.favorite_planet ?? null,
   avatar: row.avatar,
   galaxyName: row.galaxy_name,
   language: row.language,
@@ -69,28 +74,25 @@ export const mapSessionRow = (row: SessionRow): SessionRecord => ({
   isOffline: row.is_offline,
 });
 
-const fallbackUnlockedStars = (user: User): string[] => {
-  const fromThreshold = getUnlockedStars(user.totalStardust);
-  return fromThreshold.length > 0 ? fromThreshold : [STARS[0].id];
-};
-
 export const buildAuthPayload = (
   accessToken: string,
   profile: ProfileRow,
   sessions: SessionRow[],
   unlockedStarIdsFromDb: string[] | null,
+  earnedBadgeIds: string[],
 ): AuthPayload => {
   const user = mapProfileToUser(profile);
   const unlockedStarIds =
     unlockedStarIdsFromDb && unlockedStarIdsFromDb.length > 0
       ? unlockedStarIdsFromDb
-      : fallbackUnlockedStars(user);
+      : [STARS[0].id];
 
   return {
     token: accessToken,
     user,
     sessions: sessions.map(mapSessionRow),
     unlockedStarIds,
+    earnedBadgeIds,
   };
 };
 
@@ -103,5 +105,8 @@ export const profileUpdateFromUser = (input: Partial<User>): Record<string, unkn
   if (input.targetStarId !== undefined) patch.target_star_id = input.targetStarId;
   if (input.onboardingCompleted !== undefined) patch.onboarding_completed = input.onboardingCompleted;
   if (input.dailyGoalMinutes !== undefined) patch.daily_goal_minutes = input.dailyGoalMinutes;
+  if (input.displayName !== undefined) patch.display_name = input.displayName;
+  if (input.birthdate !== undefined) patch.birthdate = input.birthdate;
+  if (input.favoritePlanet !== undefined) patch.favorite_planet = input.favoritePlanet;
   return patch;
 };

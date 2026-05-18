@@ -42,19 +42,3 @@ export const fetchGalacticAdvice = async (
   return data.advice?.trim() ?? "";
 };
 
-export const deleteRemoteAccount = async (accessToken: string): Promise<void> => {
-  const base = resolveApiUrl();
-  if (!base) {
-    throw new Error("API URL not configured");
-  }
-
-  const response = await fetch(`${base}/account/delete`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || "Account deletion failed");
-  }
-};
