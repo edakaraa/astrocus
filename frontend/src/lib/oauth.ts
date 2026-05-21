@@ -6,7 +6,7 @@ import { requireSupabaseConfig } from "./supabaseConfig";
 import { OAuthError } from "./oauthErrors";
 import Constants, { ExecutionEnvironment } from "expo-constants";
 
- WebBrowser.maybeCompleteAuthSession();
+WebBrowser.maybeCompleteAuthSession();
 
 const OAUTH_SCHEME = "astrocus";
 const OAUTH_CALLBACK_PATH = "auth/callback";
@@ -58,7 +58,8 @@ const parseOAuthRedirect = (url: string) => {
   return merged;
 };
 
-export const signInWithOAuthProvider = async (provider: "google" | "apple") => {
+export const signInWithGoogle = async () => {
+  const provider = "google" as const;
   try {
     requireSupabaseConfig();
   } catch (error) {

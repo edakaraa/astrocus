@@ -1,10 +1,10 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/AppContext";
-import { colors, fontFamilies, radii, spacing } from "../shared/theme";
+import { colors, fontFamilies, spacing } from "../shared/theme";
 import { SpaceScene } from "../components/SpaceScene";
 import { TextField } from "../components/TextField";
 import { GradientButton } from "../components/GradientButton";
@@ -13,70 +13,59 @@ import { oauthUserMessage } from "../lib/oauthErrors";
 
 export const AuthScreen = () => {
   const router = useRouter();
-  const { authMode, setAuthMode, register, login, continueWithProvider, resetPassword } = useAppContext();
+  const { authMode, setAuthMode, register, login, continueWithGoogle, resetPassword } = useAppContext();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
-  const [galaxyName, setGalaxyName] = useState("Astrocus");
   const [fullName, setFullName] = useState("");
-  const [registerStep, setRegisterStep] = useState<1 | 2>(1);
-  const [birthday, setBirthday] = useState("");
-  const [favoritePlanet, setFavoritePlanet] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [isPlanetModalOpen, setIsPlanetModalOpen] = useState(false);
   const [astroAlert, setAstroAlert] = useState<{ title: string; message: string } | null>(null);
 
   const showAstroAlert = useCallback((title: string, message: string) => {
     setAstroAlert({ title, message });
   }, []);
 
-  const planetOptions = useMemo(
-    () => ["Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune"],
-    [],
-  );
-
-  const screen = useMemo(() => {
-    if (authMode === "login") return "login";
-    return registerStep === 1 ? "register" : "register-step-2";
-  }, [authMode, registerStep]);
+  const isLogin = authMode === "login";
 
   const handleSubmit = async () => {
     try {
-      if (authMode === "login") {
+      if (isLogin) {
         await login({ email, password });
         return;
       }
 
-      if (registerStep === 1) {
-        setRegisterStep(2);
+      if (!fullName.trim() || !username.trim() || !email.trim() || !password.trim()) {
+        Alert.alert("Astrocus", "Please fill in name, username, email, and password.");
+        return;
+      }
+
+      if (password.length < 8) {
+        Alert.alert("Astrocus", "Password must be at least 8 characters.");
         return;
       }
 
       if (!acceptedTerms) {
-        Alert.alert("Astrocus", "Please accept Terms of Service and Privacy Policy.");
+        Alert.alert("Astrocus", "Please accept the Privacy Policy.");
         return;
       }
 
       await register({
         email,
         password,
-        username: username || fullName || "explorer",
-        galaxyName,
-        displayName: fullName || username,
-        birthdate: birthday || undefined,
-        favoritePlanet: favoritePlanet || undefined,
+        username: username.trim(),
+        displayName: fullName.trim(),
       });
     } catch (error) {
       Alert.alert("Astrocus", error instanceof Error ? error.message : "Unknown error");
     }
   };
 
-  const handleProviderLogin = async (provider: "google" | "apple") => {
+  const handleGoogleLogin = async () => {
     try {
-      await continueWithProvider(provider);
+      await continueWithGoogle();
     } catch (error) {
       const { title, message } = oauthUserMessage(error);
       showAstroAlert(title, message);
@@ -87,6 +76,21 @@ export const AuthScreen = () => {
   const titleSize = Math.max(26, Math.min(30, Math.round(width * 0.075)));
   const titleLineHeight = Math.round(titleSize * 1.14);
 
+  const passwordToggle = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={isPasswordVisible ? "Hide password" : "Show password"}
+      onPress={() => setIsPasswordVisible((current) => !current)}
+      style={styles.iconBtn}
+    >
+      <MaterialCommunityIcons
+        name={isPasswordVisible ? "eye-off-outline" : "eye-outline"}
+        size={18}
+        color={colors.textMuted}
+      />
+    </Pressable>
+  );
+
   return (
     <ScrollView
       contentContainerStyle={[styles.container, { paddingBottom: Math.max(18, insets.bottom + 14) }]}
@@ -96,13 +100,7 @@ export const AuthScreen = () => {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Back"
-          onPress={() => {
-            if (authMode === "register" && registerStep === 2) {
-              setRegisterStep(1);
-              return;
-            }
-            setAuthMode("login");
-          }}
+          onPress={() => setAuthMode("login")}
           style={styles.backButton}
         >
           <MaterialCommunityIcons name="chevron-left" size={22} color={colors.textMuted} />
@@ -110,11 +108,11 @@ export const AuthScreen = () => {
       </View>
 
       <View style={styles.sceneWrap}>
-        <SpaceScene variant={screen === "login" ? "auth-login" : "auth-register"} />
+        <SpaceScene variant={isLogin ? "auth-login" : "auth-register"} />
       </View>
 
       <View style={[styles.sheet, { paddingHorizontal: horizontalPadding }]}>
-        {screen === "login" ? (
+        {isLogin ? (
           <>
             <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleLineHeight }]}>Welcome Back</Text>
             <Text style={styles.subtitle}>Login to continue your journey.</Text>
@@ -138,16 +136,7 @@ export const AuthScreen = () => {
                 onChangeText={setPassword}
                 secureTextEntry={!isPasswordVisible}
                 autoCapitalize="none"
-                right={
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={isPasswordVisible ? "Hide password" : "Show password"}
-                    onPress={() => setIsPasswordVisible((current) => !current)}
-                    style={styles.iconBtn}
-                  >
-                    <MaterialCommunityIcons name={isPasswordVisible ? "eye-off-outline" : "eye-outline"} size={18} color={colors.textMuted} />
-                  </Pressable>
-                }
+                right={passwordToggle}
               />
 
               <Pressable
@@ -179,40 +168,23 @@ export const AuthScreen = () => {
               <View style={styles.dividerLine} />
             </View>
 
-            <View style={styles.socialRow}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Apple"
-                style={styles.socialIconBtn}
-                onPress={() => handleProviderLogin("apple")}
-              >
-                <MaterialCommunityIcons name="apple" size={20} color={colors.text} />
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Google"
-                style={styles.socialIconBtn}
-                onPress={() => handleProviderLogin("google")}
-              >
-                <MaterialCommunityIcons name="google" size={20} color={colors.text} />
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="GitHub"
-                style={styles.socialIconBtn}
-                onPress={() => Alert.alert("Astrocus", "GitHub sign-in is not configured yet.")}
-              >
-                <MaterialCommunityIcons name="github" size={20} color={colors.text} />
-              </Pressable>
-            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Continue with Google"
+              style={styles.googleBtn}
+              onPress={handleGoogleLogin}
+            >
+              <MaterialCommunityIcons name="google" size={20} color={colors.text} />
+              <Text style={styles.googleBtnText}>Continue with Google</Text>
+            </Pressable>
 
-            <Pressable accessibilityRole="button" accessibilityLabel="Go to register" onPress={() => { setAuthMode("register"); setRegisterStep(1); }}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Go to register" onPress={() => setAuthMode("register")}>
               <Text style={styles.bottomLink}>
                 Don&apos;t have an account? <Text style={styles.bottomLinkStrong}>Register</Text>
               </Text>
             </Pressable>
           </>
-        ) : screen === "register" ? (
+        ) : (
           <>
             <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleLineHeight }]}>Create Account</Text>
             <Text style={styles.subtitle}>Start your adventure.</Text>
@@ -220,6 +192,15 @@ export const AuthScreen = () => {
             <View style={styles.form}>
               <Text style={styles.label}>Name</Text>
               <TextField accessibilityLabel="Name" placeholder="Your name" value={fullName} onChangeText={setFullName} />
+
+              <Text style={[styles.label, { marginTop: 12 }]}>Username</Text>
+              <TextField
+                accessibilityLabel="Username"
+                placeholder="Choose a username"
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+              />
 
               <Text style={[styles.label, { marginTop: 12 }]}>Email</Text>
               <TextField
@@ -239,60 +220,7 @@ export const AuthScreen = () => {
                 onChangeText={setPassword}
                 secureTextEntry={!isPasswordVisible}
                 autoCapitalize="none"
-                right={
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={isPasswordVisible ? "Hide password" : "Show password"}
-                    onPress={() => setIsPasswordVisible((current) => !current)}
-                    style={styles.iconBtn}
-                  >
-                    <MaterialCommunityIcons name={isPasswordVisible ? "eye-off-outline" : "eye-outline"} size={18} color={colors.textMuted} />
-                  </Pressable>
-                }
-              />
-            </View>
-
-            <GradientButton label="Continue" onPress={handleSubmit} />
-
-            <Pressable accessibilityRole="button" accessibilityLabel="Go to login" onPress={() => setAuthMode("login")}>
-              <Text style={styles.bottomLink}>
-                Already have an account? <Text style={styles.bottomLinkStrong}>Login</Text>
-              </Text>
-            </Pressable>
-          </>
-        ) : (
-          <>
-            <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleLineHeight }]}>Almost There</Text>
-            <Text style={styles.subtitle}>Tell us a bit more about you.</Text>
-
-            <View style={styles.form}>
-              <Text style={styles.label}>Username</Text>
-              <TextField
-                accessibilityLabel="Username"
-                placeholder="Choose a username"
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="none"
-              />
-
-              <Text style={[styles.label, { marginTop: 12 }]}>Birthdate</Text>
-              <TextField
-                accessibilityLabel="Birthdate"
-                placeholder="Select your birthdate"
-                value={birthday}
-                onChangeText={setBirthday}
-                right={<MaterialCommunityIcons name="calendar-blank-outline" size={18} color={colors.textMuted} />}
-              />
-
-              <Text style={[styles.label, { marginTop: 12 }]}>Favorite Planet (Optional)</Text>
-              <TextField
-                accessibilityLabel="Favorite Planet"
-                placeholder="Choose your favorite"
-                value={favoritePlanet}
-                onChangeText={() => {}}
-                editable={false}
-                onPress={() => setIsPlanetModalOpen(true)}
-                right={<MaterialCommunityIcons name="chevron-down" size={20} color={colors.textMuted} />}
+                right={passwordToggle}
               />
 
               <View style={styles.termsRow}>
@@ -315,6 +243,12 @@ export const AuthScreen = () => {
             </View>
 
             <GradientButton label="Create Account" onPress={handleSubmit} />
+
+            <Pressable accessibilityRole="button" accessibilityLabel="Go to login" onPress={() => setAuthMode("login")}>
+              <Text style={styles.bottomLink}>
+                Already have an account? <Text style={styles.bottomLinkStrong}>Login</Text>
+              </Text>
+            </Pressable>
           </>
         )}
       </View>
@@ -326,38 +260,6 @@ export const AuthScreen = () => {
         confirmLabel="OK"
         onClose={() => setAstroAlert(null)}
       />
-
-      <Modal transparent visible={isPlanetModalOpen} animationType="fade" onRequestClose={() => setIsPlanetModalOpen(false)}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Close planet picker"
-          onPress={() => setIsPlanetModalOpen(false)}
-          style={styles.modalOverlay}
-        >
-          <Pressable
-            accessibilityRole="menu"
-            accessibilityLabel="Favorite planet options"
-            onPress={() => {}}
-            style={styles.modalSheet}
-          >
-            {planetOptions.map((option) => (
-              <Pressable
-                key={option}
-                accessibilityRole="button"
-                accessibilityLabel={`Select ${option}`}
-                onPress={() => {
-                  setFavoritePlanet(option);
-                  setIsPlanetModalOpen(false);
-                }}
-                style={styles.modalOption}
-              >
-                <Text style={styles.modalOptionText}>{option}</Text>
-                {favoritePlanet === option ? <MaterialCommunityIcons name="check" size={18} color={colors.primary} /> : null}
-              </Pressable>
-            ))}
-          </Pressable>
-        </Pressable>
-      </Modal>
     </ScrollView>
   );
 };
@@ -450,21 +352,22 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: fontFamilies.bodyRegular,
   },
-  socialRow: {
+  googleBtn: {
     flexDirection: "row",
-    gap: 10,
-    justifyContent: "center",
-    marginBottom: 14,
-  },
-  socialIconBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
+    gap: 10,
+    height: 48,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: "rgba(255,255,255,0.04)",
+    marginBottom: 14,
+  },
+  googleBtnText: {
+    color: colors.text,
+    fontSize: 13,
+    fontFamily: fontFamilies.body,
   },
   bottomLink: {
     marginTop: 12,
@@ -508,33 +411,5 @@ const styles = StyleSheet.create({
   termsLink: {
     color: colors.primary,
     fontFamily: fontFamilies.body,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    justifyContent: "flex-end",
-  },
-  modalSheet: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.lg,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
-    backgroundColor: "rgba(10, 17, 35, 0.98)",
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  modalOption: {
-    paddingVertical: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.06)",
-  },
-  modalOptionText: {
-    color: colors.text,
-    fontSize: 13,
-    fontFamily: fontFamilies.bodyRegular,
   },
 });

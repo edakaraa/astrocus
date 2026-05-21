@@ -56,7 +56,7 @@ export const useAppContext = () => {
     setSelectedCategoryId: session.setSelectedCategoryId,
     register: auth.register,
     login: auth.login,
-    continueWithProvider: auth.continueWithProvider,
+    continueWithGoogle: auth.continueWithGoogle,
     resetPassword: auth.resetPassword,
     completeOnboarding: auth.completeOnboarding,
     updateProfile: auth.updateProfile,

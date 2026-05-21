@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { colors } from "../../src/shared/theme";
 
-/** OAuth deep-link landing; session completion is handled in signInWithOAuthProvider. */
+/** OAuth deep-link landing; session completion is handled in signInWithGoogle. */
 export default function AuthCallbackScreen() {
   const router = useRouter();
 

@@ -87,4 +87,4 @@ Platform seçtikten sonra o sağlayıcının Node deploy dokümantasyonuna göre
 Uygulama: `frontend/src/lib/oauth.ts`. Supabase Dashboard → Authentication → URL Configuration:
 
 - Redirect: `astrocus://auth/callback`
-- Google / Apple provider’ları etkinleştirin
+- Google OAuth provider’ını etkinleştirin

@@ -39,15 +39,13 @@ export type AuthContextValue = {
     email: string;
     password: string;
     username: string;
-    galaxyName: string;
-    displayName?: string;
-    birthdate?: string;
-    favoritePlanet?: string;
+    displayName: string;
+    galaxyName?: string;
   }) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   unlockStar: (starId: string) => Promise<void>;
   login: (input: { email: string; password: string }) => Promise<void>;
-  continueWithProvider: (provider: "google" | "apple") => Promise<void>;
+  continueWithGoogle: () => Promise<void>;
   completeOnboarding: (targetStarId: string) => Promise<void>;
   updateProfile: (input: Partial<User>) => Promise<void>;
   logout: () => Promise<void>;
@@ -136,10 +134,8 @@ export const AuthProvider = ({
       email: string;
       password: string;
       username: string;
-      galaxyName: string;
-      displayName?: string;
-      birthdate?: string;
-      favoritePlanet?: string;
+      displayName: string;
+      galaxyName?: string;
     }) => {
       const payload = await api.register(input);
       await applyAuthPayload(payload);
@@ -180,14 +176,11 @@ export const AuthProvider = ({
     [applyAuthPayload],
   );
 
-  const continueWithProvider = useCallback(
-    async (provider: "google" | "apple") => {
-      const payload = await api.continueWithProvider({ provider });
-      await applyAuthPayload(payload);
-      setIsOnline(true);
-    },
-    [applyAuthPayload],
-  );
+  const continueWithGoogle = useCallback(async () => {
+    const payload = await api.continueWithGoogle();
+    await applyAuthPayload(payload);
+    setIsOnline(true);
+  }, [applyAuthPayload]);
 
   const completeOnboarding = useCallback(
     async (targetStarId: string) => {
@@ -278,7 +271,7 @@ export const AuthProvider = ({
       register,
       resetPassword,
       login,
-      continueWithProvider,
+      continueWithGoogle,
       completeOnboarding,
       updateProfile,
       unlockStar,
@@ -291,7 +284,7 @@ export const AuthProvider = ({
       applyAuthPayload,
       authMode,
       completeOnboarding,
-      continueWithProvider,
+      continueWithGoogle,
       deleteAccount,
       isOnline,
       isReady,

@@ -7,7 +7,7 @@ import {
 } from "../services/profileMapper";
 import { STARS } from "./constants";
 import { getDateKey } from "../context/session/dateKey";
-import { signInWithOAuthProvider } from "../lib/oauth";
+import { signInWithGoogle } from "../lib/oauth";
 import { syncEligibleStarUnlocks } from "../services/starsApi";
 import Constants from "expo-constants";
 import {
@@ -125,10 +125,8 @@ export const api = {
     email: string;
     password: string;
     username: string;
-    galaxyName: string;
-    displayName?: string;
-    birthdate?: string;
-    favoritePlanet?: string;
+    displayName: string;
+    galaxyName?: string;
   }): Promise<AuthPayload> {
     const { data, error } = await supabase.auth.signUp({
       email: input.email.trim(),
@@ -136,7 +134,7 @@ export const api = {
       options: {
         data: {
           username: input.username.trim(),
-          galaxy_name: input.galaxyName.trim(),
+          galaxy_name: input.galaxyName?.trim() || "Astrocus",
         },
       },
     });
@@ -148,14 +146,14 @@ export const api = {
       throw new Error("Kayıt tamamlandı; e-posta doğrulaması gerekebilir.");
     }
 
+    const galaxyName = input.galaxyName?.trim() || "Astrocus";
+
     await supabase
       .from("profiles")
       .update({
         username: input.username.trim(),
-        galaxy_name: input.galaxyName.trim(),
-        display_name: input.displayName?.trim() || input.username.trim(),
-        birthdate: input.birthdate?.trim() || null,
-        favorite_planet: input.favoritePlanet?.trim() || null,
+        galaxy_name: galaxyName,
+        display_name: input.displayName.trim(),
       })
       .eq("id", data.user.id);
 
@@ -179,8 +177,8 @@ export const api = {
     return fetchUserData(data.user.id, data.session.access_token);
   },
 
-  async continueWithProvider(input: { provider: "google" | "apple" }): Promise<AuthPayload> {
-    const session = await signInWithOAuthProvider(input.provider);
+  async continueWithGoogle(): Promise<AuthPayload> {
+    const session = await signInWithGoogle();
     return fetchUserData(session.user.id, session.access_token);
   },
 
