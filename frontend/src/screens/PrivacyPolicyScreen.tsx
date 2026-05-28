@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { useAppContext } from "../context/AppContext";
 import { getPrivacyPolicyBlocks } from "../features/legal/privacyPolicyContent";
 import { colors, spacing, typography } from "../shared/theme";
+import { t } from "../shared/i18n";
 import { GradientButton } from "../components/GradientButton";
 import { StarfieldBackground } from "../components/StarfieldBackground";
 
@@ -15,7 +16,7 @@ export const PrivacyPolicyScreen = () => {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <StarfieldBackground density={28} />
-      <Text style={styles.title}>{language === "en" ? "Privacy Policy" : "Gizlilik Politikası"}</Text>
+      <Text style={styles.title}>{t(language, "privacyPolicy")}</Text>
       {blocks.map((block) => (
         <View key={block.title} style={styles.block}>
           <Text style={styles.heading}>{block.title}</Text>
@@ -23,9 +24,9 @@ export const PrivacyPolicyScreen = () => {
         </View>
       ))}
       <GradientButton
-        label={language === "en" ? "Back" : "Geri"}
+        label={t(language, "back")}
         onPress={() => router.back()}
-        accessibilityLabel={language === "en" ? "Go back" : "Geri dön"}
+        accessibilityLabel={t(language, "goBack")}
       />
     </ScrollView>
   );

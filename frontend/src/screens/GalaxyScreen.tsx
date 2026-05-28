@@ -22,11 +22,12 @@ import {
   constellationLabel,
   groupConstellationsForSky,
   sortConstellationsForUser,
-  starDisplayDescription,
   starDisplayName,
   starUnlockCost,
   type ConstellationProgressEnriched,
 } from "../services/constellationCatalog";
+import { formatNumber } from "../shared/formatLocale";
+import { t } from "../shared/i18n";
 import type { ConstellationProgress, StarWithProgress } from "../shared/types";
 
 const CELESTIAL_VARIANTS = ["galaxy", "star", "planet"] as const;
@@ -51,8 +52,8 @@ const StarCard = React.memo(
     isActiveConstellation,
     onPress,
     cardIndex,
-    language,
-  }: StarCardProps & { language: "tr" | "en" }) => {
+  }: StarCardProps) => {
+    const { language } = useAppContext();
     const variant = CELESTIAL_VARIANTS[cardIndex % 3];
     const unlockCost = starUnlockCost(star);
     const canAfford = totalStardust >= unlockCost;
@@ -63,7 +64,7 @@ const StarCard = React.memo(
     return (
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${starName} yıldızı — ${star.isUnlocked ? "açık" : `${unlockCost} ✦ gerekli`}`}
+        accessibilityLabel={`${starName} — ${star.isUnlocked ? t(language, "starA11yUnlocked") : `${unlockCost} ✦ ${t(language, "starA11yRequired")}`}`}
         onPress={() => onPress(star)}
         style={({ pressed }) => [
           styles.starCard,
@@ -82,7 +83,7 @@ const StarCard = React.memo(
         {star.isUnlocked ? (
           <View style={styles.statusPill}>
             <MaterialCommunityIcons name="check-circle" size={11} color={colors.success} />
-            <Text style={[styles.statusText, { color: colors.success }]}>Açık</Text>
+            <Text style={[styles.statusText, { color: colors.success }]}>{t(language, "starOpen")}</Text>
           </View>
         ) : isNextToUnlock && isActiveConstellation ? (
           <View style={[styles.statusPill, canAfford ? styles.pillAffordable : styles.pillLocked]}>
@@ -92,13 +93,15 @@ const StarCard = React.memo(
               color={canAfford ? colors.warning : colors.textFaint}
             />
             <Text style={[styles.statusText, { color: canAfford ? colors.warning : colors.textFaint }]}>
-              {canAfford ? `${unlockCost} ✦` : `${remaining.toLocaleString()} ✦ eksik`}
+              {canAfford
+                ? `${unlockCost} ✦`
+                : `${formatNumber(language, remaining)} ✦ ${t(language, "starShortfallSuffix")}`}
             </Text>
           </View>
         ) : (
           <View style={styles.statusPill}>
             <MaterialCommunityIcons name="lock-outline" size={11} color={colors.textFaint} />
-            <Text style={[styles.statusText, { color: colors.textFaint }]}>Kilitli</Text>
+            <Text style={[styles.statusText, { color: colors.textFaint }]}>{t(language, "starLockedLabel")}</Text>
           </View>
         )}
       </Pressable>
@@ -109,11 +112,11 @@ const StarCard = React.memo(
 type ConstellationCardProps = {
   progress: ConstellationProgressEnriched;
   totalStardust: number;
-  language: "tr" | "en";
   onStarPress: (star: StarWithProgress, constellation: ConstellationProgress) => void;
 };
 
-const ConstellationCard = React.memo(({ progress, totalStardust, language, onStarPress }: ConstellationCardProps) => {
+const ConstellationCard = React.memo(({ progress, totalStardust, onStarPress }: ConstellationCardProps) => {
+  const { language } = useAppContext();
   const { constellation, stars, isActive, isCompleted, isNext, isLocked, unlockedCount, unlockOrder, isStarter } =
     progress;
   const progressFraction = stars.length > 0 ? unlockedCount / stars.length : 0;
@@ -141,7 +144,7 @@ const ConstellationCard = React.memo(({ progress, totalStardust, language, onSta
         <View style={styles.constHeaderText}>
           <Text style={styles.constName}>{astronomicalName}</Text>
           <Text style={styles.constSubname}>
-            {constellation.genitiveEn} · {stars.length} yıldız
+            {constellation.genitiveEn} · {stars.length} {t(language, "starsCount")}
           </Text>
         </View>
         <View style={styles.constBadge}>
@@ -149,17 +152,17 @@ const ConstellationCard = React.memo(({ progress, totalStardust, language, onSta
             <MaterialCommunityIcons name="check-decagram" size={22} color={colors.success} />
           ) : isActive ? (
             <View style={styles.activePill}>
-              <Text style={styles.activePillText}>Aktif</Text>
+              <Text style={styles.activePillText}>{t(language, "active")}</Text>
             </View>
           ) : isNext ? (
             <View style={styles.nextPill}>
-              <Text style={styles.nextPillText}>Sıradaki</Text>
+              <Text style={styles.nextPillText}>{t(language, "nextLabel")}</Text>
             </View>
           ) : isLocked ? (
             <View style={styles.lockedPill}>
               <MaterialCommunityIcons name="lock-outline" size={12} color={colors.textFaint} />
               <Text style={styles.lockedPillText}>
-                {isStarter ? "Başlangıç" : `#${unlockOrder}`}
+                {isStarter ? t(language, "starterTier") : `#${unlockOrder}`}
               </Text>
             </View>
           ) : (
@@ -184,7 +187,6 @@ const ConstellationCard = React.memo(({ progress, totalStardust, language, onSta
             isActiveConstellation={isActive}
             onPress={(s) => onStarPress(s, progress)}
             cardIndex={idx}
-            language={language}
           />
         ))}
       </View>
@@ -193,14 +195,12 @@ const ConstellationCard = React.memo(({ progress, totalStardust, language, onSta
       {isCompleted ? (
         <View style={styles.completedBanner}>
           <MaterialCommunityIcons name="trophy-variant" size={13} color={colors.warning} />
-          <Text style={styles.completedBannerText}>Rozet — {astronomicalName}</Text>
+          <Text style={styles.completedBannerText}>
+            {t(language, "badgeTrophy")} — {astronomicalName}
+          </Text>
         </View>
       ) : isLocked ? (
-        <Text style={styles.lockedHint}>
-          {language === "tr"
-            ? "Önce sıradaki takımyıldızdaki tüm yıldızları tamamla."
-            : "Complete all stars in the current constellation first."}
-        </Text>
+        <Text style={styles.lockedHint}>{t(language, "unlockRequirement")}</Text>
       ) : isActive || isNext ? (
         <Text style={styles.constDesc}>{constellationLabel(constellation, language)}</Text>
       ) : null}
@@ -215,13 +215,11 @@ const SkySection = ({
   title,
   items,
   totalStardust,
-  language,
   onStarPress,
 }: {
   title: string;
   items: ConstellationProgressEnriched[];
   totalStardust: number;
-  language: "tr" | "en";
   onStarPress: (star: StarWithProgress, constellation: ConstellationProgress) => void;
 }) => {
   if (items.length === 0) {
@@ -236,7 +234,6 @@ const SkySection = ({
           key={progress.constellation.id}
           progress={progress}
           totalStardust={totalStardust}
-          language={language}
           onStarPress={onStarPress}
         />
       ))}
@@ -333,20 +330,20 @@ export const GalaxyScreen = () => {
 
       if (constellation.isLocked) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        showToast("Kilitli", "Bu takımyıldız henüz sıranda değil.", "star-four-points");
+        showToast(t(language, "toastLocked"), t(language, "toastLockedSub"), "star-four-points");
         return;
       }
 
       if (!constellation.isActive) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        showToast("Yanlış Takımyıldız", "Önce aktif takımyıldızını tamamla.", "star-four-points");
+        showToast(t(language, "toastWrongConstellation"), t(language, "toastWrongConstellationSub"), "star-four-points");
         return;
       }
 
       const nextIndex = constellation.stars.findIndex((s) => !s.isUnlocked);
       if (constellation.stars[nextIndex]?.id !== star.id) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        showToast("Sıra Gerekli", "Önce önceki yıldızı aç.", "star-four-points");
+        showToast(t(language, "toastSequenceRequired"), t(language, "toastSequenceRequiredSub"), "star-four-points");
         return;
       }
 
@@ -354,7 +351,11 @@ export const GalaxyScreen = () => {
       if (totalStardust < starCost) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         const need = starCost - totalStardust;
-        showToast("Yetmez", `${need.toLocaleString()} ✦ daha kazanman gerekiyor.`, "star-four-points");
+        showToast(
+          t(language, "toastInsufficient"),
+          `${formatNumber(language, need)} ✦ ${t(language, "toastInsufficientSub")}`,
+          "star-four-points",
+        );
         return;
       }
 
@@ -368,33 +369,33 @@ export const GalaxyScreen = () => {
         if (result?.constellationCompleted) {
           await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
           showToast(
-            `${constellation.constellation.nameAstronomical} tamamlandı`,
-            "Rozet kazanıldı — tebrikler!",
+            `${constellation.constellation.nameAstronomical} ${t(language, "constellationComplete")}`,
+            t(language, "toastConstellationDone"),
             "trophy-variant",
           );
         } else {
           showToast(
-            `${star.name} Açıldı ✦`,
-            `${starUnlockCost(star).toLocaleString()} Yıldız Tozu harcandı.`,
+            `${starDisplayName(star, language)} ${t(language, "toastStarUnlocked")}`,
+            `${formatNumber(language, starUnlockCost(star))} ${t(language, "toastStardustSpent")}`,
             "star-four-points",
           );
         }
       } catch (error) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        const msg = error instanceof Error ? error.message : "Yıldız açılamadı";
-        showToast("Hata", msg, "star-four-points");
+        const msg = error instanceof Error ? error.message : t(language, "toastUnlockFailed");
+        showToast(t(language, "toastError"), msg, "star-four-points");
       } finally {
         setUnlocking(null);
       }
     },
-    [unlocking, totalStardust, unlockStar, showToast],
+    [language, unlocking, totalStardust, unlockStar, showToast],
   );
 
   if (!catalogReady || !skyCatalog) {
     return (
       <View style={[styles.root, styles.centered]}>
         <StarfieldBackground density={38} />
-        <Text style={styles.loadingText}>Gökyüzü kataloğu yükleniyor…</Text>
+        <Text style={styles.loadingText}>{t(language, "loadingCatalog")}</Text>
       </View>
     );
   }
@@ -417,8 +418,8 @@ export const GalaxyScreen = () => {
         {/* Header */}
         <View style={styles.top}>
           <View>
-            <Text style={styles.eyebrow}>Gökyüzü</Text>
-            <Text style={styles.title}>Takımyıldızlar</Text>
+            <Text style={styles.eyebrow}>{t(language, "skyEyebrow")}</Text>
+            <Text style={styles.title}>{t(language, "skyTitle")}</Text>
           </View>
           <StardustPill amount={totalStardust} />
         </View>
@@ -427,10 +428,10 @@ export const GalaxyScreen = () => {
         <SurfaceCard style={styles.summaryCard} borderVariant="strong">
           <View style={styles.summaryRow}>
             <View>
-              <Text style={styles.summaryLabel}>Gökyüzü İlerlemesi</Text>
+              <Text style={styles.summaryLabel}>{t(language, "skyProgress")}</Text>
               <Text style={styles.summarySubtext}>
-                {overallUnlocked} / {overallStars} yıldız açık · {completedCount} / {constellationCount}{" "}
-                takımyıldız
+                {overallUnlocked} / {overallStars} {t(language, "skyProgressSub")} · {completedCount} /{" "}
+                {constellationCount} {t(language, "constellationsWord")}
               </Text>
             </View>
           </View>
@@ -447,9 +448,9 @@ export const GalaxyScreen = () => {
         {/* Filter tabs */}
         <View style={styles.filterRow}>
           {([
-            { id: "all",       label: "Tümü" },
-            { id: "active",    label: "Aktif" },
-            { id: "completed", label: "Tamamlanan" },
+            { id: "all", label: t(language, "allConstellations") },
+            { id: "active", label: t(language, "filterActive") },
+            { id: "completed", label: t(language, "filterCompleted") },
           ] as const).map((item) => (
             <Pressable
               accessibilityRole="button"
@@ -463,25 +464,25 @@ export const GalaxyScreen = () => {
         </View>
 
         <SkySection
-          title="Tamamlanan"
+          title={t(language, "completedSection")}
           items={filteredSections.completed}
           totalStardust={totalStardust}
-          language={language}
           onStarPress={handleStarPress}
         />
 
         <SkySection
-          title={language === "tr" ? "Yolculuk" : "Journey"}
+          title={t(language, "journey")}
           items={filteredSections.journey}
           totalStardust={totalStardust}
-          language={language}
           onStarPress={handleStarPress}
         />
 
         {filteredSections.completed.length === 0 && filteredSections.journey.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>
-              {filter === "completed" ? "Henüz tamamlanan takımyıldız yok." : "Hiç takımyıldız bulunamadı."}
+              {filter === "completed"
+                ? t(language, "noCompletedConstellations")
+                : t(language, "noConstellationsFound")}
             </Text>
           </View>
         ) : null}

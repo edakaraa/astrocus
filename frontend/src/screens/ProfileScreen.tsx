@@ -5,22 +5,13 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/AppContext";
 import { colors, fontFamilies, radii, spacing, typography } from "../shared/theme";
 import { t } from "../shared/i18n";
-import { AVATARS, BADGES } from "../shared/constants";
+import { AVATARS, BADGES, getBadgeLabel } from "../shared/constants";
+import { formatDuration, formatNumber } from "../shared/formatLocale";
 import { StarfieldBackground } from "../components/StarfieldBackground";
 import { SurfaceCard } from "../components/SurfaceCard";
 import { GradientButton } from "../components/GradientButton";
 import { CelestialVisual } from "../components/CelestialVisual";
 import { StardustPill } from "../components/StardustPill";
-
-const formatMinutes = (minutes: number) => {
-  if (minutes < 60) {
-    return `${minutes} dk`;
-  }
-
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  return remainder === 0 ? `${hours}s` : `${hours}s ${remainder}dk`;
-};
 
 export const ProfileScreen = () => {
   const router = useRouter();
@@ -58,20 +49,26 @@ export const ProfileScreen = () => {
   const goalProgress = user.dailyGoalMinutes > 0 ? Math.min(dailySummary.totalMinutes / user.dailyGoalMinutes, 1) : 0;
   const earnedSet = new Set(earnedBadgeIds);
   const badgeVariants = ["badge", "star", "planet"] as const;
-  const achievements = BADGES.map((badge, index) => ({
-    title: badge.name,
-    detail: badge.description,
-    unlocked: earnedSet.has(badge.id),
-    variant: badgeVariants[index % badgeVariants.length],
-  }));
+  const achievements = BADGES.map((badge, index) => {
+    const label = getBadgeLabel(badge, language);
+    return {
+      title: label.name,
+      detail: label.description,
+      unlocked: earnedSet.has(badge.id),
+      variant: badgeVariants[index % badgeVariants.length],
+    };
+  });
 
   const handleSync = async () => {
     try {
       await syncOfflineSessions();
       void refreshAnalytics();
-      Alert.alert("Astrocus", "Offline seanslar senkronize edildi.");
+      Alert.alert(t(language, "appName"), t(language, "syncSuccess"));
     } catch (error) {
-      Alert.alert("Astrocus", error instanceof Error ? error.message : "Sync failed");
+      Alert.alert(
+        t(language, "appName"),
+        error instanceof Error ? error.message : t(language, "syncFailed"),
+      );
     }
   };
 
@@ -81,14 +78,14 @@ export const ProfileScreen = () => {
 
       {/* Global stardust balance */}
       <View style={styles.profileTopBar}>
-        <Text style={styles.profileTopBarLabel}>Profil</Text>
+        <Text style={styles.profileTopBarLabel}>{t(language, "profileTitle")}</Text>
         <StardustPill amount={user.totalStardust} />
       </View>
 
       <View style={styles.heroCard}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Ayarlar"
+          accessibilityLabel={t(language, "settings")}
           onPress={() => router.push("/legal/privacy-policy")}
           style={styles.settingsButton}
         >
@@ -101,21 +98,21 @@ export const ProfileScreen = () => {
             <Text style={styles.avatarText}>{user.avatar}</Text>
           </View>
         </View>
-        <Text style={styles.username}>{user.username || "Kaşif"}</Text>
-        <Text style={styles.galaxy}>{`Seviye ${user.level} · ${user.totalXp.toLocaleString()} XP · ${user.totalStardust.toLocaleString()} ✦`}</Text>
+        <Text style={styles.username}>{user.username || t(language, "explorerName")}</Text>
+        <Text style={styles.galaxy}>{`${t(language, "levelXpStardust")} ${user.level} · ${formatNumber(language, user.totalXp)} XP · ${formatNumber(language, user.totalStardust)} ✦`}</Text>
 
         <View style={styles.headerStats}>
           <View style={styles.pstat}>
-            <Text style={styles.pstatVal}>{formatMinutes(totalFocusedMinutes)}</Text>
-            <Text style={styles.pstatLabel}>Toplam Odak</Text>
+            <Text style={styles.pstatVal}>{formatDuration(language, totalFocusedMinutes)}</Text>
+            <Text style={styles.pstatLabel}>{t(language, "totalFocus")}</Text>
           </View>
           <View style={styles.pstat}>
-            <Text style={styles.pstatVal}>{sessions.length}</Text>
-            <Text style={styles.pstatLabel}>Seans</Text>
+            <Text style={styles.pstatVal}>{formatNumber(language, sessions.length)}</Text>
+            <Text style={styles.pstatLabel}>{t(language, "totalSessions")}</Text>
           </View>
           <View style={styles.pstat}>
-            <Text style={styles.pstatVal}>{analyticsSummary?.streakCount ?? user.currentStreak}</Text>
-            <Text style={styles.pstatLabel}>Gün Seri</Text>
+            <Text style={styles.pstatVal}>{formatNumber(language, analyticsSummary?.streakCount ?? user.currentStreak)}</Text>
+            <Text style={styles.pstatLabel}>{t(language, "currentStreak")}</Text>
           </View>
         </View>
       </View>
@@ -123,23 +120,23 @@ export const ProfileScreen = () => {
       <SurfaceCard style={styles.progressCard} borderVariant="strong">
         <View style={styles.cardTop}>
           <View>
-            <Text style={styles.cardLabel}>Bugünkü İlerleme</Text>
-            <Text style={styles.cardTitle}>{formatMinutes(dailySummary.totalMinutes)}</Text>
+            <Text style={styles.cardLabel}>{t(language, "todayProgress")}</Text>
+            <Text style={styles.cardTitle}>{formatDuration(language, dailySummary.totalMinutes)}</Text>
           </View>
           <Text style={styles.progressPercent}>{`%${Math.round(goalProgress * 100)}`}</Text>
         </View>
         <View style={styles.progressBg}>
           <View style={[styles.progressFill, { width: `${Math.round(goalProgress * 100)}%` }]} />
         </View>
-        <Text style={styles.progressLabel}>{`${formatMinutes(user.dailyGoalMinutes)} günlük hedef · ${dailySummary.completedSessions} seans bugün`}</Text>
+        <Text style={styles.progressLabel}>{`${formatDuration(language, user.dailyGoalMinutes)} ${t(language, "dailyGoal")} · ${dailySummary.completedSessions} ${t(language, "sessionsToday")}`}</Text>
       </SurfaceCard>
 
       {piePreview.length > 0 ? (
         <SurfaceCard style={styles.distributionCard}>
-          <Text style={styles.cardLabel}>Kategori dağılımı</Text>
+          <Text style={styles.cardLabel}>{t(language, "categoryDistribution")}</Text>
           {piePreview.map((row) => (
             <Text key={row.categoryId} style={styles.distributionRow}>
-              {`${row.categoryId} · ${formatMinutes(row.minutes)} (${row.percentage}%)`}
+              {`${t(language, `category_${row.categoryId}` as never)} · ${formatDuration(language, row.minutes)} (${row.percentage}%)`}
             </Text>
           ))}
         </SurfaceCard>
@@ -150,41 +147,41 @@ export const ProfileScreen = () => {
           <View style={styles.listIcon}>
             <MaterialCommunityIcons name="medal-outline" size={18} color={colors.primary} />
           </View>
-          <Text style={styles.listText}>Rozetler</Text>
+          <Text style={styles.listText}>{t(language, "badges")}</Text>
           <Text style={styles.listMeta}>{`${achievements.filter((item) => item.unlocked).length} / ${achievements.length}`}</Text>
         </View>
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Takımyıldızım"
+          accessibilityLabel={t(language, "myConstellation")}
           onPress={() => router.push("/(tabs)/galaxy")}
           style={styles.listItem}
         >
           <View style={styles.listIcon}>
             <MaterialCommunityIcons name="star-four-points-outline" size={18} color={colors.primary} />
           </View>
-          <Text style={styles.listText}>Takımyıldızım</Text>
-          <Text style={styles.listMeta}>{`${unlockedStarIds.length} yıldız`}</Text>
+          <Text style={styles.listText}>{t(language, "myConstellation")}</Text>
+          <Text style={styles.listMeta}>{`${unlockedStarIds.length} ${t(language, "starsUnlocked")}`}</Text>
           <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textFaint} />
         </Pressable>
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Gizlilik politikası"
+          accessibilityLabel={t(language, "privacyPolicy")}
           onPress={() => router.push("/legal/privacy-policy")}
           style={styles.listItem}
         >
           <View style={styles.listIcon}>
             <MaterialCommunityIcons name="cog-outline" size={18} color={colors.primary} />
           </View>
-          <Text style={styles.listText}>Ayarlar</Text>
-          <Text style={styles.listMeta}>Gizlilik</Text>
+          <Text style={styles.listText}>{t(language, "settingsRow")}</Text>
+          <Text style={styles.listMeta}>{t(language, "settingsPrivacy")}</Text>
           <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textFaint} />
         </Pressable>
       </View>
 
       <View style={styles.sectionTop}>
-        <Text style={styles.sectionTitle}>Rozetler</Text>
+        <Text style={styles.sectionTitle}>{t(language, "badges")}</Text>
         <Text style={styles.sectionMeta}>{`${achievements.filter((item) => item.unlocked).length}/${achievements.length}`}</Text>
       </View>
 
@@ -193,7 +190,7 @@ export const ProfileScreen = () => {
           <View key={achievement.title} style={[styles.badgeCard, !achievement.unlocked ? styles.badgeCardLocked : null]}>
             <CelestialVisual variant={achievement.variant} size={68} muted={!achievement.unlocked} />
             <Text style={styles.badgeTitle}>{achievement.title}</Text>
-            <Text style={styles.badgeDetail}>{achievement.unlocked ? "Açık" : achievement.detail}</Text>
+            <Text style={styles.badgeDetail}>{achievement.unlocked ? t(language, "badgeUnlocked") : achievement.detail}</Text>
             {!achievement.unlocked ? (
               <View style={styles.badgeLock}>
                 <MaterialCommunityIcons name="lock-outline" size={12} color={colors.textFaint} />
@@ -204,20 +201,20 @@ export const ProfileScreen = () => {
       </View>
 
       <View style={styles.sectionTop}>
-        <Text style={styles.sectionTitle}>Ayarlar</Text>
+        <Text style={styles.sectionTitle}>{t(language, "settings")}</Text>
       </View>
 
       <SurfaceCard style={styles.settingsCard}>
         <View style={styles.settingRow}>
           <View>
-            <Text style={styles.settingTitle}>Dil</Text>
-            <Text style={styles.settingSubtitle}>Uygulama metin dili</Text>
+            <Text style={styles.settingTitle}>{t(language, "language")}</Text>
+            <Text style={styles.settingSubtitle}>{t(language, "appLanguageSubtitle")}</Text>
           </View>
           <View style={styles.languageSelector}>
             {(["tr", "en"] as const).map((item) => (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`${item.toUpperCase()} dilini seç`}
+                accessibilityLabel={`${t(language, "selectLanguageA11y")} ${item.toUpperCase()}`}
                 key={item}
                 style={[styles.languageChip, language === item ? styles.languageChipActive : null]}
                 onPress={() => setLanguage(item)}
@@ -231,12 +228,12 @@ export const ProfileScreen = () => {
         <View style={styles.settingDivider} />
 
         <View style={styles.settingBlock}>
-          <Text style={styles.settingTitle}>Avatar</Text>
+          <Text style={styles.settingTitle}>{t(language, "avatar")}</Text>
           <View style={styles.avatarRow}>
             {AVATARS.map((avatar) => (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`${avatar} avatarını seç`}
+                accessibilityLabel={`${avatar} ${t(language, "selectAvatarA11y")}`}
                 key={avatar}
                 style={[styles.avatarOption, user.avatar === avatar ? styles.avatarOptionActive : null]}
                 onPress={() => updateProfile({ avatar })}
@@ -251,11 +248,11 @@ export const ProfileScreen = () => {
 
         <View style={styles.settingRow}>
           <View>
-            <Text style={styles.settingTitle}>Offline Seanslar</Text>
-            <Text style={styles.settingSubtitle}>{`${pendingSessions.length} bekleyen kayıt`}</Text>
+            <Text style={styles.settingTitle}>{t(language, "offlineSessions")}</Text>
+            <Text style={styles.settingSubtitle}>{`${formatNumber(language, pendingSessions.length)} ${t(language, "pendingRecords")}`}</Text>
           </View>
           <GradientButton
-            label="Sync"
+            label={t(language, "syncNow")}
             onPress={handleSync}
             variant="soft"
             style={styles.syncButton}
@@ -268,20 +265,20 @@ export const ProfileScreen = () => {
         <View style={styles.legalRow}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={language === "en" ? "Privacy policy" : "Gizlilik politikası"}
+            accessibilityLabel={t(language, "privacyPolicy")}
             onPress={() => router.push("/legal/privacy-policy")}
           >
             <Text style={styles.legalLink}>
-              {language === "en" ? "Privacy Policy" : "Gizlilik Politikası"}
+              {t(language, "privacyPolicy")}
             </Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={language === "en" ? "Delete account" : "Hesabı sil"}
+            accessibilityLabel={t(language, "deleteAccount")}
             onPress={() => router.push("/legal/delete-account")}
           >
             <Text style={styles.legalDanger}>
-              {language === "en" ? "Delete Account" : "Hesabı Sil"}
+              {t(language, "deleteAccount")}
             </Text>
           </Pressable>
         </View>

@@ -20,7 +20,10 @@ import Svg, {
   Stop,
 } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { fontFamilies } from "../shared/theme";
+import { useAppContext } from "../context/AppContext";
+import { t } from "../shared/i18n";
+import type { Language } from "../shared/types";
+import { fontFamilies, radii, spacing, colors } from "../shared/theme";
 
 const { width, height } = Dimensions.get("window");
 const VISUAL_SIZE = Math.min(width * 0.86, 340);
@@ -29,26 +32,14 @@ const TIMELINE_MS = 24000;
 // Text switches at these timeline thresholds — never overlap
 const COPY_THRESHOLDS = [0.24, 0.5, 0.76] as const;
 
-const COPY_PHASES = [
-  {
-    id: "01",
-    title: "Her şey bir\nodakla başlar",
-    subtitle: "Every journey begins\nwith a single focus.",
-  },
-  {
-    id: "02",
-    title: "Çalıştıkça\nevrenin büyür",
-    subtitle: "The more you focus,\nthe bigger your universe.",
-  },
-  {
-    id: "03",
-    title: "Kendi galaksini\ninşa et",
-    subtitle: "Build your galaxy,\nyour way.",
-  },
+const getCopyPhases = (language: Language) => [
+  { id: "01", title: t(language, "onboardingPhase1Title"), isLogo: false },
+  { id: "02", title: t(language, "onboardingPhase2Title"), isLogo: false },
+  { id: "03", title: t(language, "onboardingPhase3Title"), isLogo: false },
   {
     id: "04",
-    title: "ASTROCUS",
-    subtitle: "Focus. Build. Grow.",
+    title: t(language, "onboardingPhase4Title"),
+    subtitle: t(language, "onboardingPhase4Subtitle"),
     isLogo: true,
   },
 ];
@@ -379,7 +370,12 @@ function CosmicMorphVisual({ t }: { t: Animated.Value }) {
 
 // ─── Single copy block — one text visible at a time ──────────────────────────
 
-type CopyPhase = (typeof COPY_PHASES)[number];
+type CopyPhase = {
+  id: string;
+  title: string;
+  subtitle?: string;
+  isLogo?: boolean;
+};
 
 function CinematicCopy({
   phase,
@@ -406,10 +402,7 @@ function CinematicCopy({
           <Text style={styles.logoSub}>{phase.subtitle}</Text>
         </>
       ) : (
-        <>
-          <Text style={styles.title}>{phase.title}</Text>
-          <Text style={styles.subtitle}>{phase.subtitle}</Text>
-        </>
+        <Text style={styles.title}>{phase.title}</Text>
       )}
     </Animated.View>
   );
@@ -424,10 +417,10 @@ const DOT_SEGMENTS: [number, number][] = [
   [COPY_THRESHOLDS[2], 1],
 ];
 
-function TimelineDots({ t }: { t: Animated.Value }) {
+function TimelineDots({ t, phaseCount }: { t: Animated.Value; phaseCount: number }) {
   return (
     <View style={styles.dotRow}>
-      {COPY_PHASES.map((phase, i) => {
+      {Array.from({ length: phaseCount }, (_, i) => {
         const [start, end] = DOT_SEGMENTS[i];
         const width = t.interpolate({
           inputRange: [start, end, Math.min(end + 0.001, 1)],
@@ -442,7 +435,7 @@ function TimelineDots({ t }: { t: Animated.Value }) {
 
         return (
           <Animated.View
-            key={phase.id}
+            key={`dot-${i}`}
             style={[
               styles.dot,
               {
@@ -467,7 +460,9 @@ type OnboardingScreenProps = {
 };
 
 export const OnboardingScreen = ({ onComplete }: OnboardingScreenProps) => {
+  const { language, setLanguage } = useAppContext();
   const insets = useSafeAreaInsets();
+  const copyPhases = getCopyPhases(language);
   const timeline = useRef(new Animated.Value(0)).current;
   const ctaFade = useRef(new Animated.Value(0)).current;
   const copyOpacity = useRef(new Animated.Value(0)).current;
@@ -576,7 +571,7 @@ export const OnboardingScreen = ({ onComplete }: OnboardingScreenProps) => {
 
   const paddingTop = Math.max(insets.top + 8, 52);
   const paddingBottom = Math.max(insets.bottom + 16, 36);
-  const activeCopy = COPY_PHASES[copyPhase];
+  const activeCopy = copyPhases[copyPhase];
 
   return (
     <View style={[styles.container, { paddingTop, paddingBottom }]}>
@@ -601,7 +596,22 @@ export const OnboardingScreen = ({ onComplete }: OnboardingScreenProps) => {
         />
       </View>
 
-      <TimelineDots t={timeline} />
+      <TimelineDots t={timeline} phaseCount={copyPhases.length} />
+
+      <View style={styles.langRow}>
+        {(["tr", "en"] as const).map((item) => (
+          <TouchableOpacity
+            key={item}
+            accessibilityRole="button"
+            onPress={() => setLanguage(item)}
+            style={[styles.langChip, language === item && styles.langChipActive]}
+          >
+            <Text style={[styles.langChipText, language === item && styles.langChipTextActive]}>
+              {item.toUpperCase()}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <View style={styles.ctaArea}>
         <Animated.View style={{ width: "100%", opacity: ctaFade }}>
@@ -611,7 +621,7 @@ export const OnboardingScreen = ({ onComplete }: OnboardingScreenProps) => {
             activeOpacity={0.82}
             disabled={!finished}
           >
-            <Text style={styles.startButtonText}>Başla</Text>
+            <Text style={styles.startButtonText}>{t(language, "onboardingStart")}</Text>
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -709,6 +719,30 @@ const styles = StyleSheet.create({
     letterSpacing: 1.6,
     textAlign: "center",
     width: "100%",
+  },
+  langRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 8,
+  },
+  langChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  langChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: "rgba(131,135,195,0.2)",
+  },
+  langChipText: {
+    color: "rgba(255,255,255,0.45)",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  langChipTextActive: {
+    color: "#fff",
   },
   dotRow: {
     flexDirection: "row",

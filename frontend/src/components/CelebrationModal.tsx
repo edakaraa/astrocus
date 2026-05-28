@@ -1,5 +1,8 @@
 import React, { useMemo } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { useAppContext } from "../context/AppContext";
+import { formatDuration, formatNumber } from "../shared/formatLocale";
+import { t } from "../shared/i18n";
 import { colors, radii, spacing, typography } from "../shared/theme";
 import { StarfieldBackground } from "./StarfieldBackground";
 import { GradientButton } from "./GradientButton";
@@ -18,16 +21,6 @@ type CelebrationModalProps = {
   onClose: () => void;
 };
 
-const formatToday = (minutes: number) => {
-  if (minutes < 60) {
-    return `${minutes} dk`;
-  }
-
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  return remainder === 0 ? `${hours}s` : `${hours}s ${remainder}dk`;
-};
-
 export const CelebrationModal = ({
   visible,
   stardustEarned,
@@ -41,12 +34,14 @@ export const CelebrationModal = ({
   todayTotalMinutes,
   onClose,
 }: CelebrationModalProps) => {
+  const { language } = useAppContext();
+
   const headline = useMemo(() => {
     if (pendingSync) {
-      return "Kuyruğa alındı";
+      return t(language, "celebrationQueued");
     }
-    return unlockedStarLabel ? "✨ Yeni yıldız açıldı!" : "Seans tamamlandı";
-  }, [pendingSync, unlockedStarLabel]);
+    return unlockedStarLabel ? `✨ ${t(language, "unlockedStar")}!` : t(language, "celebrationTitle");
+  }, [language, pendingSync, unlockedStarLabel]);
 
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
@@ -57,58 +52,63 @@ export const CelebrationModal = ({
           <View style={styles.burst} pointerEvents="none" />
           <Text style={styles.bigStar}>{unlockedStarLabel ? "🌟" : "⭐"}</Text>
           <Text style={styles.headline}>{headline}</Text>
-          {pendingSync ? (
-            <Text style={styles.sub}>
-              Bağlantı gelince sunucuya iletilecek; ödüller yalnızca senkron sonrası hesaplanır.
-            </Text>
+          {pendingSync ? <Text style={styles.sub}>{t(language, "celebrationPendingSync")}</Text> : null}
+          {!pendingSync && unlockedStarLabel ? (
+            <Text style={styles.sub}>{`${unlockedStarLabel} ${t(language, "celebrationStarYours")}`}</Text>
           ) : null}
-          {!pendingSync && unlockedStarLabel ? <Text style={styles.sub}>{unlockedStarLabel} artık senin</Text> : null}
 
           {pendingSync ? (
             <>
               <Text style={styles.earnedMuted}>—</Text>
-              <Text style={styles.earnedLabel}>Yıldız tozu (beklemede)</Text>
+              <Text style={styles.earnedLabel}>{t(language, "celebrationStardustPending")}</Text>
             </>
           ) : (
             <>
-              <Text style={styles.earned}>{`+${stardustEarned} ✦`}</Text>
-              <Text style={styles.earnedLabel}>Yıldız Tozu Kazandın</Text>
-              {xpEarned > 0 ? <Text style={styles.xpLine}>{`+${xpEarned} XP`}</Text> : null}
+              <Text style={styles.earned}>{`+${formatNumber(language, stardustEarned)} ✦`}</Text>
+              <Text style={styles.earnedLabel}>{t(language, "celebrationStardustEarned")}</Text>
+              {xpEarned > 0 ? <Text style={styles.xpLine}>{`+${formatNumber(language, xpEarned)} XP`}</Text> : null}
             </>
           )}
 
           {newBadgeLabels && newBadgeLabels.length > 0 && !pendingSync ? (
             <View style={styles.adviceBox}>
-              <Text style={styles.adviceLabel}>Yeni rozet</Text>
+              <Text style={styles.adviceLabel}>{t(language, "celebrationNewBadge")}</Text>
               <Text style={styles.adviceText}>{newBadgeLabels.join(" · ")}</Text>
             </View>
           ) : null}
 
           {galacticAdvice && !pendingSync ? (
             <View style={styles.adviceBox}>
-              <Text style={styles.adviceLabel}>Galaktik Tavsiye</Text>
+              <Text style={styles.adviceLabel}>{t(language, "celebrationGalacticAdvice")}</Text>
               <Text style={styles.adviceText}>{galacticAdvice}</Text>
             </View>
           ) : null}
 
           <View style={styles.statsRow}>
             <View style={styles.stat}>
-              <Text style={styles.statVal}>{`${durationMinutes} dk`}</Text>
-              <Text style={styles.statLabel}>Seans Süresi</Text>
+              <Text style={styles.statVal}>{formatDuration(language, durationMinutes)}</Text>
+              <Text style={styles.statLabel}>{t(language, "celebrationSessionDuration")}</Text>
             </View>
             <View style={styles.stat}>
               <Text style={styles.statVal}>{`🔥 ${currentStreak}`}</Text>
-              <Text style={styles.statLabel}>Seri</Text>
+              <Text style={styles.statLabel}>{t(language, "celebrationStreak")}</Text>
             </View>
             <View style={styles.stat}>
-              <Text style={styles.statVal}>{pendingSync ? "—" : formatToday(todayTotalMinutes)}</Text>
-              <Text style={styles.statLabel}>Bugün Toplam</Text>
+              <Text style={styles.statVal}>
+                {pendingSync ? "—" : formatDuration(language, todayTotalMinutes)}
+              </Text>
+              <Text style={styles.statLabel}>{t(language, "celebrationTodayTotal")}</Text>
             </View>
           </View>
 
-          <GradientButton label="Devam et →" onPress={onClose} />
+          <GradientButton label={t(language, "continueJourney")} onPress={onClose} />
 
-          <Pressable accessibilityRole="button" accessibilityLabel="Kapat" onPress={onClose} style={styles.close}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t(language, "close")}
+            onPress={onClose}
+            style={styles.close}
+          >
             <Text style={styles.closeText}>✕</Text>
           </Pressable>
         </View>

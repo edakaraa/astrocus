@@ -1,18 +1,24 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useAppContext } from "../context/AppContext";
+import { formatNumber } from "../shared/formatLocale";
 import { colors, fontFamilies, radii } from "../shared/theme";
 
 type StardustPillProps = {
   amount: number;
 };
 
-export const StardustPill = ({ amount }: StardustPillProps) => (
-  <View style={styles.pill}>
-    <MaterialCommunityIcons name="star-four-points" size={13} color={colors.warning} />
-    <Text style={styles.text}>{amount.toLocaleString()}</Text>
-  </View>
-);
+export const StardustPill = ({ amount }: StardustPillProps) => {
+  const { language } = useAppContext();
+
+  return (
+    <View style={styles.pill}>
+      <MaterialCommunityIcons name="star-four-points" size={13} color={colors.warning} />
+      <Text style={styles.text}>{formatNumber(language, amount)}</Text>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   pill: {

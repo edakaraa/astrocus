@@ -1,9 +1,12 @@
+import { t } from "../shared/i18n";
+import type { Language } from "../shared/types";
+
 /** Kayıt sonrası oturum yok — e-posta doğrulaması bekleniyor (hata değil). */
 export class EmailConfirmationRequiredError extends Error {
   readonly email: string;
 
-  constructor(email: string) {
-    super("E-posta adresine doğrulama bağlantısı gönderildi.");
+  constructor(email: string, language: Language) {
+    super(t(language, "emailConfirmationSent"));
     this.name = "EmailConfirmationRequiredError";
     this.email = email;
   }
@@ -13,10 +16,13 @@ export const isEmailConfirmationRequiredError = (
   error: unknown,
 ): error is EmailConfirmationRequiredError => error instanceof EmailConfirmationRequiredError;
 
-
 const normalize = (message: string) => message.toLowerCase();
 
-export const mapSupabaseAuthError = (message: string, context: "login" | "register"): string => {
+export const mapSupabaseAuthError = (
+  message: string,
+  context: "login" | "register",
+  language: Language,
+): string => {
   const m = normalize(message);
 
   if (
@@ -25,37 +31,35 @@ export const mapSupabaseAuthError = (message: string, context: "login" | "regist
     m.includes("user already registered") ||
     m.includes("email address is already registered")
   ) {
-    return "Bu e-posta zaten kayıtlı. Giriş yapmayı dene.";
+    return t(language, "emailInUse");
   }
 
   if (m.includes("email not confirmed")) {
-    return "E-postanı doğrulaman gerekiyor. Gelen kutusu ve spam klasörünü kontrol et.";
+    return t(language, "emailNotConfirmed");
   }
 
   if (m.includes("invalid login credentials") || m.includes("invalid email or password")) {
-    return context === "login"
-      ? "E-posta veya şifre hatalı."
-      : "Giriş bilgileri geçersiz.";
+    return context === "login" ? t(language, "invalidCredentials") : t(language, "loginError");
   }
 
   if (m.includes("password") && m.includes("least")) {
-    return "Şifre en az 8 karakter olmalı.";
+    return t(language, "weakPassword");
   }
 
   if (m.includes("email") && m.includes("invalid")) {
-    return "Geçerli bir e-posta adresi gir.";
+    return t(language, "invalidEmail");
   }
 
   if (m.includes("signup is disabled") || m.includes("signups not allowed")) {
-    return "Yeni kayıt şu an kapalı. Daha sonra tekrar dene.";
+    return t(language, "signupDisabled");
   }
 
   if (m.includes("rate limit") || m.includes("too many requests")) {
-    return "Çok fazla deneme. Biraz bekleyip tekrar dene.";
+    return t(language, "rateLimited");
   }
 
   if (m.includes("database error") || m.includes("db error")) {
-    return "Sunucu hatası: veritabanı tetikleyicisi başarısız. Supabase SQL Editor'da migration 004 çalıştırıldığından emin ol.";
+    return t(language, "databaseError");
   }
 
   return message;
@@ -78,24 +82,25 @@ export const isOAuthError = (error: unknown): error is OAuthError =>
 
 export const oauthUserMessage = (
   error: unknown,
+  language: Language,
   provider: "google" | "apple" = "google",
 ): { title: string; message: string } => {
-  const providerLabel = provider === "apple" ? "Apple girişi" : "Google girişi";
+  const title = provider === "apple" ? t(language, "oauthAppleTitle") : t(language, "oauthGoogleTitle");
 
   if (isOAuthError(error)) {
     if (error.code === "cancelled") {
-      return { title: providerLabel, message: "Giriş iptal edildi." };
+      return { title, message: t(language, "oauthCancelled") };
     }
     if (error.code === "unsupported") {
-      return { title: providerLabel, message: error.message };
+      return { title, message: error.message };
     }
-    return { title: providerLabel, message: error.message };
+    return { title, message: error.message };
   }
   if (error instanceof Error && /cancel/i.test(error.message)) {
-    return { title: providerLabel, message: "Giriş iptal edildi." };
+    return { title, message: t(language, "oauthCancelled") };
   }
   return {
-    title: providerLabel,
-    message: error instanceof Error ? error.message : "Giriş sırasında bir sorun oluştu.",
+    title,
+    message: error instanceof Error ? error.message : t(language, "oauthFailed"),
   };
 };

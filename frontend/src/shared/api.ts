@@ -14,6 +14,8 @@ import {
 import { signInWithApple } from "../lib/appleAuth";
 import { getOAuthRedirectUri, signInWithGoogle } from "../lib/oauth";
 import { getDateKey } from "../context/session/dateKey";
+import { t } from "./i18n";
+import type { Language } from "./types";
 import {
   createDevDemoPayload,
   isDevDemoToken,
@@ -205,13 +207,16 @@ const applyRegistrationProfile = async (
 };
 
 export const api = {
-  async register(input: {
-    email: string;
-    password: string;
-    username: string;
-    displayName: string;
-    galaxyName?: string;
-  }): Promise<AuthPayload> {
+  async register(
+    input: {
+      email: string;
+      password: string;
+      username: string;
+      displayName: string;
+      galaxyName?: string;
+    },
+    language: Language,
+  ): Promise<AuthPayload> {
     const email = input.email.trim();
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -236,10 +241,10 @@ export const api = {
     }
 
     if (error) {
-      throw new Error(mapSupabaseAuthError(error.message, "register"));
+      throw new Error(mapSupabaseAuthError(error.message, "register", language));
     }
     if (!data.user) {
-      throw new Error("Kayıt tamamlanamadı. Lütfen tekrar dene.");
+      throw new Error(t(language, "registerFailed"));
     }
 
     // Supabase e-posta onayı KAPALI → oturum direkt gelir
@@ -256,7 +261,7 @@ export const api = {
 
     if (identities.length > 0) {
       // Gerçek yeni kullanıcı; onay maili gönderildi
-      throw new EmailConfirmationRequiredError(email);
+      throw new EmailConfirmationRequiredError(email, language);
     }
 
     // identities boş: e-posta zaten kayıtlı olabilir — giriş dene
@@ -278,22 +283,25 @@ export const api = {
 
     const loginMsg = loginError?.message ?? "";
     if (/email not confirmed/i.test(loginMsg)) {
-      throw new EmailConfirmationRequiredError(email);
+      throw new EmailConfirmationRequiredError(email, language);
     }
 
-    throw new Error(mapSupabaseAuthError("User already registered", "register"));
+    throw new Error(mapSupabaseAuthError("User already registered", "register", language));
   },
 
-  async login(input: { email: string; password: string }): Promise<AuthPayload> {
+  async login(
+    input: { email: string; password: string },
+    language: Language,
+  ): Promise<AuthPayload> {
     const { data, error } = await supabase.auth.signInWithPassword({
       email: input.email.trim(),
       password: input.password,
     });
     if (error) {
-      throw new Error(mapSupabaseAuthError(error.message, "login"));
+      throw new Error(mapSupabaseAuthError(error.message, "login", language));
     }
     if (!data.session) {
-      throw new Error("Giriş yapılamadı.");
+      throw new Error(t(language, "loginFailed"));
     }
     return fetchUserDataWithRetry(data.user.id, data.session.access_token);
   },

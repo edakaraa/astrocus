@@ -5,13 +5,14 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../../src/context/AppContext";
 import { constellationLabel } from "../../src/services/constellationCatalog";
 import { loadSkyCatalog } from "../../src/services/skyCatalog";
-import type { Constellation } from "../../src/shared/types";
+import { t } from "../../src/shared/i18n";
+import type { Constellation, Language } from "../../src/shared/types";
 import { colors, fontFamilies, radii, spacing } from "../../src/shared/theme";
 import { GradientButton } from "../../src/components/GradientButton";
 import { StarfieldBackground } from "../../src/components/StarfieldBackground";
 
 export default function StarPickRoute() {
-  const { user, completeOnboarding, language } = useAppContext();
+  const { user, completeOnboarding, language, setLanguage } = useAppContext();
   const [constellations, setConstellations] = useState<Constellation[]>([]);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -23,10 +24,10 @@ export default function StarPickRoute() {
         setConstellations(catalog.constellations);
         setSelectedId((prev) => prev ?? catalog.constellations[0]?.id ?? null);
       })
-      .catch((error) => {
-        setCatalogError(error instanceof Error ? error.message : "Katalog yüklenemedi");
+      .catch(() => {
+        setCatalogError(t(language, "catalogLoadError"));
       });
-  }, []);
+  }, [language]);
 
   if (!user) {
     return <Redirect href="/(auth)" />;
@@ -48,19 +49,22 @@ export default function StarPickRoute() {
     return (
       <View style={styles.centered}>
         <ActivityIndicator color={colors.primary} />
+        <Text style={styles.loadingText}>{t(language, "loading")}</Text>
       </View>
     );
   }
 
-  const selectedConstellation =
-    constellations.find((c) => c.id === selectedId) ?? constellations[0];
+  const selectedConstellation = constellations.find((c) => c.id === selectedId) ?? constellations[0];
 
   const handleConfirm = async () => {
     setLoading(true);
     try {
       await completeOnboarding(selectedId);
     } catch (error) {
-      Alert.alert("Astrocus", error instanceof Error ? error.message : "Kaydedilemedi");
+      Alert.alert(
+        t(language, "appName"),
+        error instanceof Error ? error.message : t(language, "saveFailed"),
+      );
     } finally {
       setLoading(false);
     }
@@ -70,18 +74,32 @@ export default function StarPickRoute() {
     <ScrollView contentContainerStyle={styles.container}>
       <StarfieldBackground density={30} />
 
-      <Text style={styles.eyebrow}>Astrocus'a Hoş Geldin</Text>
-      <Text style={styles.title}>İlk Takımyıldızını Seç</Text>
-      <Text style={styles.subtitle}>
-        Seçtiğin takımyıldız hemen açılır. Diğer 12 takımyıldız, içlerindeki yıldız sayısına göre
-        sırayla kilit açılır; bir takımyıldızdaki tüm yıldızlar bitmeden sonraki açılmaz.
-      </Text>
+      <View style={styles.langRow}>
+        <Text style={styles.langLabel}>{t(language, "selectLanguage")}</Text>
+        <View style={styles.langChips}>
+          {(["tr", "en"] as Language[]).map((item) => (
+            <Pressable
+              key={item}
+              accessibilityRole="button"
+              accessibilityLabel={`${t(language, "selectLanguageA11y")} ${item.toUpperCase()}`}
+              onPress={() => setLanguage(item)}
+              style={[styles.langChip, language === item && styles.langChipActive]}
+            >
+              <Text style={[styles.langChipText, language === item && styles.langChipTextActive]}>
+                {item.toUpperCase()}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
+      <Text style={styles.eyebrow}>{t(language, "onboardingWelcome")}</Text>
+      <Text style={styles.title}>{t(language, "onboardingSelectConstellation")}</Text>
+      <Text style={styles.subtitle}>{t(language, "onboardingSubtitle")}</Text>
 
       <View style={styles.hintCard}>
         <MaterialCommunityIcons name="information-outline" size={15} color={colors.primary} />
-        <Text style={styles.hintText}>
-          Her yıldızın maliyeti katalogda belirlenir. 25 dakika odak = 50 ✦ kazanç.
-        </Text>
+        <Text style={styles.hintText}>{t(language, "onboardingConstellationHint")}</Text>
       </View>
 
       <View style={styles.selectedPreview}>
@@ -90,7 +108,8 @@ export default function StarPickRoute() {
           <Text style={styles.selectedName}>{selectedConstellation.nameAstronomical}</Text>
           <Text style={styles.selectedGenitive}>{selectedConstellation.genitiveEn}</Text>
           <Text style={styles.selectedDesc}>
-            {constellationLabel(selectedConstellation, language)} · {selectedConstellation.starCount} yıldız
+            {constellationLabel(selectedConstellation, language)} · {selectedConstellation.starCount}{" "}
+            {t(language, "starsCount")}
           </Text>
         </View>
       </View>
@@ -108,8 +127,12 @@ export default function StarPickRoute() {
               style={[styles.card, selected && styles.cardSelected]}
             >
               <MaterialCommunityIcons name="star-circle-outline" size={20} color={colors.primary} />
-              <Text style={styles.cardTitle} numberOfLines={1}>{label}</Text>
-              <Text style={styles.cardSub} numberOfLines={1}>{constellation.starCount} yıldız</Text>
+              <Text style={styles.cardTitle} numberOfLines={1}>
+                {label}
+              </Text>
+              <Text style={styles.cardSub} numberOfLines={1}>
+                {constellation.starCount} {t(language, "starsCount")}
+              </Text>
               {selected ? (
                 <View style={styles.checkMark}>
                   <MaterialCommunityIcons name="check" size={11} color={colors.warmOffWhite} />
@@ -121,7 +144,11 @@ export default function StarPickRoute() {
       </View>
 
       <GradientButton
-        label={loading ? "Kaydediliyor…" : `${selectedConstellation.nameAstronomical} ile Başla`}
+        label={
+          loading
+            ? t(language, "loading")
+            : `${selectedConstellation.nameAstronomical} ${t(language, "startWithConstellation")}`
+        }
         onPress={handleConfirm}
       />
     </ScrollView>
@@ -142,11 +169,50 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.background,
+    gap: spacing.sm,
+  },
+  loadingText: {
+    color: colors.textMuted,
+    fontSize: 13,
   },
   errorText: {
     color: colors.textMuted,
     padding: spacing.lg,
     textAlign: "center",
+  },
+  langRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.sm,
+  },
+  langLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontFamily: fontFamilies.body,
+  },
+  langChips: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  langChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  langChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: "rgba(131,135,195,0.18)",
+  },
+  langChipText: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  langChipTextActive: {
+    color: colors.text,
   },
   eyebrow: {
     color: colors.textFaint,

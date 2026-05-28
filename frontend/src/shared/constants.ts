@@ -1,4 +1,4 @@
-import { Category, Star, StarCostInfo, StarCostTier } from "./types";
+import { Category, Language, Star, StarCostInfo, StarCostTier } from "./types";
 
 export const STORAGE_KEYS = {
   authToken: "astrocus.authToken",
@@ -70,27 +70,33 @@ export const STARS: Star[] = [...LEGACY_STARS];
 export type BadgeDefinition = {
   id: string;
   name: string;
+  nameEn: string;
   description: string;
+  descriptionEn: string;
 };
 
+export const getBadgeLabel = (badge: BadgeDefinition, language: Language) => ({
+  name: language === "en" ? badge.nameEn : badge.name,
+  description: language === "en" ? badge.descriptionEn : badge.description,
+});
+
 export const BADGES: BadgeDefinition[] = [
-  { id: "first_step",        name: "İlk Adım",            description: "İlk odak seansını tamamla." },
-  { id: "focus_master",      name: "Odak Ustası",          description: "Toplam 10 saat odaklan." },
-  { id: "discipline",        name: "Disiplin",             description: "7 günlük seri yakala." },
-  // Constellation completion badges
-  { id: "cst_aries",         name: "Koç Ustası",           description: "Koç takımyıldızını tamamla." },
-  { id: "cst_taurus",        name: "Boğa Ustası",          description: "Boğa takımyıldızını tamamla." },
-  { id: "cst_gemini",        name: "İkizler Ustası",       description: "İkizler takımyıldızını tamamla." },
-  { id: "cst_cancer",        name: "Yengeç Ustası",        description: "Yengeç takımyıldızını tamamla." },
-  { id: "cst_leo",           name: "Aslan Ustası",         description: "Aslan takımyıldızını tamamla." },
-  { id: "cst_virgo",         name: "Başak Ustası",         description: "Başak takımyıldızını tamamla." },
-  { id: "cst_libra",         name: "Terazi Ustası",        description: "Terazi takımyıldızını tamamla." },
-  { id: "cst_scorpio",       name: "Akrep Ustası",         description: "Akrep takımyıldızını tamamla." },
-  { id: "cst_sagittarius",   name: "Yay Ustası",           description: "Yay takımyıldızını tamamla." },
-  { id: "cst_capricorn",     name: "Oğlak Ustası",         description: "Oğlak takımyıldızını tamamla." },
-  { id: "cst_aquarius",      name: "Kova Ustası",          description: "Kova takımyıldızını tamamla." },
-  { id: "cst_pisces",        name: "Balık Ustası",         description: "Balık takımyıldızını tamamla." },
-  { id: "cst_ophiuchus",     name: "Yılantaşıyıcı Ustası", description: "Yılantaşıyıcı takımyıldızını tamamla." },
+  { id: "first_step", name: "İlk Adım", nameEn: "First Step", description: "İlk odak seansını tamamla.", descriptionEn: "Complete your first focus session." },
+  { id: "focus_master", name: "Odak Ustası", nameEn: "Focus Master", description: "Toplam 10 saat odaklan.", descriptionEn: "Focus for 10 hours total." },
+  { id: "discipline", name: "Disiplin", nameEn: "Discipline", description: "7 günlük seri yakala.", descriptionEn: "Reach a 7-day streak." },
+  { id: "cst_aries", name: "Koç Ustası", nameEn: "Aries Master", description: "Koç takımyıldızını tamamla.", descriptionEn: "Complete the Aries constellation." },
+  { id: "cst_taurus", name: "Boğa Ustası", nameEn: "Taurus Master", description: "Boğa takımyıldızını tamamla.", descriptionEn: "Complete the Taurus constellation." },
+  { id: "cst_gemini", name: "İkizler Ustası", nameEn: "Gemini Master", description: "İkizler takımyıldızını tamamla.", descriptionEn: "Complete the Gemini constellation." },
+  { id: "cst_cancer", name: "Yengeç Ustası", nameEn: "Cancer Master", description: "Yengeç takımyıldızını tamamla.", descriptionEn: "Complete the Cancer constellation." },
+  { id: "cst_leo", name: "Aslan Ustası", nameEn: "Leo Master", description: "Aslan takımyıldızını tamamla.", descriptionEn: "Complete the Leo constellation." },
+  { id: "cst_virgo", name: "Başak Ustası", nameEn: "Virgo Master", description: "Başak takımyıldızını tamamla.", descriptionEn: "Complete the Virgo constellation." },
+  { id: "cst_libra", name: "Terazi Ustası", nameEn: "Libra Master", description: "Terazi takımyıldızını tamamla.", descriptionEn: "Complete the Libra constellation." },
+  { id: "cst_scorpio", name: "Akrep Ustası", nameEn: "Scorpius Master", description: "Akrep takımyıldızını tamamla.", descriptionEn: "Complete the Scorpius constellation." },
+  { id: "cst_sagittarius", name: "Yay Ustası", nameEn: "Sagittarius Master", description: "Yay takımyıldızını tamamla.", descriptionEn: "Complete the Sagittarius constellation." },
+  { id: "cst_capricorn", name: "Oğlak Ustası", nameEn: "Capricornus Master", description: "Oğlak takımyıldızını tamamla.", descriptionEn: "Complete the Capricornus constellation." },
+  { id: "cst_aquarius", name: "Kova Ustası", nameEn: "Aquarius Master", description: "Kova takımyıldızını tamamla.", descriptionEn: "Complete the Aquarius constellation." },
+  { id: "cst_pisces", name: "Balık Ustası", nameEn: "Pisces Master", description: "Balık takımyıldızını tamamla.", descriptionEn: "Complete the Pisces constellation." },
+  { id: "cst_ophiuchus", name: "Yılantaşıyıcı Ustası", nameEn: "Ophiuchus Master", description: "Yılantaşıyıcı takımyıldızını tamamla.", descriptionEn: "Complete the Ophiuchus constellation." },
 ];
 
 export const AVATARS = ["🌙", "🪐", "☄️", "🌠", "✨"];

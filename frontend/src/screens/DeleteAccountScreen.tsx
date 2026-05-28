@@ -3,6 +3,7 @@ import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useAppContext } from "../context/AppContext";
 import { colors, spacing, typography } from "../shared/theme";
+import { t } from "../shared/i18n";
 import { GradientButton } from "../components/GradientButton";
 import { StarfieldBackground } from "../components/StarfieldBackground";
 
@@ -12,58 +13,48 @@ export const DeleteAccountScreen = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = () => {
-    Alert.alert(
-      language === "en" ? "Delete account?" : "Hesabı sil?",
-      language === "en"
-        ? "This permanently removes your profile, sessions, and stardust data."
-        : "Profil, seans ve yıldız tozu verileriniz kalıcı olarak silinir.",
-      [
-        { text: language === "en" ? "Cancel" : "İptal", style: "cancel" },
-        {
-          text: language === "en" ? "Delete" : "Sil",
-          style: "destructive",
-          onPress: () => {
-            void (async () => {
-              setIsDeleting(true);
-              try {
-                await deleteAccount();
-                router.replace("/(auth)");
-              } catch (error) {
-                Alert.alert(
-                  "Astrocus",
-                  error instanceof Error ? error.message : "Delete failed",
-                );
-              } finally {
-                setIsDeleting(false);
-              }
-            })();
-          },
+    Alert.alert(t(language, "deleteAccountConfirm"), t(language, "deleteAccountMessage"), [
+      { text: t(language, "cancel"), style: "cancel" },
+      {
+        text: t(language, "deleteAction"),
+        style: "destructive",
+        onPress: () => {
+          void (async () => {
+            setIsDeleting(true);
+            try {
+              await deleteAccount();
+              router.replace("/(auth)");
+            } catch (error) {
+              Alert.alert(
+                t(language, "appName"),
+                error instanceof Error ? error.message : t(language, "deleteFailed"),
+              );
+            } finally {
+              setIsDeleting(false);
+            }
+          })();
         },
-      ],
-    );
+      },
+    ]);
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <StarfieldBackground density={24} />
-      <Text style={styles.title}>{language === "en" ? "Delete Account" : "Hesabı Sil"}</Text>
-      <Text style={styles.body}>
-        {language === "en"
-          ? "Required for App Store and Play Store. Deletion is immediate and cannot be undone."
-          : "App Store ve Play Store gereksinimi. Silme işlemi geri alınamaz."}
-      </Text>
+      <Text style={styles.title}>{t(language, "deleteAccountTitle")}</Text>
+      <Text style={styles.body}>{t(language, "deleteAccountBody")}</Text>
       <GradientButton
-        label={language === "en" ? "Permanently delete my account" : "Hesabımı kalıcı olarak sil"}
+        label={t(language, "permanentlyDelete")}
         onPress={handleDelete}
         disabled={isDeleting}
-        accessibilityLabel={language === "en" ? "Delete account" : "Hesabı sil"}
+        accessibilityLabel={t(language, "deleteAccount")}
       />
       <View style={styles.spacer} />
       <GradientButton
-        label={language === "en" ? "Cancel" : "Vazgeç"}
+        label={t(language, "cancelAction")}
         onPress={() => router.back()}
         variant="soft"
-        accessibilityLabel={language === "en" ? "Cancel" : "Vazgeç"}
+        accessibilityLabel={t(language, "cancel")}
       />
     </ScrollView>
   );

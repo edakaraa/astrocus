@@ -5,10 +5,12 @@ import { useAppContext } from "../context/AppContext";
 import {
   BACKGROUND_TOLERANCE_SECONDS,
   BADGES,
+  getBadgeLabel,
   PAUSE_LIMIT,
   SESSION_DURATION_OPTIONS,
 } from "../shared/constants";
 import { t } from "../shared/i18n";
+import { formatDuration, formatNumber, getWeekDayLabels } from "../shared/formatLocale";
 import { colors, fontFamilies, radii, spacing, typography } from "../shared/theme";
 import { StarfieldBackground } from "../components/StarfieldBackground";
 import { SurfaceCard } from "../components/SurfaceCard";
@@ -24,18 +26,6 @@ const formatSeconds = (seconds: number) => {
   const remainder = (seconds % 60).toString().padStart(2, "0");
   return `${minutes}:${remainder}`;
 };
-
-const formatMinutes = (minutes: number) => {
-  if (minutes < 60) {
-    return `${minutes} dk`;
-  }
-
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  return remainder === 0 ? `${hours}s` : `${hours}s ${remainder}dk`;
-};
-
-const weekDays = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"] as const;
 
 export const SessionScreen = () => {
   const {
@@ -77,9 +67,12 @@ export const SessionScreen = () => {
       return undefined;
     }
     return celebration.newBadgeIds
-      .map((id) => BADGES.find((badge) => badge.id === id)?.name ?? id)
+      .map((id) => {
+        const badge = BADGES.find((item) => item.id === id);
+        return badge ? getBadgeLabel(badge, language).name : id;
+      })
       .filter(Boolean);
-  }, [celebration?.newBadgeIds]);
+  }, [celebration?.newBadgeIds, language]);
 
   const progressRatio = useMemo(() => {
     const totalSeconds = sessionState.selectedDurationMinutes * 60;
@@ -106,7 +99,9 @@ export const SessionScreen = () => {
     const day = today.getDay() === 0 ? 6 : today.getDay() - 1;
     firstDay.setDate(today.getDate() - day);
 
-    return weekDays.map((_, index) => {
+    const weekDayLabels = getWeekDayLabels(language);
+
+    return weekDayLabels.map((_, index) => {
       const date = new Date(firstDay);
       date.setDate(firstDay.getDate() + index);
       const key = date.toLocaleDateString("en-CA");
@@ -115,7 +110,7 @@ export const SessionScreen = () => {
         .filter((session) => new Date(session.completedAt).toLocaleDateString("en-CA") === key)
         .reduce((sum, session) => sum + session.durationMinutes, 0);
     });
-  }, [analyticsSummary?.weekFocusMinutes, sessions]);
+  }, [analyticsSummary?.weekFocusMinutes, language, sessions]);
 
   const streakForCelebration = celebration?.streakCount ?? user?.currentStreak ?? 0;
 
@@ -150,7 +145,7 @@ export const SessionScreen = () => {
   };
 
   if (isSessionActive) {
-    const primaryLabel = sessionState.status === "running" ? "Duraklat" : "Devam et";
+    const primaryLabel = sessionState.status === "running" ? t(language, "pause") : t(language, "resume");
     const primaryA11y = sessionState.status === "running" ? t(language, "pause") : t(language, "resume");
 
     return (
@@ -171,9 +166,9 @@ export const SessionScreen = () => {
         </View>
 
         <View style={styles.activeContent}>
-          <Text style={styles.activeTitle}>Derin Odak</Text>
+          <Text style={styles.activeTitle}>{t(language, "deepFocus")}</Text>
           <Text style={styles.activeTime}>{formatSeconds(sessionState.remainingSeconds)}</Text>
-          <Text style={styles.activeSubtitle}>Odaklanmaya başla.</Text>
+          <Text style={styles.activeSubtitle}>{t(language, "focusStartHint")}</Text>
 
           <ProgressRing size={240} strokeWidth={3} progress={progressRatio} progressColor={ringColor}>
             <CelestialVisual variant="planet" size={210} />
@@ -220,16 +215,16 @@ export const SessionScreen = () => {
 
       {/* Global stardust balance — visible at all times */}
       <View style={styles.topBar}>
-        <Text style={styles.topBarLabel}>Odak</Text>
+        <Text style={styles.topBarLabel}>{t(language, "session")}</Text>
         <StardustPill amount={user?.totalStardust ?? 0} />
       </View>
 
       <View style={styles.heroCard}>
         <View style={styles.heroGlow} pointerEvents="none" />
         <CelestialVisual variant="planet" size={132} style={styles.heroPlanet} />
-        <Text style={styles.heroEyebrow}>Ana Navigasyon</Text>
-        <Text style={styles.heroTitle}>Hoş geldin, {user?.username ?? "Kaşif"}</Text>
-        <Text style={styles.heroSubtitle}>Bugün evrene odaklı bir iz bırak.</Text>
+        <Text style={styles.heroEyebrow}>{t(language, "mainNavigation")}</Text>
+        <Text style={styles.heroTitle}>{`${t(language, "welcomeUser")}, ${user?.username ?? t(language, "explorerName")}`}</Text>
+        <Text style={styles.heroSubtitle}>{t(language, "sessionHeroSubtitle")}</Text>
         <Text style={styles.heroRateHint}>{t(language, "stardustPerMinute")}</Text>
       </View>
 
@@ -239,16 +234,16 @@ export const SessionScreen = () => {
             <MaterialCommunityIcons name="timer-outline" size={18} color={colors.primary} />
           </View>
           <View style={styles.menuTextWrap}>
-            <Text style={styles.menuTitle}>Odak</Text>
-            <Text style={styles.menuSubtitle}>Derin odaklan, ihtiyacın kadar süre seç.</Text>
+            <Text style={styles.menuTitle}>{t(language, "session")}</Text>
+            <Text style={styles.menuSubtitle}>{t(language, "focusMenuSubtitle")}</Text>
           </View>
           <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textFaint} />
         </SurfaceCard>
 
         <SurfaceCard style={styles.dailyGoalCard} borderVariant="strong">
           <View style={styles.dailyHeader}>
-            <Text style={styles.cardLabel}>Bugünkü Odak</Text>
-            <Text style={styles.dailyMeta}>{`${dailySummary.totalMinutes} / ${dailyGoalMinutes} dk`}</Text>
+            <Text style={styles.cardLabel}>{t(language, "todayFocusLabel")}</Text>
+            <Text style={styles.dailyMeta}>{`${formatDuration(language, dailySummary.totalMinutes)} / ${formatDuration(language, dailyGoalMinutes)}`}</Text>
           </View>
           <View style={styles.progressBg}>
             <View style={[styles.progressFill, { width: `${Math.round(dailyProgress * 100)}%` }]} />
@@ -257,19 +252,19 @@ export const SessionScreen = () => {
       </View>
 
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Önerilen Seanslar</Text>
+        <Text style={styles.sectionTitle}>{t(language, "suggestedSessions")}</Text>
       </View>
 
       <View style={styles.suggestionRow}>
         {[
-          { title: "Derin Odak", minutes: bestSuggestedDuration, icon: "star-four-points" as const },
-          { title: "Uzun Odak", minutes: 50, icon: "moon-waning-crescent" as const },
-          { title: "Kısa Nefes", minutes: 15, icon: "weather-windy" as const },
+          { titleKey: "deepFocus" as const, minutes: bestSuggestedDuration, icon: "star-four-points" as const },
+          { titleKey: "longFocus" as const, minutes: 50, icon: "moon-waning-crescent" as const },
+          { titleKey: "shortBreath" as const, minutes: 15, icon: "weather-windy" as const },
         ].map((item) => (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`${item.title} ${item.minutes} dakika seç`}
-            key={`${item.title}-${item.minutes}`}
+            accessibilityLabel={`${t(language, item.titleKey)} ${item.minutes} ${t(language, "selectSessionMinutesA11y")}`}
+            key={`${item.titleKey}-${item.minutes}`}
             onPress={() => setSelectedDurationMinutes(item.minutes)}
             style={[
               styles.suggestionCard,
@@ -277,8 +272,8 @@ export const SessionScreen = () => {
             ]}
           >
             <MaterialCommunityIcons name={item.icon} size={20} color={colors.warmOffWhite} />
-            <Text style={styles.suggestionTitle}>{item.title}</Text>
-            <Text style={styles.suggestionTime}>{formatMinutes(item.minutes)}</Text>
+            <Text style={styles.suggestionTitle}>{t(language, item.titleKey)}</Text>
+            <Text style={styles.suggestionTime}>{formatDuration(language, item.minutes)}</Text>
           </Pressable>
         ))}
       </View>
@@ -286,11 +281,11 @@ export const SessionScreen = () => {
       <SurfaceCard style={styles.startCard} borderVariant="strong">
         <View style={styles.startTop}>
           <View>
-            <Text style={styles.cardLabel}>Seans Türü</Text>
+            <Text style={styles.cardLabel}>{t(language, "sessionType")}</Text>
             <Text style={styles.startTitle}>{selectedCategoryLabel}</Text>
           </View>
           <View style={styles.durationBubble}>
-            <Text style={styles.durationBubbleText}>{formatMinutes(sessionState.selectedDurationMinutes)}</Text>
+            <Text style={styles.durationBubbleText}>{formatDuration(language, sessionState.selectedDurationMinutes)}</Text>
           </View>
         </View>
 
@@ -298,13 +293,13 @@ export const SessionScreen = () => {
           {SESSION_DURATION_OPTIONS.map((minutes) => (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`${minutes} dakika seç`}
+              accessibilityLabel={`${minutes} ${t(language, "selectSessionMinutesA11y")}`}
               key={minutes}
               onPress={() => setSelectedDurationMinutes(minutes)}
               style={[styles.durationChip, sessionState.selectedDurationMinutes === minutes ? styles.durationChipActive : null]}
             >
               <Text style={[styles.durationChipText, sessionState.selectedDurationMinutes === minutes ? styles.durationChipTextActive : null]}>
-                {formatMinutes(minutes)}
+                {formatDuration(language, minutes)}
               </Text>
             </Pressable>
           ))}
@@ -314,7 +309,7 @@ export const SessionScreen = () => {
           {categories.map((category) => (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`${t(language, `category_${category.id}` as never)} kategorisini seç`}
+              accessibilityLabel={`${t(language, `category_${category.id}` as never)} ${t(language, "selectCategoryA11y")}`}
               key={category.id}
               onPress={() => setSelectedCategoryId(category.id)}
               style={[
@@ -333,7 +328,7 @@ export const SessionScreen = () => {
           onPress={handleStartSession}
           style={styles.primaryWideButton}
         >
-          <Text style={styles.primaryWideText}>Başlat</Text>
+          <Text style={styles.primaryWideText}>{t(language, "start")}</Text>
         </Pressable>
       </SurfaceCard>
 
@@ -343,30 +338,31 @@ export const SessionScreen = () => {
             <CelestialVisual variant="planet" size={54} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.cardLabel}>Son Seans</Text>
+            <Text style={styles.cardLabel}>{t(language, "lastSession")}</Text>
             <Text style={styles.lastSessionTitle}>
-              {`${t(language, `category_${latestSession.categoryId}` as never)} · ${formatMinutes(latestSession.durationMinutes)}`}
+              {`${t(language, `category_${latestSession.categoryId}` as never)} · ${formatDuration(language, latestSession.durationMinutes)}`}
             </Text>
           </View>
-          <Text style={styles.lastSessionReward}>{`+${latestSession.stardustEarned} ✦`}</Text>
+          <Text style={styles.lastSessionReward}>{`+${formatNumber(language, latestSession.stardustEarned)} ✦`}</Text>
         </SurfaceCard>
       ) : null}
 
       <SurfaceCard style={styles.weekCard}>
         <View style={styles.dailyHeader}>
-          <Text style={styles.sectionTitle}>Haftalık İlerleme</Text>
-          <Text style={styles.dailyMeta}>{`${unlockedStarIds.length} yıldız açık`}</Text>
+          <Text style={styles.sectionTitle}>{t(language, "weeklyProgress")}</Text>
+          <Text style={styles.dailyMeta}>{`${formatNumber(language, unlockedStarIds.length)} ${t(language, "starsOpenCount")}`}</Text>
         </View>
         <View style={styles.weekBars}>
           {weeklyMinutes.map((minutes, index) => {
             const barHeight = 22 + Math.min(minutes / Math.max(dailyGoalMinutes, 1), 1) * 58;
+            const weekDayLabels = getWeekDayLabels(language);
 
             return (
-              <View key={weekDays[index]} style={styles.weekBarItem}>
+              <View key={weekDayLabels[index]} style={styles.weekBarItem}>
                 <View style={styles.weekTrack}>
                   <View style={[styles.weekFill, { height: barHeight }]} />
                 </View>
-                <Text style={styles.weekLabel}>{weekDays[index]}</Text>
+                <Text style={styles.weekLabel}>{weekDayLabels[index]}</Text>
               </View>
             );
           })}
@@ -375,18 +371,20 @@ export const SessionScreen = () => {
 
       {sessionState.status === "failed" ? (
         <SurfaceCard style={styles.failedCard} borderVariant="strong">
-          <Text style={styles.failedTitle}>Seans kaybedildi</Text>
-          <Text style={styles.failedText}>{`Uygulamadan ${BACKGROUND_TOLERANCE_SECONDS} saniyeden fazla uzak kaldın.`}</Text>
+          <Text style={styles.failedTitle}>{t(language, "failedSessionTitle")}</Text>
+          <Text style={styles.failedText}>
+            {t(language, "failedSessionBackground").replace("{seconds}", String(BACKGROUND_TOLERANCE_SECONDS))}
+          </Text>
           <Pressable accessibilityRole="button" accessibilityLabel={t(language, "reset")} onPress={handleDismissFailedSession} style={styles.softButton}>
-            <Text style={styles.softButtonText}>Yeniden hazırla</Text>
+            <Text style={styles.softButtonText}>{t(language, "prepareAgain")}</Text>
           </Pressable>
         </SurfaceCard>
       ) : null}
 
       <View style={styles.statsRow}>
-        <Text style={styles.statItem}>{`◎ ${sessionState.pauseCount} ara / ${PAUSE_LIMIT}`}</Text>
-        <Text style={styles.statItem}>{`⏱ ${formatMinutes(sessionState.selectedDurationMinutes)} hedef`}</Text>
-        <Text style={styles.statItem}>{`✦ ${user?.currentStreak ?? 0} gün seri`}</Text>
+        <Text style={styles.statItem}>{`◎ ${sessionState.pauseCount} ${t(language, "pauseBreak")} / ${PAUSE_LIMIT}`}</Text>
+        <Text style={styles.statItem}>{`⏱ ${formatDuration(language, sessionState.selectedDurationMinutes)} ${t(language, "sessionGoal")}`}</Text>
+        <Text style={styles.statItem}>{`✦ ${formatNumber(language, user?.currentStreak ?? 0)} ${t(language, "dayStreak")}`}</Text>
       </View>
 
       <CelebrationModal

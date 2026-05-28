@@ -61,46 +61,50 @@ export const AuthScreen = () => {
     try {
       if (isLogin) {
         if (!email.trim() || !password.trim()) {
-          Alert.alert("Astrocus", "E-posta ve şifre gerekli.");
+          Alert.alert(t(language, "appName"), t(language, "fieldsRequired"));
           return;
         }
         setIsSubmitting(true);
-        await login({ email, password });
+        await login({ email, password }, language);
         return;
       }
 
       if (!fullName.trim() || !username.trim() || !email.trim() || !password.trim()) {
-        Alert.alert("Astrocus", "Ad, kullanıcı adı, e-posta ve şifre gerekli.");
+        Alert.alert(t(language, "appName"), t(language, "registerFieldsRequired"));
         return;
       }
 
       if (password.length < 8) {
-        Alert.alert("Astrocus", "Şifre en az 8 karakter olmalı.");
+        Alert.alert(t(language, "appName"), t(language, "weakPassword"));
         return;
       }
 
       if (!acceptedTerms) {
-        Alert.alert("Astrocus", "Gizlilik politikasını kabul etmelisin.");
+        Alert.alert(t(language, "appName"), t(language, "termsRequired"));
         return;
       }
 
       setIsSubmitting(true);
-      await register({
-        email,
-        password,
-        username: username.trim(),
-        displayName: fullName.trim(),
-      });
+      await register(
+        {
+          email,
+          password,
+          username: username.trim(),
+          displayName: fullName.trim(),
+        },
+        language,
+      );
     } catch (error) {
       if (isEmailConfirmationRequiredError(error)) {
-        Alert.alert(
-          "Astrocus",
-          `${error.email} adresine doğrulama bağlantısı gönderdik. Gelen kutusu ve spam klasörünü kontrol et; onayladıktan sonra giriş yap.`,
-          [{ text: "Girişe geç", onPress: () => setAuthMode("login") }],
-        );
+        Alert.alert(t(language, "appName"), `${error.email} ${error.message}`, [
+          { text: t(language, "goToLogin"), onPress: () => setAuthMode("login") },
+        ]);
         return;
       }
-      Alert.alert("Astrocus", error instanceof Error ? error.message : "Bir hata oluştu");
+      Alert.alert(
+        t(language, "appName"),
+        error instanceof Error ? error.message : t(language, "errorGeneric"),
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -114,7 +118,7 @@ export const AuthScreen = () => {
     try {
       await continueWithGoogle();
     } catch (error) {
-      const { title, message } = oauthUserMessage(error, "google");
+      const { title, message } = oauthUserMessage(error, language, "google");
       showAstroAlert(title, message);
     } finally {
       setIsGoogleLoading(false);
@@ -129,7 +133,7 @@ export const AuthScreen = () => {
     try {
       await continueWithApple();
     } catch (error) {
-      const { title, message } = oauthUserMessage(error, "apple");
+      const { title, message } = oauthUserMessage(error, language, "apple");
       showAstroAlert(title, message);
     } finally {
       setIsAppleLoading(false);
@@ -143,7 +147,7 @@ export const AuthScreen = () => {
   const passwordToggle = (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={isPasswordVisible ? "Hide password" : "Show password"}
+      accessibilityLabel={isPasswordVisible ? t(language, "hidePassword") : t(language, "showPassword")}
       onPress={() => setIsPasswordVisible((current) => !current)}
       style={styles.iconBtn}
     >
@@ -163,7 +167,7 @@ export const AuthScreen = () => {
       <View style={[styles.topBar, { paddingTop: Math.max(14, insets.top + 10), paddingHorizontal: horizontalPadding }]}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t(language, "back")}
           onPress={() => setAuthMode("login")}
           style={styles.backButton}
         >
@@ -178,24 +182,26 @@ export const AuthScreen = () => {
       <View style={[styles.sheet, { paddingHorizontal: horizontalPadding }]}>
         {isLogin ? (
           <>
-            <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleLineHeight }]}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Login to continue your journey.</Text>
+            <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleLineHeight }]}>
+              {t(language, "authWelcomeBack")}
+            </Text>
+            <Text style={styles.subtitle}>{t(language, "authLoginSubtitle")}</Text>
 
             <View style={styles.form}>
-              <Text style={styles.label}>Email</Text>
+              <Text style={styles.label}>{t(language, "email")}</Text>
               <TextField
-                accessibilityLabel="Email"
-                placeholder="you@example.com"
+                accessibilityLabel={t(language, "email")}
+                placeholder={t(language, "emailPlaceholder")}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
 
-              <Text style={[styles.label, { marginTop: 12 }]}>Password</Text>
+              <Text style={[styles.label, { marginTop: 12 }]}>{t(language, "password")}</Text>
               <TextField
-                accessibilityLabel="Password"
-                placeholder="••••••••"
+                accessibilityLabel={t(language, "password")}
+                placeholder={t(language, "passwordPlaceholder")}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!isPasswordVisible}
@@ -205,46 +211,49 @@ export const AuthScreen = () => {
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Forgot password"
+                accessibilityLabel={t(language, "forgotPassword")}
                 style={styles.forgot}
                 onPress={async () => {
                   if (!email.trim()) {
-                    Alert.alert("Astrocus", "Enter your email first.");
+                    Alert.alert(t(language, "appName"), t(language, "enterEmailFirst"));
                     return;
                   }
                   try {
                     await resetPassword(email);
-                    Alert.alert("Astrocus", "Password reset link sent to your email.");
+                    Alert.alert(t(language, "appName"), t(language, "passwordResetSent"));
                   } catch (error) {
-                    Alert.alert("Astrocus", error instanceof Error ? error.message : "Request failed");
+                    Alert.alert(
+                      t(language, "appName"),
+                      error instanceof Error ? error.message : t(language, "requestFailed"),
+                    );
                   }
                 }}
               >
-                <Text style={styles.forgotText}>Forgot Password?</Text>
+                <Text style={styles.forgotText}>{t(language, "forgotPassword")}</Text>
               </Pressable>
             </View>
 
             <GradientButton
-              label={isSubmitting ? "Giriş yapılıyor…" : "Login"}
+              label={isSubmitting ? t(language, "loginSubmitting") : t(language, "login")}
               onPress={handleSubmit}
             />
 
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or continue with</Text>
+              <Text style={styles.dividerText}>{t(language, "orContinueWith")}</Text>
               <View style={styles.dividerLine} />
             </View>
 
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Continue with Google"
+              accessibilityLabel={t(language, "continueWithGoogle")}
               style={[styles.googleBtn, isGoogleLoading ? styles.googleBtnDisabled : null]}
               onPress={handleGoogleLogin}
               disabled={isGoogleLoading || isAppleLoading}
             >
               <MaterialCommunityIcons name="google" size={20} color={colors.text} />
               <Text style={styles.googleBtnText}>
-                {isGoogleLoading ? "Google bağlanıyor…" : t(language, "continueWithGoogle")}
+                {isGoogleLoading ? t(language, "googleConnecting") : t(language, "continueWithGoogle")}
               </Text>
             </Pressable>
 
@@ -258,49 +267,61 @@ export const AuthScreen = () => {
               >
                 <MaterialCommunityIcons name="apple" size={20} color={colors.text} />
                 <Text style={styles.googleBtnText}>
-                  {isAppleLoading ? "Apple bağlanıyor…" : t(language, "continueWithApple")}
+                  {isAppleLoading ? t(language, "appleConnecting") : t(language, "continueWithApple")}
                 </Text>
               </Pressable>
             ) : null}
 
-            <Pressable accessibilityRole="button" accessibilityLabel="Go to register" onPress={() => setAuthMode("register")}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t(language, "register")}
+              onPress={() => setAuthMode("register")}
+            >
               <Text style={styles.bottomLink}>
-                Don&apos;t have an account? <Text style={styles.bottomLinkStrong}>Register</Text>
+                {t(language, "dontHaveAccount")}{" "}
+                <Text style={styles.bottomLinkStrong}>{t(language, "register")}</Text>
               </Text>
             </Pressable>
           </>
         ) : (
           <>
-            <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleLineHeight }]}>Create Account</Text>
-            <Text style={styles.subtitle}>Start your adventure.</Text>
+            <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleLineHeight }]}>
+              {t(language, "createAccount")}
+            </Text>
+            <Text style={styles.subtitle}>{t(language, "createAccountSubtitle")}</Text>
 
             <View style={styles.form}>
-              <Text style={styles.label}>Name</Text>
-              <TextField accessibilityLabel="Name" placeholder="Your name" value={fullName} onChangeText={setFullName} />
-
-              <Text style={[styles.label, { marginTop: 12 }]}>Username</Text>
+              <Text style={styles.label}>{t(language, "name")}</Text>
               <TextField
-                accessibilityLabel="Username"
-                placeholder="Choose a username"
+                accessibilityLabel={t(language, "name")}
+                placeholder={t(language, "namePlaceholder")}
+                value={fullName}
+                onChangeText={setFullName}
+              />
+
+              <Text style={[styles.label, { marginTop: 12 }]}>{t(language, "username")}</Text>
+              <TextField
+                accessibilityLabel={t(language, "username")}
+                placeholder={t(language, "usernamePlaceholder")}
                 value={username}
                 onChangeText={setUsername}
                 autoCapitalize="none"
               />
 
-              <Text style={[styles.label, { marginTop: 12 }]}>Email</Text>
+              <Text style={[styles.label, { marginTop: 12 }]}>{t(language, "email")}</Text>
               <TextField
-                accessibilityLabel="Email"
-                placeholder="you@example.com"
+                accessibilityLabel={t(language, "email")}
+                placeholder={t(language, "emailPlaceholder")}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
               />
 
-              <Text style={[styles.label, { marginTop: 12 }]}>Password</Text>
+              <Text style={[styles.label, { marginTop: 12 }]}>{t(language, "password")}</Text>
               <TextField
-                accessibilityLabel="Password"
-                placeholder="Min. 8 characters"
+                accessibilityLabel={t(language, "password")}
+                placeholder={t(language, "passwordMinPlaceholder")}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!isPasswordVisible}
@@ -311,7 +332,7 @@ export const AuthScreen = () => {
               <View style={styles.termsRow}>
                 <Pressable
                   accessibilityRole="checkbox"
-                  accessibilityLabel="Accept terms"
+                  accessibilityLabel={t(language, "acceptTerms")}
                   accessibilityState={{ checked: acceptedTerms }}
                   onPress={() => setAcceptedTerms((current) => !current)}
                   style={[styles.checkbox, acceptedTerms ? styles.checkboxChecked : null]}
@@ -319,22 +340,27 @@ export const AuthScreen = () => {
                   {acceptedTerms ? <MaterialCommunityIcons name="check" size={14} color={colors.chineseBlack} /> : null}
                 </Pressable>
                 <Text style={styles.termsText}>
-                  I agree to the{" "}
+                  {t(language, "acceptTerms")}{" "}
                   <Text style={styles.termsLink} onPress={() => router.push("/legal/privacy-policy")}>
-                    Privacy Policy
+                    {t(language, "privacyPolicyLink")}
                   </Text>
                 </Text>
               </View>
             </View>
 
             <GradientButton
-              label={isSubmitting ? "Kaydediliyor…" : "Create Account"}
+              label={isSubmitting ? t(language, "registerSubmitting") : t(language, "createAccount")}
               onPress={handleSubmit}
             />
 
-            <Pressable accessibilityRole="button" accessibilityLabel="Go to login" onPress={() => setAuthMode("login")}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t(language, "login")}
+              onPress={() => setAuthMode("login")}
+            >
               <Text style={styles.bottomLink}>
-                Already have an account? <Text style={styles.bottomLinkStrong}>Login</Text>
+                {t(language, "alreadyHaveAccount")}{" "}
+                <Text style={styles.bottomLinkStrong}>{t(language, "login")}</Text>
               </Text>
             </Pressable>
           </>
@@ -343,9 +369,9 @@ export const AuthScreen = () => {
 
       <AstroAlertModal
         visible={astroAlert !== null}
-        title={astroAlert?.title ?? "Astro Account Check"}
+        title={astroAlert?.title ?? t(language, "appName")}
         message={astroAlert?.message ?? ""}
-        confirmLabel="OK"
+        confirmLabel={t(language, "ok")}
         onClose={() => setAstroAlert(null)}
       />
     </ScrollView>

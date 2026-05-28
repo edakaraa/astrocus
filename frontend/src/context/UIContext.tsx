@@ -3,6 +3,7 @@ import React, {
   PropsWithChildren,
   useCallback,
   useContext,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useState,
@@ -10,6 +11,7 @@ import React, {
 import { asyncStorage } from "../shared/storage";
 import { STORAGE_KEYS } from "../shared/constants";
 import { api } from "../shared/api";
+import { resolveInitialLanguage } from "../shared/resolveLanguage";
 import type { CelebrationPayload, Language } from "../shared/types";
 import { useAuth } from "./AuthContext";
 import type { AstrocusInfraRefs } from "./AuthContext";
@@ -31,6 +33,13 @@ export const UIProvider = ({ children, uiSetLanguageRef, uiSetCelebrationRef }: 
   const { token, applyAuthPayload, setIsOnline } = useAuth();
   const [language, setLanguageState] = useState<Language>("tr");
   const [celebration, setCelebration] = useState<CelebrationState>(null);
+
+  useEffect(() => {
+    void resolveInitialLanguage().then((resolved) => {
+      setLanguageState(resolved);
+      uiSetLanguageRef.current?.(resolved);
+    });
+  }, [uiSetLanguageRef]);
 
   useLayoutEffect(() => {
     uiSetLanguageRef.current = setLanguageState;

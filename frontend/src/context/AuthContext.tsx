@@ -13,6 +13,7 @@ import { deleteRemoteAccount } from "../services/accountApi";
 import { supabase } from "../lib/supabase";
 import { asyncStorage, secureStorage } from "../shared/storage";
 import { STORAGE_KEYS } from "../shared/constants";
+import { resolveInitialLanguage } from "../shared/resolveLanguage";
 import { trackEvent } from "../shared/analytics";
 import { AuthMode, AuthPayload, CelebrationPayload, PendingSession, UnlockStarResult, User, UserConstellationRow } from "../shared/types";
 import { createDevDemoPayload, isDevDemoToken, matchesDevDemoCredentials } from "./auth/devDemo";
@@ -36,16 +37,19 @@ export type AuthContextValue = {
   setAuthMode: (mode: AuthMode) => void;
   setIsOnline: (online: boolean) => void;
   applyAuthPayload: (payload: AuthPayload) => Promise<void>;
-  register: (input: {
-    email: string;
-    password: string;
-    username: string;
-    displayName: string;
-    galaxyName?: string;
-  }) => Promise<void>;
+  register: (
+    input: {
+      email: string;
+      password: string;
+      username: string;
+      displayName: string;
+      galaxyName?: string;
+    },
+    language: User["language"],
+  ) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   unlockStar: (starId: string) => Promise<UnlockStarResult | null>;
-  login: (input: { email: string; password: string }) => Promise<void>;
+  login: (input: { email: string; password: string }, language: User["language"]) => Promise<void>;
   continueWithGoogle: () => Promise<void>;
   continueWithApple: () => Promise<void>;
   completeOnboarding: (constellationId: string) => Promise<void>;
@@ -89,14 +93,14 @@ export const AuthProvider = ({
 
   useEffect(() => {
     const bootstrap = async () => {
-      const [storedToken, storedLanguage, storedPendingSessions] = await Promise.all([
+      const [storedToken, initialLanguage, storedPendingSessions] = await Promise.all([
         secureStorage.get(STORAGE_KEYS.authToken),
-        asyncStorage.get<User["language"]>(STORAGE_KEYS.language, "tr"),
+        resolveInitialLanguage(),
         asyncStorage.get<PendingSession[]>(STORAGE_KEYS.pendingSessions, []),
       ]);
 
       sessionSetPendingRef.current?.(storedPendingSessions);
-      uiSetLanguageRef.current?.(storedLanguage);
+      uiSetLanguageRef.current?.(initialLanguage);
 
       if (storedToken) {
         if (isDevDemoToken(storedToken)) {
@@ -128,8 +132,11 @@ export const AuthProvider = ({
   }, [applyAuthPayload, sessionSetPendingRef, uiSetLanguageRef]);
 
   const register = useCallback(
-    async (input: { email: string; password: string; username: string; displayName: string; galaxyName?: string }) => {
-      const payload = await api.register(input);
+    async (
+      input: { email: string; password: string; username: string; displayName: string; galaxyName?: string },
+      language: User["language"],
+    ) => {
+      const payload = await api.register(input, language);
       await applyAuthPayload(payload);
       await trackEvent("signup_completed");
     },
@@ -159,7 +166,7 @@ export const AuthProvider = ({
   );
 
   const login = useCallback(
-    async (input: { email: string; password: string }) => {
+    async (input: { email: string; password: string }, language: User["language"]) => {
       if (__DEV__ && matchesDevDemoCredentials(input)) {
         const payload = createDevDemoPayload({ email: input.email.trim() });
         await asyncStorage.set(STORAGE_KEYS.demoAuthPayload, payload);
@@ -167,7 +174,7 @@ export const AuthProvider = ({
         setIsOnline(false);
         return;
       }
-      const payload = await api.login(input);
+      const payload = await api.login(input, language);
       await applyAuthPayload(payload);
       setIsOnline(true);
     },
