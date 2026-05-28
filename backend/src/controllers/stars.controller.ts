@@ -48,11 +48,16 @@ export const unlockStar = async (req: AuthedRequest, res: Response) => {
       return;
     }
 
+    const row = data as Record<string, unknown>;
     const payload: UnlockStarResult = {
-      starId: data.star_id as string,
-      cost: data.cost as number,
-      totalStardust: data.total_stardust as number,
-      targetStarId: data.target_star_id as string,
+      starId: String(row.star_id ?? ""),
+      cost: Number(row.cost ?? 0),
+      totalStardust: Number(row.total_stardust ?? 0),
+      targetStarId: String(row.target_star_id ?? ""),
+      constellationCompleted: Boolean(row.constellation_completed),
+      newBadgeId: typeof row.new_badge_id === "string" ? row.new_badge_id : null,
+      nextConstellationId:
+        typeof row.next_constellation_id === "string" ? row.next_constellation_id : null,
     };
 
     res.status(201).json(payload);

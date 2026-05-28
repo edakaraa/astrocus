@@ -14,4 +14,7 @@ export type UnlockStarResult = {
   cost: number;
   totalStardust: number;
   targetStarId: string;
+  constellationCompleted: boolean;
+  newBadgeId: string | null;
+  nextConstellationId: string | null;
 };

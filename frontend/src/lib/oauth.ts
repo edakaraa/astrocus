@@ -1,146 +1,278 @@
 import * as WebBrowser from "expo-web-browser";
 import { makeRedirectUri } from "expo-auth-session";
 import * as QueryParams from "expo-auth-session/build/QueryParams";
-import { supabase } from "./supabase";
-import { requireSupabaseConfig } from "./supabaseConfig";
-import { OAuthError } from "./oauthErrors";
 import Constants, { ExecutionEnvironment } from "expo-constants";
+import * as Linking from "expo-linking";
+import { Platform } from "react-native";
+import type { Session } from "@supabase/supabase-js";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { supabase } from "./supabase";
+import { STORAGE_KEYS } from "../shared/constants";
+import { requireSupabaseConfig } from "./supabaseConfig";
+import { OAuthError } from "./authErrors";
+import { getMetroLanHost, isExpoTunnelHost } from "../shared/config";
 
 WebBrowser.maybeCompleteAuthSession();
 
-const OAUTH_SCHEME = "astrocus";
-const OAUTH_CALLBACK_PATH = "auth/callback";
+const SCHEME = "astrocus";
+const CALLBACK_PATH = "auth/callback";
+/** Dismiss sonrasi deep link bekleme penceresi (ms). */
+const OAUTH_WAIT_MS = 15_000;
+
+const isExpoGo = () => Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+const replaceLoopbackWithLan = (uri: string): string => {
+  if (isExpoTunnelHost()) {
+    return uri;
+  }
+  const lan = getMetroLanHost();
+  if (!lan) {
+    return uri;
+  }
+  return uri.replace(/\b127\.0\.0\.1\b/g, lan).replace(/\blocalhost\b/gi, lan);
+};
 
 export const getOAuthRedirectUri = (): string => {
-  const isExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
-
-  const redirectTo = makeRedirectUri({
-    scheme: OAUTH_SCHEME,
-    path: OAUTH_CALLBACK_PATH,
-    preferLocalhost: false,
-    native: isExpoGo ? undefined : `${OAUTH_SCHEME}://${OAUTH_CALLBACK_PATH}`,
-  });
-
-  if (!redirectTo || redirectTo === "null" || !redirectTo.includes("://")) {
-    return `${OAUTH_SCHEME}://${OAUTH_CALLBACK_PATH}`;
+  const fromEnv = process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URI?.trim();
+  if (fromEnv?.includes("://")) {
+    return replaceLoopbackWithLan(fromEnv);
   }
 
-  return redirectTo;
+  if (isExpoGo()) {
+    const uri = Linking.createURL(CALLBACK_PATH);
+    return replaceLoopbackWithLan(uri);
+  }
+
+  return makeRedirectUri({
+    scheme: SCHEME,
+    path: CALLBACK_PATH,
+    native: `${SCHEME}://${CALLBACK_PATH}`,
+  });
+};
+
+const isOAuthReturnUrl = (url: string | null | undefined): boolean => {
+  if (!url) {
+    return false;
+  }
+  return url.includes("auth/callback") || url.includes("code=") || url.includes("access_token=");
+};
+
+/**
+ * Android Expo Go: tarayici kapaninca uygulama exp:// deep link ile geri donebilir.
+ * WebBrowser "dismiss" donse bile Linking ile gelen URL'yi yakala.
+ */
+const waitForOAuthReturnUrl = (): { promise: Promise<string>; cancel: () => void } => {
+  let settled = false;
+  let subscription: { remove: () => void } | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const cleanup = () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    subscription?.remove();
+    subscription = null;
+  };
+
+  const cancel = () => {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    cleanup();
+  };
+
+  const promise = new Promise<string>((resolve, reject) => {
+    const finish = (url: string | null | undefined) => {
+      if (settled || !isOAuthReturnUrl(url)) {
+        return;
+      }
+      settled = true;
+      cleanup();
+      resolve(url!);
+    };
+
+    subscription = Linking.addEventListener("url", (event) => {
+      finish(event.url);
+    });
+
+    timer = setTimeout(() => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanup();
+      reject(new OAuthError("Google girisinin zaman asimi doldu.", "connection"));
+    }, OAUTH_WAIT_MS);
+
+    void Linking.getInitialURL().then(finish);
+  });
+
+  return { promise, cancel };
 };
 
 const parseHashParams = (url: string): Record<string, string> => {
-  const hashIndex = url.indexOf("#");
-  if (hashIndex === -1) {
+  const hash = url.split("#")[1];
+  if (!hash) {
     return {};
   }
-
-  const hash = url.slice(hashIndex + 1);
   const params: Record<string, string> = {};
   for (const part of hash.split("&")) {
-    const [rawKey, rawValue = ""] = part.split("=");
-    if (!rawKey) {
-      continue;
+    const [key, value = ""] = part.split("=");
+    if (key) {
+      params[decodeURIComponent(key)] = decodeURIComponent(value);
     }
-    params[decodeURIComponent(rawKey)] = decodeURIComponent(rawValue);
   }
   return params;
 };
 
-const parseOAuthRedirect = (url: string) => {
+const parseRedirectParams = (url: string): Record<string, string> => {
   const { params, errorCode } = QueryParams.getQueryParams(url);
   if (errorCode) {
-    throw new OAuthError(errorCode, "connection");
+    const description = params.error_description ?? params.error ?? errorCode;
+    throw new OAuthError(description, "connection");
   }
-
-  const hashParams = parseHashParams(url);
-  const merged = { ...hashParams, ...params };
-
-  return merged;
+  return { ...parseHashParams(url), ...params };
 };
 
-export const signInWithGoogle = async () => {
-  const provider = "google" as const;
+export const completeOAuthFromUrl = async (url: string): Promise<Session> => {
+  if (__DEV__) {
+    console.info("[Astrocus OAuth] completeOAuthFromUrl =", url.slice(0, 160));
+  }
+  const merged = parseRedirectParams(url);
+  const authCode = merged.code;
+  const accessToken = merged.access_token;
+  const refreshToken = merged.refresh_token;
+
+  if (authCode) {
+    const { data, error } = await supabase.auth.exchangeCodeForSession(authCode);
+    if (error || !data.session) {
+      throw new OAuthError(error?.message ?? "Oturum olusturulamadi.", "connection");
+    }
+    return data.session;
+  }
+
+  if (accessToken && refreshToken) {
+    const { data, error } = await supabase.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    if (error || !data.session) {
+      throw new OAuthError(error?.message ?? "Oturum olusturulamadi.", "connection");
+    }
+    return data.session;
+  }
+
+  throw new OAuthError(
+    `Google oturumu tamamlanamadi. Supabase Redirect URLs listesine ekle: ${getOAuthRedirectUri()}`,
+    "config",
+  );
+};
+
+export const signInWithGoogle = async (): Promise<Session> => {
   try {
     requireSupabaseConfig();
   } catch (error) {
     throw new OAuthError(
-      error instanceof Error ? error.message : "Supabase configuration is missing.",
+      error instanceof Error ? error.message : "Supabase yapilandirmasi eksik.",
       "config",
     );
   }
 
   const redirectTo = getOAuthRedirectUri();
-
-  let data: { url: string | null } | null = null;
-  let oauthError: { message: string } | null = null;
-
-  try {
-    const response = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
+  if (__DEV__) {
+    console.info("[Astrocus OAuth] redirectTo =", redirectTo);
+    if (isExpoGo() && Platform.OS === "android" && !isExpoTunnelHost()) {
+      console.info(
+        "[Astrocus OAuth] Android Expo Go: ayni Wi-Fi + npx expo start --lan -c. Redirect bu adresin Supabase'e ekli olmasi lazim:",
         redirectTo,
-        skipBrowserRedirect: true,
-      },
-    });
-    data = response.data;
-    oauthError = response.error;
-  } catch {
-    throw new OAuthError(
-      "We're having trouble connecting to the auth service. Check your connection and try again.",
-      "connection",
-    );
+      );
+    }
+    if (/127\.0\.0\.1|localhost/i.test(redirectTo) && getMetroLanHost()) {
+      console.warn(
+        "[Astrocus OAuth] redirect loopback iceriyor. .env ile LAN IP kullanin:",
+        `EXPO_PUBLIC_OAUTH_REDIRECT_URI=${redirectTo.replace(/127\.0\.0\.1|localhost/gi, getMetroLanHost()!)}`,
+      );
+    }
   }
+
+  const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo,
+      skipBrowserRedirect: true,
+      queryParams: { access_type: "offline", prompt: "consent" },
+    },
+  });
 
   if (oauthError) {
     throw new OAuthError(oauthError.message, "connection");
   }
 
   const authUrl = data?.url?.trim();
-  if (!authUrl || authUrl === "null" || !/^https?:\/\//i.test(authUrl)) {
-    throw new OAuthError(
-      "Auth service URL is invalid. Verify EXPO_PUBLIC_SUPABASE_URL in frontend/.env and restart Expo.",
-      "config",
-    );
+  if (!authUrl?.startsWith("http")) {
+    throw new OAuthError("Supabase OAuth URL gecersiz.", "config");
+  }
+
+  const linkingWait = waitForOAuthReturnUrl();
+  await AsyncStorage.setItem(STORAGE_KEYS.oauthPending, redirectTo);
+
+  try {
+    await WebBrowser.warmUpAsync();
+  } catch {
+    /* Android -- opsiyonel */
   }
 
   let result: WebBrowser.WebBrowserAuthSessionResult;
   try {
-    result = await WebBrowser.openAuthSessionAsync(authUrl, redirectTo);
+    result = await WebBrowser.openAuthSessionAsync(authUrl, redirectTo, {
+      // createTask: false → Chrome, Expo Go ile ayni Android gorevinde acilir.
+      // Yeni gorev olusursa exp:// deep link Expo Go'yu cold-start eder → "1 module" / remote update hatasi.
+      createTask: false,
+      showInRecents: false,
+    });
   } catch {
+    linkingWait.cancel();
+    throw new OAuthError("Google ile baglanti kurulamadi.", "connection");
+  } finally {
+    try {
+      await WebBrowser.coolDownAsync();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  if (__DEV__) {
+    console.info("[Astrocus OAuth] WebBrowser result.type =", result.type);
+  }
+
+  if (result.type === "success" && result.url) {
+    linkingWait.cancel();
+    await AsyncStorage.removeItem(STORAGE_KEYS.oauthPending);
+    return completeOAuthFromUrl(result.url);
+  }
+
+  if (result.type === "cancel") {
+    linkingWait.cancel();
+    await AsyncStorage.removeItem(STORAGE_KEYS.oauthPending);
+    throw new OAuthError("Google girisi iptal edildi.", "cancelled");
+  }
+
+  // dismiss / unknown: Android Expo Go, OAuth sonrasinda exp:// deep link ile geri gelir.
+  // 15 saniye icinde Linking URL gelmezse buyuk ihtimalle Supabase redirect eksik veya Metro ulasilamaz.
+  try {
+    const url = await linkingWait.promise;
+    await AsyncStorage.removeItem(STORAGE_KEYS.oauthPending);
+    return completeOAuthFromUrl(url);
+  } catch (error) {
+    await AsyncStorage.removeItem(STORAGE_KEYS.oauthPending);
+    if (error instanceof OAuthError) {
+      throw error;
+    }
     throw new OAuthError(
-      "We're having trouble connecting to the auth service. Check your connection and try again.",
-      "connection",
+      `Google oturumu gelmedi. Supabase > Authentication > Redirect URLs'e su adresi ekle: ${redirectTo}`,
+      "config",
     );
   }
-
-  if (result.type === "cancel" || result.type === "dismiss") {
-    throw new OAuthError("Sign-in was cancelled.", "cancelled");
-  }
-
-  if (result.type !== "success" || !result.url) {
-    throw new OAuthError("Sign-in was cancelled.", "cancelled");
-  }
-
-  const params = parseOAuthRedirect(result.url);
-  const accessToken = params.access_token;
-  const refreshToken = params.refresh_token;
-
-  if (!accessToken || !refreshToken) {
-    throw new OAuthError(
-      "Sign-in completed but session tokens were missing. Add this redirect URL in Supabase → Authentication → URL Configuration: " +
-        redirectTo,
-      "connection",
-    );
-  }
-
-  const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-    access_token: accessToken,
-    refresh_token: refreshToken,
-  });
-
-  if (sessionError || !sessionData.session) {
-    throw new OAuthError(sessionError?.message ?? "Failed to establish session.", "connection");
-  }
-
-  return sessionData.session;
 };

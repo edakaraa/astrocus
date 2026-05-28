@@ -82,6 +82,19 @@ npm start
 
 Platform seçtikten sonra o sağlayıcının Node deploy dokümantasyonuna göre `build` / `start` komutlarını bağlayın.
 
+## Gerçek yıldız kataloğu (migration 008)
+
+67 gök cismi (Hamal, Aldebaran, Antares, …). Katalog güncellemesi:
+
+```bash
+node backend/supabase/scripts/generate-008-stars-sql.mjs
+supabase db push
+```
+
+## Takımyıldız sırası (migration 009)
+
+Onboarding’de seçilen takımyıldız `is_starter=true`, `unlock_order=0`. Kalan 12 takımyıldız `constellations.star_count` artan sırada `unlock_order` 1–12 alır. Bir takımyıldızdaki tüm yıldızlar açılmadan sonraki açılmaz. RPC: `initialize_user_constellations`.
+
 ## OAuth (mobil)
 
 Uygulama: `frontend/src/lib/oauth.ts`. Supabase Dashboard → Authentication → URL Configuration:

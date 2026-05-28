@@ -7,14 +7,14 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import Constants from "expo-constants";
 import { api } from "../shared/api";
+import { getApiUrl } from "../shared/config";
 import { deleteRemoteAccount } from "../services/accountApi";
 import { supabase } from "../lib/supabase";
 import { asyncStorage, secureStorage } from "../shared/storage";
 import { STORAGE_KEYS } from "../shared/constants";
 import { trackEvent } from "../shared/analytics";
-import { AuthMode, AuthPayload, CelebrationPayload, PendingSession, User } from "../shared/types";
+import { AuthMode, AuthPayload, CelebrationPayload, PendingSession, UnlockStarResult, User, UserConstellationRow } from "../shared/types";
 import { createDevDemoPayload, isDevDemoToken, matchesDevDemoCredentials } from "./auth/devDemo";
 
 export type AstrocusInfraRefs = {
@@ -30,6 +30,7 @@ export type AuthContextValue = {
   apiUrl: string;
   token: string | null;
   user: User | null;
+  constellationProgress: UserConstellationRow[];
   isAuthenticated: boolean;
   authMode: AuthMode;
   setAuthMode: (mode: AuthMode) => void;
@@ -43,10 +44,11 @@ export type AuthContextValue = {
     galaxyName?: string;
   }) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  unlockStar: (starId: string) => Promise<void>;
+  unlockStar: (starId: string) => Promise<UnlockStarResult | null>;
   login: (input: { email: string; password: string }) => Promise<void>;
   continueWithGoogle: () => Promise<void>;
-  completeOnboarding: (targetStarId: string) => Promise<void>;
+  continueWithApple: () => Promise<void>;
+  completeOnboarding: (constellationId: string) => Promise<void>;
   updateProfile: (input: Partial<User>) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -54,11 +56,6 @@ export type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-const resolveApiUrl = (): string => {
-  const raw = Constants.expoConfig?.extra?.apiUrl;
-  return typeof raw === "string" ? raw.trim() : "";
-};
 
 type AuthProviderProps = PropsWithChildren<AstrocusInfraRefs>;
 
@@ -73,14 +70,16 @@ export const AuthProvider = ({
   const [isOnline, setIsOnline] = useState(true);
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [constellationProgress, setConstellationProgress] = useState<UserConstellationRow[]>([]);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
 
-  const apiUrl = useMemo(() => resolveApiUrl(), []);
+  const apiUrl = useMemo(() => getApiUrl(), []);
 
   const applyAuthPayload = useCallback(
     async (payload: AuthPayload) => {
       setToken(payload.token);
       setUser(payload.user);
+      setConstellationProgress(payload.constellationProgress ?? []);
       sessionHydrateRef.current?.(payload);
       await secureStorage.set(STORAGE_KEYS.authToken, payload.token);
       uiSetLanguageRef.current?.(payload.user.language);
@@ -109,7 +108,6 @@ export const AuthProvider = ({
             return;
           }
         }
-
         try {
           const { data: liveSession } = await supabase.auth.getSession();
           const activeToken = liveSession.session?.access_token ?? storedToken;
@@ -130,13 +128,7 @@ export const AuthProvider = ({
   }, [applyAuthPayload, sessionSetPendingRef, uiSetLanguageRef]);
 
   const register = useCallback(
-    async (input: {
-      email: string;
-      password: string;
-      username: string;
-      displayName: string;
-      galaxyName?: string;
-    }) => {
+    async (input: { email: string; password: string; username: string; displayName: string; galaxyName?: string }) => {
       const payload = await api.register(input);
       await applyAuthPayload(payload);
       await trackEvent("signup_completed");
@@ -149,14 +141,21 @@ export const AuthProvider = ({
   }, []);
 
   const unlockStar = useCallback(
-    async (starId: string) => {
-      if (!token || isDevDemoToken(token)) {
-        return;
-      }
-      const payload = await api.unlockStar(token, starId);
+    async (starId: string): Promise<UnlockStarResult | null> => {
+      if (!token || isDevDemoToken(token)) return null;
+      const { result, payload } = await api.unlockStar(token, starId);
       await applyAuthPayload(payload);
+      if (result.constellationCompleted) {
+        uiSetCelebrationRef.current?.({
+          stardustEarned: 0,
+          unlockedStarId: starId,
+          newBadgeIds: result.newBadgeId ? [result.newBadgeId] : undefined,
+          completedConstellationId: starId.split("_")[0],
+        });
+      }
+      return result;
     },
-    [applyAuthPayload, token],
+    [applyAuthPayload, token, uiSetCelebrationRef],
   );
 
   const login = useCallback(
@@ -168,7 +167,6 @@ export const AuthProvider = ({
         setIsOnline(false);
         return;
       }
-
       const payload = await api.login(input);
       await applyAuthPayload(payload);
       setIsOnline(true);
@@ -182,28 +180,37 @@ export const AuthProvider = ({
     setIsOnline(true);
   }, [applyAuthPayload]);
 
+  const continueWithApple = useCallback(async () => {
+    const payload = await api.continueWithApple();
+    await applyAuthPayload(payload);
+    setIsOnline(true);
+  }, [applyAuthPayload]);
+
+  /**
+   * Onboarding completion: user picks their first constellation.
+   * Calls the secure start_constellation RPC which sets active_constellation_id
+   * and inserts a user_constellations row atomically.
+   */
   const completeOnboarding = useCallback(
-    async (targetStarId: string) => {
-      if (!token || !user) {
+    async (constellationId: string) => {
+      if (!token || !user) return;
+      if (isDevDemoToken(token)) {
+        const demoPayload = createDevDemoPayload({ email: user.email });
+        await applyAuthPayload({ ...demoPayload, user: { ...demoPayload.user, onboardingCompleted: true, activeConstellationId: constellationId } });
+        await asyncStorage.set(STORAGE_KEYS.onboardingSeen, true);
         return;
       }
-
-      const payload = await api.updateProfile(token, {
-        onboardingCompleted: true,
-        targetStarId,
-      });
+      const payload = await api.startConstellation(constellationId);
       await applyAuthPayload(payload);
-      await trackEvent("onboarding_completed");
+      await asyncStorage.set(STORAGE_KEYS.onboardingSeen, true);
+      await trackEvent("onboarding_completed", { constellation: constellationId });
     },
     [applyAuthPayload, token, user],
   );
 
   const updateProfile = useCallback(
     async (input: Partial<User>) => {
-      if (!token) {
-        return;
-      }
-
+      if (!token) return;
       const payload = await api.updateProfile(token, input);
       await applyAuthPayload(payload);
     },
@@ -215,38 +222,30 @@ export const AuthProvider = ({
     try {
       await api.signOut();
     } catch {
-      /* offline — still clear local session */
+      /* offline */
     }
     setToken(null);
     setUser(null);
+    setConstellationProgress([]);
     await secureStorage.remove(STORAGE_KEYS.authToken);
     await asyncStorage.remove(STORAGE_KEYS.demoAuthPayload);
     await asyncStorage.remove(STORAGE_KEYS.pendingSessions);
   }, [uiSetCelebrationRef]);
 
   const deleteAccount = useCallback(async () => {
-    if (!token) {
-      return;
-    }
-
-    if (!isDevDemoToken(token)) {
-      await deleteRemoteAccount(token);
-    }
-
+    if (!token) return;
+    if (!isDevDemoToken(token)) await deleteRemoteAccount(token);
     try {
       await api.signOut();
     } catch {
-      /* session may already be invalid after server-side delete */
+      /* session may already be invalid */
     }
-
     await logout();
     await trackEvent("account_deleted");
   }, [logout, token]);
 
   const refreshUser = useCallback(async () => {
-    if (!token || isDevDemoToken(token)) {
-      return;
-    }
+    if (!token || isDevDemoToken(token)) return;
     try {
       const payload = await api.bootstrap(token);
       await applyAuthPayload(payload);
@@ -263,6 +262,7 @@ export const AuthProvider = ({
       apiUrl,
       token,
       user,
+      constellationProgress,
       isAuthenticated: Boolean(token && user),
       authMode,
       setAuthMode,
@@ -272,6 +272,7 @@ export const AuthProvider = ({
       resetPassword,
       login,
       continueWithGoogle,
+      continueWithApple,
       completeOnboarding,
       updateProfile,
       unlockStar,
@@ -284,7 +285,9 @@ export const AuthProvider = ({
       applyAuthPayload,
       authMode,
       completeOnboarding,
+      constellationProgress,
       continueWithGoogle,
+      continueWithApple,
       deleteAccount,
       isOnline,
       isReady,
@@ -305,8 +308,6 @@ export const AuthProvider = ({
 
 export const useAuth = (): AuthContextValue => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
   return context;
 };

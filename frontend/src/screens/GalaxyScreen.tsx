@@ -1,163 +1,513 @@
-import React, { useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Animated,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import * as Haptics from "expo-haptics";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/AppContext";
+import { loadSkyCatalog, getSkyCatalogOrNull } from "../services/skyCatalog";
 import { colors, fontFamilies, radii, spacing, typography } from "../shared/theme";
 import { StarfieldBackground } from "../components/StarfieldBackground";
 import { SurfaceCard } from "../components/SurfaceCard";
 import { CelestialVisual } from "../components/CelestialVisual";
-import { GradientButton } from "../components/GradientButton";
+import { GlassToast } from "../components/GlassToast";
+import { StardustPill } from "../components/StardustPill";
+import {
+  buildConstellationProgressList,
+  constellationLabel,
+  groupConstellationsForSky,
+  sortConstellationsForUser,
+  starDisplayDescription,
+  starDisplayName,
+  starUnlockCost,
+  type ConstellationProgressEnriched,
+} from "../services/constellationCatalog";
+import type { ConstellationProgress, StarWithProgress } from "../shared/types";
 
-export const GalaxyScreen = () => {
-  const { stars, unlockedStarIds, user, unlockStar } = useAppContext();
-  const [filter, setFilter] = useState<"all" | "unlocked" | "locked">("all");
-  const [selectedStarId, setSelectedStarId] = useState(unlockedStarIds[unlockedStarIds.length - 1] ?? stars[0]?.id);
-  const totalStardust = user?.totalStardust ?? 0;
-  const nextLockedStar = stars.find((star) => star.requiredStardust > totalStardust) ?? null;
-  const remaining = nextLockedStar ? Math.max(nextLockedStar.requiredStardust - totalStardust, 0) : 0;
-  const progress = nextLockedStar
-    ? Math.min(totalStardust / Math.max(nextLockedStar.requiredStardust, 1), 1)
-    : 1;
+const CELESTIAL_VARIANTS = ["galaxy", "star", "planet"] as const;
 
-  const filteredStars = useMemo(() => {
-    if (filter === "unlocked") {
-      return stars.filter((star) => unlockedStarIds.includes(star.id));
-    }
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+type StarCardProps = {
+  star: StarWithProgress;
+  isNextToUnlock: boolean;
+  totalStardust: number;
+  isActiveConstellation: boolean;
+  onPress: (star: StarWithProgress) => void;
+  cardIndex: number;
+};
 
-    if (filter === "locked") {
-      return stars.filter((star) => !unlockedStarIds.includes(star.id));
-    }
+const StarCard = React.memo(
+  ({
+    star,
+    isNextToUnlock,
+    totalStardust,
+    isActiveConstellation,
+    onPress,
+    cardIndex,
+    language,
+  }: StarCardProps & { language: "tr" | "en" }) => {
+    const variant = CELESTIAL_VARIANTS[cardIndex % 3];
+    const unlockCost = starUnlockCost(star);
+    const canAfford = totalStardust >= unlockCost;
+    const tappable = isActiveConstellation && isNextToUnlock && canAfford;
+    const remaining = Math.max(unlockCost - totalStardust, 0);
+    const starName = starDisplayName(star, language);
 
-    return stars;
-  }, [filter, stars, unlockedStarIds]);
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${starName} yıldızı — ${star.isUnlocked ? "açık" : `${unlockCost} ✦ gerekli`}`}
+        onPress={() => onPress(star)}
+        style={({ pressed }) => [
+          styles.starCard,
+          star.isUnlocked && styles.starCardUnlocked,
+          tappable && styles.starCardAffordable,
+          pressed && styles.starCardPressed,
+        ]}
+      >
+        {/* Glow halo for unlocked stars */}
+        {star.isUnlocked ? <View style={styles.starGlow} /> : null}
 
-  const selectedStar = stars.find((star) => star.id === selectedStarId) ?? stars[0];
-  const selectedStarUnlocked = Boolean(selectedStar && unlockedStarIds.includes(selectedStar.id));
-  const canUnlockSelected =
-    Boolean(selectedStar) &&
-    !selectedStarUnlocked &&
-    totalStardust >= (selectedStar?.requiredStardust ?? 0);
+        <CelestialVisual variant={variant} size={72} muted={!star.isUnlocked} />
 
-  const handleUnlockSelected = async () => {
-    if (!selectedStar || selectedStarUnlocked) {
-      return;
-    }
-    try {
-      await unlockStar(selectedStar.id);
-      Alert.alert("Astrocus", `${selectedStar.name} gökyüzüne eklendi.`);
-    } catch (error) {
-      Alert.alert("Astrocus", error instanceof Error ? error.message : "Yıldız açılamadı");
-    }
-  };
+        <Text style={[styles.starName, star.isUnlocked && styles.starNameUnlocked]}>{starName}</Text>
+
+        {star.isUnlocked ? (
+          <View style={styles.statusPill}>
+            <MaterialCommunityIcons name="check-circle" size={11} color={colors.success} />
+            <Text style={[styles.statusText, { color: colors.success }]}>Açık</Text>
+          </View>
+        ) : isNextToUnlock && isActiveConstellation ? (
+          <View style={[styles.statusPill, canAfford ? styles.pillAffordable : styles.pillLocked]}>
+            <MaterialCommunityIcons
+              name={canAfford ? "star-four-points" : "lock-outline"}
+              size={11}
+              color={canAfford ? colors.warning : colors.textFaint}
+            />
+            <Text style={[styles.statusText, { color: canAfford ? colors.warning : colors.textFaint }]}>
+              {canAfford ? `${unlockCost} ✦` : `${remaining.toLocaleString()} ✦ eksik`}
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.statusPill}>
+            <MaterialCommunityIcons name="lock-outline" size={11} color={colors.textFaint} />
+            <Text style={[styles.statusText, { color: colors.textFaint }]}>Kilitli</Text>
+          </View>
+        )}
+      </Pressable>
+    );
+  },
+);
+
+type ConstellationCardProps = {
+  progress: ConstellationProgressEnriched;
+  totalStardust: number;
+  language: "tr" | "en";
+  onStarPress: (star: StarWithProgress, constellation: ConstellationProgress) => void;
+};
+
+const ConstellationCard = React.memo(({ progress, totalStardust, language, onStarPress }: ConstellationCardProps) => {
+  const { constellation, stars, isActive, isCompleted, isNext, isLocked, unlockedCount, unlockOrder, isStarter } =
+    progress;
+  const progressFraction = stars.length > 0 ? unlockedCount / stars.length : 0;
+  const astronomicalName = constellation.nameAstronomical;
+
+  // The next star to unlock is the first locked one in sequential order
+  const nextStarIndex = stars.findIndex((s) => !s.isUnlocked);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <StarfieldBackground density={38} />
-
-      <View style={styles.top}>
-        <View>
-          <Text style={styles.eyebrow}>Gökyüzü</Text>
-          <Text style={styles.title}>Açılan Yıldızlar</Text>
+    <SurfaceCard
+      style={[
+        styles.constellationCard,
+        isActive && styles.constellationCardActive,
+        isNext && styles.constellationCardNext,
+        isCompleted && styles.constellationCardCompleted,
+        isLocked && styles.constellationCardLocked,
+      ]}
+      borderVariant={isActive || isNext ? "strong" : "subtle"}
+    >
+      {/* Header */}
+      <View style={styles.constHeader}>
+        <View style={styles.constSymbolWrap}>
+          <MaterialCommunityIcons name="star-circle-outline" size={22} color={colors.primary} />
         </View>
-        <View style={styles.balancePill}>
-          <MaterialCommunityIcons name="star-four-points" size={13} color={colors.warmOffWhite} />
-          <Text style={styles.balanceText}>{totalStardust.toLocaleString()}</Text>
+        <View style={styles.constHeaderText}>
+          <Text style={styles.constName}>{astronomicalName}</Text>
+          <Text style={styles.constSubname}>
+            {constellation.genitiveEn} · {stars.length} yıldız
+          </Text>
+        </View>
+        <View style={styles.constBadge}>
+          {isCompleted ? (
+            <MaterialCommunityIcons name="check-decagram" size={22} color={colors.success} />
+          ) : isActive ? (
+            <View style={styles.activePill}>
+              <Text style={styles.activePillText}>Aktif</Text>
+            </View>
+          ) : isNext ? (
+            <View style={styles.nextPill}>
+              <Text style={styles.nextPillText}>Sıradaki</Text>
+            </View>
+          ) : isLocked ? (
+            <View style={styles.lockedPill}>
+              <MaterialCommunityIcons name="lock-outline" size={12} color={colors.textFaint} />
+              <Text style={styles.lockedPillText}>
+                {isStarter ? "Başlangıç" : `#${unlockOrder}`}
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.constCount}>{`${unlockedCount}/${stars.length}`}</Text>
+          )}
         </View>
       </View>
 
-      <View style={styles.filterRow}>
-        {[
-          { id: "all", label: "Tümü" },
-          { id: "unlocked", label: "Açılanlar" },
-          { id: "locked", label: "Kilitliler" },
-        ].map((item) => (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${item.label} yıldızları göster`}
-            key={item.id}
-            onPress={() => setFilter(item.id as typeof filter)}
-            style={[styles.filterChip, filter === item.id ? styles.filterChipActive : null]}
-          >
-            <Text style={[styles.filterText, filter === item.id ? styles.filterTextActive : null]}>{item.label}</Text>
-          </Pressable>
+      {/* Progress bar */}
+      <View style={styles.progressBg}>
+        <View style={[styles.progressFill, { width: `${Math.round(progressFraction * 100)}%` }]} />
+      </View>
+
+      {/* Stars row */}
+      <View style={styles.starsRow}>
+        {stars.map((star, idx) => (
+          <StarCard
+            key={star.id}
+            star={star}
+            isNextToUnlock={idx === nextStarIndex}
+            totalStardust={totalStardust}
+            isActiveConstellation={isActive}
+            onPress={(s) => onStarPress(s, progress)}
+            cardIndex={idx}
+            language={language}
+          />
         ))}
       </View>
 
-      <SurfaceCard style={styles.infoBar} borderVariant="strong">
-        <View style={styles.infoTop}>
-          <View>
-            <Text style={styles.infoLabel}>Takımyıldızları</Text>
-            <Text style={styles.infoText}>
-              {nextLockedStar
-                ? `${remaining.toLocaleString()} ✦ sonra ${nextLockedStar.name}`
-                : "Tüm yıldızlar gökyüzünde açık"}
-            </Text>
-          </View>
-          <Text style={styles.progressCount}>{`${unlockedStarIds.length} / ${stars.length}`}</Text>
+      {/* Completion reward hint */}
+      {isCompleted ? (
+        <View style={styles.completedBanner}>
+          <MaterialCommunityIcons name="trophy-variant" size={13} color={colors.warning} />
+          <Text style={styles.completedBannerText}>Rozet — {astronomicalName}</Text>
         </View>
-        <View style={styles.progressBg}>
-          <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
-        </View>
-      </SurfaceCard>
-
-      <View style={styles.grid}>
-        {filteredStars.map((star, index) => {
-          const isUnlocked = unlockedStarIds.includes(star.id);
-          const remainingStardust = Math.max(star.requiredStardust - totalStardust, 0);
-          const variant = index % 3 === 0 ? "galaxy" : index % 3 === 1 ? "star" : "planet";
-
-          return (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`${star.name} yıldızını görüntüle`}
-              key={star.id}
-              onPress={() => setSelectedStarId(star.id)}
-              style={[styles.starCard, selectedStarId === star.id ? styles.starCardSelected : null]}
-            >
-              <CelestialVisual variant={variant} size={78} muted={!isUnlocked} />
-              <Text style={styles.starName}>{star.name}</Text>
-              <Text style={styles.starMeta}>{isUnlocked ? "Açık" : `${remainingStardust.toLocaleString()} ✦`}</Text>
-              {!isUnlocked ? (
-                <View style={styles.lockBadge}>
-                  <MaterialCommunityIcons name="lock-outline" size={13} color={colors.textFaint} />
-                </View>
-              ) : null}
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {selectedStar ? (
-        <SurfaceCard style={styles.detailCard} borderVariant="strong">
-          <CelestialVisual variant={selectedStarUnlocked ? "galaxy" : "star"} size={154} muted={!selectedStarUnlocked} />
-          <Text style={styles.detailTitle}>{selectedStar.name}</Text>
-          <Text style={styles.detailState}>{selectedStarUnlocked ? "Açık" : "Kilitli"}</Text>
-          <Text style={styles.detailDescription}>{selectedStar.description}</Text>
-          <View style={styles.rewardRow}>
-            <View style={styles.rewardPill}>
-              <MaterialCommunityIcons name="star-four-points" size={14} color={colors.primary} />
-              <Text style={styles.rewardText}>{selectedStarUnlocked ? "Kazanıldı" : `${selectedStar.requiredStardust.toLocaleString()} ✦ gerekli`}</Text>
-            </View>
-            <View style={styles.rewardPill}>
-              <MaterialCommunityIcons name="timer-outline" size={14} color={colors.primary} />
-              <Text style={styles.rewardText}>{selectedStarUnlocked ? "Rozet aktif" : "Odaklanarak açılır"}</Text>
-            </View>
-          </View>
-          {canUnlockSelected ? (
-            <GradientButton
-              label={`Aç (${selectedStar.requiredStardust.toLocaleString()} ✦)`}
-              onPress={handleUnlockSelected}
-            />
-          ) : null}
-        </SurfaceCard>
+      ) : isLocked ? (
+        <Text style={styles.lockedHint}>
+          {language === "tr"
+            ? "Önce sıradaki takımyıldızdaki tüm yıldızları tamamla."
+            : "Complete all stars in the current constellation first."}
+        </Text>
+      ) : isActive || isNext ? (
+        <Text style={styles.constDesc}>{constellationLabel(constellation, language)}</Text>
       ) : null}
-    </ScrollView>
+    </SurfaceCard>
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Main GalaxyScreen
+// ---------------------------------------------------------------------------
+const SkySection = ({
+  title,
+  items,
+  totalStardust,
+  language,
+  onStarPress,
+}: {
+  title: string;
+  items: ConstellationProgressEnriched[];
+  totalStardust: number;
+  language: "tr" | "en";
+  onStarPress: (star: StarWithProgress, constellation: ConstellationProgress) => void;
+}) => {
+  if (items.length === 0) {
+    return null;
+  }
+
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {items.map((progress) => (
+        <ConstellationCard
+          key={progress.constellation.id}
+          progress={progress}
+          totalStardust={totalStardust}
+          language={language}
+          onStarPress={onStarPress}
+        />
+      ))}
+    </View>
   );
 };
 
+export const GalaxyScreen = () => {
+  const { user, unlockedStarIds, constellationProgress, unlockStar, language } = useAppContext();
+  const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
+  const [catalogReady, setCatalogReady] = useState(Boolean(getSkyCatalogOrNull()));
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastTitle, setToastTitle] = useState("");
+  const [toastSubtitle, setToastSubtitle] = useState("");
+  const [toastIcon, setToastIcon] = useState<"star-four-points" | "trophy-variant">("star-four-points");
+  const [unlocking, setUnlocking] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (getSkyCatalogOrNull()) {
+      setCatalogReady(true);
+      return;
+    }
+    void loadSkyCatalog()
+      .then(() => setCatalogReady(true))
+      .catch(() => setCatalogReady(false));
+  }, []);
+
+  const skyCatalog = getSkyCatalogOrNull();
+  const totalStardust = user?.totalStardust ?? 0;
+  const activeConstellationId = user?.activeConstellationId ?? null;
+
+  const completedCount = useMemo(
+    () => constellationProgress.filter((p) => p.completedAt !== null).length,
+    [constellationProgress],
+  );
+
+  const baseProgress = useMemo(() => {
+    if (!skyCatalog) {
+      return [];
+    }
+    return buildConstellationProgressList(
+      skyCatalog,
+      unlockedStarIds,
+      constellationProgress,
+      activeConstellationId,
+    );
+  }, [skyCatalog, unlockedStarIds, constellationProgress, activeConstellationId]);
+
+  const sortedProgress = useMemo(
+    () => sortConstellationsForUser(baseProgress, activeConstellationId, constellationProgress),
+    [baseProgress, activeConstellationId, constellationProgress],
+  );
+
+  const skySections = useMemo(() => groupConstellationsForSky(sortedProgress), [sortedProgress]);
+
+  const filteredSections = useMemo(() => {
+    if (filter === "active") {
+      const journeyItems = sortedProgress.filter((p) => p.isActive || p.isNext || p.isStarter);
+      return {
+        completed: [],
+        journey: groupConstellationsForSky(
+          [...sortedProgress.filter((p) => p.isCompleted), ...journeyItems],
+        ).journey,
+      };
+    }
+    if (filter === "completed") {
+      return { completed: sortedProgress.filter((p) => p.isCompleted), journey: [] };
+    }
+    return skySections;
+  }, [filter, skySections, sortedProgress]);
+
+  const overallStars = skyCatalog?.constellationStars.length ?? 0;
+  const constellationCount = skyCatalog?.constellations.length ?? 13;
+  const constellationStarIds = useMemo(
+    () => new Set(skyCatalog?.constellationStars.map((s) => s.id) ?? []),
+    [skyCatalog],
+  );
+  const overallUnlocked = useMemo(
+    () => unlockedStarIds.filter((id) => constellationStarIds.has(id)).length,
+    [unlockedStarIds, constellationStarIds],
+  );
+
+  const showToast = useCallback((title: string, subtitle: string, icon: "star-four-points" | "trophy-variant") => {
+    setToastTitle(title);
+    setToastSubtitle(subtitle);
+    setToastIcon(icon);
+    setToastVisible(true);
+  }, []);
+
+  const handleStarPress = useCallback(
+    async (star: StarWithProgress, constellation: ConstellationProgress) => {
+      if (star.isUnlocked) return;
+      if (unlocking) return;
+
+      if (constellation.isLocked) {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        showToast("Kilitli", "Bu takımyıldız henüz sıranda değil.", "star-four-points");
+        return;
+      }
+
+      if (!constellation.isActive) {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        showToast("Yanlış Takımyıldız", "Önce aktif takımyıldızını tamamla.", "star-four-points");
+        return;
+      }
+
+      const nextIndex = constellation.stars.findIndex((s) => !s.isUnlocked);
+      if (constellation.stars[nextIndex]?.id !== star.id) {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        showToast("Sıra Gerekli", "Önce önceki yıldızı aç.", "star-four-points");
+        return;
+      }
+
+      const starCost = starUnlockCost(star);
+      if (totalStardust < starCost) {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        const need = starCost - totalStardust;
+        showToast("Yetmez", `${need.toLocaleString()} ✦ daha kazanman gerekiyor.`, "star-four-points");
+        return;
+      }
+
+      setUnlocking(star.id);
+      try {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        const result = await unlockStar(star.id);
+
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+        if (result?.constellationCompleted) {
+          await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+          showToast(
+            `${constellation.constellation.nameAstronomical} tamamlandı`,
+            "Rozet kazanıldı — tebrikler!",
+            "trophy-variant",
+          );
+        } else {
+          showToast(
+            `${star.name} Açıldı ✦`,
+            `${starUnlockCost(star).toLocaleString()} Yıldız Tozu harcandı.`,
+            "star-four-points",
+          );
+        }
+      } catch (error) {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        const msg = error instanceof Error ? error.message : "Yıldız açılamadı";
+        showToast("Hata", msg, "star-four-points");
+      } finally {
+        setUnlocking(null);
+      }
+    },
+    [unlocking, totalStardust, unlockStar, showToast],
+  );
+
+  if (!catalogReady || !skyCatalog) {
+    return (
+      <View style={[styles.root, styles.centered]}>
+        <StarfieldBackground density={38} />
+        <Text style={styles.loadingText}>Gökyüzü kataloğu yükleniyor…</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.root}>
+      <StarfieldBackground density={38} />
+
+      {/* Glassmorphism toast overlay */}
+      <GlassToast
+        visible={toastVisible}
+        title={toastTitle}
+        subtitle={toastSubtitle}
+        icon={toastIcon}
+        iconColor={toastIcon === "trophy-variant" ? colors.warning : colors.primary}
+        onHide={() => setToastVisible(false)}
+      />
+
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={styles.top}>
+          <View>
+            <Text style={styles.eyebrow}>Gökyüzü</Text>
+            <Text style={styles.title}>Takımyıldızlar</Text>
+          </View>
+          <StardustPill amount={totalStardust} />
+        </View>
+
+        {/* Overall progress bar */}
+        <SurfaceCard style={styles.summaryCard} borderVariant="strong">
+          <View style={styles.summaryRow}>
+            <View>
+              <Text style={styles.summaryLabel}>Gökyüzü İlerlemesi</Text>
+              <Text style={styles.summarySubtext}>
+                {overallUnlocked} / {overallStars} yıldız açık · {completedCount} / {constellationCount}{" "}
+                takımyıldız
+              </Text>
+            </View>
+          </View>
+          <View style={styles.progressBgMain}>
+            <Animated.View
+              style={[
+                styles.progressFillMain,
+                { width: `${Math.round((overallUnlocked / Math.max(overallStars, 1)) * 100)}%` },
+              ]}
+            />
+          </View>
+        </SurfaceCard>
+
+        {/* Filter tabs */}
+        <View style={styles.filterRow}>
+          {([
+            { id: "all",       label: "Tümü" },
+            { id: "active",    label: "Aktif" },
+            { id: "completed", label: "Tamamlanan" },
+          ] as const).map((item) => (
+            <Pressable
+              accessibilityRole="button"
+              key={item.id}
+              onPress={() => setFilter(item.id)}
+              style={[styles.filterChip, filter === item.id && styles.filterChipActive]}
+            >
+              <Text style={[styles.filterText, filter === item.id && styles.filterTextActive]}>{item.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <SkySection
+          title="Tamamlanan"
+          items={filteredSections.completed}
+          totalStardust={totalStardust}
+          language={language}
+          onStarPress={handleStarPress}
+        />
+
+        <SkySection
+          title={language === "tr" ? "Yolculuk" : "Journey"}
+          items={filteredSections.journey}
+          totalStardust={totalStardust}
+          language={language}
+          onStarPress={handleStarPress}
+        />
+
+        {filteredSections.completed.length === 0 && filteredSections.journey.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>
+              {filter === "completed" ? "Henüz tamamlanan takımyıldız yok." : "Hiç takımyıldız bulunamadı."}
+            </Text>
+          </View>
+        ) : null}
+      </ScrollView>
+    </View>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
 const styles = StyleSheet.create({
-  container: {
+  root: {
+    flex: 1,
     backgroundColor: colors.background,
+  },
+  centered: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    color: colors.textMuted,
+    fontFamily: fontFamilies.body,
+    fontSize: 14,
+  },
+  container: {
     gap: spacing.md,
     padding: spacing.md,
     paddingBottom: 104,
@@ -166,7 +516,6 @@ const styles = StyleSheet.create({
   top: {
     alignItems: "center",
     flexDirection: "row",
-    gap: spacing.sm,
     justifyContent: "space-between",
   },
   eyebrow: {
@@ -182,22 +531,43 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginTop: 4,
   },
-  balancePill: {
-    alignItems: "center",
-    backgroundColor: "rgba(131,135,195,0.16)",
-    borderRadius: radii.pill,
-    borderColor: "rgba(232,230,200,0.14)",
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 6,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
+  summaryCard: {
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
-  balanceText: {
+  summaryRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  summaryLabel: {
     color: colors.text,
-    fontFamily: fontFamilies.monoRegular,
-    fontSize: 12,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 14,
     fontWeight: "800",
+  },
+  summarySubtext: {
+    color: colors.textMuted,
+    fontSize: 11,
+    marginTop: 3,
+  },
+  progressBgMain: {
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: "rgba(149,155,181,0.12)",
+    overflow: "hidden",
+  },
+  progressFillMain: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+  },
+  costHint: {
+    color: colors.textFaint,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.4,
   },
   filterRow: {
     backgroundColor: "rgba(255,255,255,0.035)",
@@ -224,37 +594,131 @@ const styles = StyleSheet.create({
   filterTextActive: {
     color: colors.warmOffWhite,
   },
-  infoBar: {
-    gap: 12,
-    paddingHorizontal: 16,
+  constellationCard: {
+    gap: spacing.sm,
+    paddingHorizontal: 14,
     paddingVertical: 14,
   },
-  infoTop: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
+  constellationCardActive: {
+    borderColor: "rgba(131,135,195,0.36)",
+    backgroundColor: "rgba(13,11,50,0.92)",
   },
-  infoLabel: {
-    color: colors.text,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 14,
+  constellationCardCompleted: {
+    borderColor: "rgba(185,240,215,0.22)",
+    backgroundColor: "rgba(10,30,20,0.60)",
+  },
+  constellationCardNext: {
+    borderColor: "rgba(255,209,102,0.28)",
+    backgroundColor: "rgba(18,16,40,0.90)",
+  },
+  constellationCardLocked: {
+    opacity: 0.72,
+    backgroundColor: "rgba(10,10,24,0.85)",
+  },
+  lockedPill: {
+    alignItems: "center",
+    backgroundColor: "rgba(149,155,181,0.08)",
+    borderColor: "rgba(149,155,181,0.18)",
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  lockedPillText: {
+    color: colors.textFaint,
+    fontSize: 10,
     fontWeight: "800",
   },
-  infoText: {
-    color: colors.textMuted,
+  lockedHint: {
+    color: colors.textFaint,
     fontSize: 11,
-    marginTop: 3,
+    fontStyle: "italic",
+    marginTop: 2,
   },
-  progressCount: {
+  section: {
+    gap: spacing.sm,
+  },
+  sectionTitle: {
+    color: colors.textFaint,
+    fontFamily: fontFamilies.body,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+    marginBottom: 2,
+    textTransform: "uppercase",
+  },
+  nextPill: {
+    backgroundColor: "rgba(255,209,102,0.12)",
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: "rgba(255,209,102,0.35)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  nextPillText: {
+    color: colors.warning,
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  constHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 12,
+  },
+  constSymbolWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(131,135,195,0.14)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  constSymbol: {
+    fontSize: 20,
+  },
+  constHeaderText: {
+    flex: 1,
+  },
+  constName: {
     color: colors.text,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  constSubname: {
+    color: colors.textFaint,
+    fontSize: 11,
+    marginTop: 1,
+  },
+  constBadge: {
+    alignItems: "flex-end",
+    justifyContent: "center",
+  },
+  constCount: {
+    color: colors.textMuted,
     fontFamily: fontFamilies.mono,
-    fontSize: 16,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  activePill: {
+    backgroundColor: "rgba(131,135,195,0.24)",
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  activePillText: {
+    color: colors.primary,
+    fontSize: 10,
     fontWeight: "800",
   },
   progressBg: {
-    height: 6,
+    height: 4,
     borderRadius: 999,
-    backgroundColor: "rgba(149,155,181,0.12)",
+    backgroundColor: "rgba(149,155,181,0.10)",
     overflow: "hidden",
   },
   progressFill: {
@@ -262,98 +726,98 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: colors.primary,
   },
-  grid: {
+  starsRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: spacing.sm,
   },
   starCard: {
     alignItems: "center",
-    backgroundColor: "rgba(13, 11, 43, 0.88)",
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    minHeight: 158,
-    padding: 12,
-    position: "relative",
-    width: "48.5%",
-  },
-  starCardSelected: {
-    backgroundColor: "rgba(131,135,195,0.15)",
-    borderColor: "rgba(232,230,200,0.22)",
-  },
-  starName: {
-    color: colors.text,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 13,
-    fontWeight: "800",
-    marginTop: 2,
-    textAlign: "center",
-  },
-  starMeta: {
-    color: colors.textFaint,
-    fontWeight: "800",
-    fontSize: 10,
-    marginTop: 4,
-  },
-  lockBadge: {
-    alignItems: "center",
-    backgroundColor: "rgba(5,7,23,0.72)",
-    borderColor: colors.border,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    height: 26,
-    justifyContent: "center",
-    position: "absolute",
-    right: 9,
-    top: 9,
-    width: 26,
-  },
-  detailCard: {
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  detailTitle: {
-    ...typography.h2,
-    color: colors.text,
-    textAlign: "center",
-  },
-  detailState: {
-    color: colors.primary,
-    fontFamily: fontFamilies.body,
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  detailDescription: {
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: "center",
-  },
-  rewardRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: 4,
-    width: "100%",
-  },
-  rewardPill: {
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.04)",
+    backgroundColor: "rgba(13,11,43,0.78)",
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
     flex: 1,
+    minHeight: 140,
+    padding: 10,
+    position: "relative",
+    overflow: "hidden",
+  },
+  starCardUnlocked: {
+    backgroundColor: "rgba(22,18,70,0.86)",
+    borderColor: "rgba(131,135,195,0.28)",
+  },
+  starCardAffordable: {
+    borderColor: colors.warning,
+    borderWidth: 1.5,
+  },
+  starCardPressed: {
+    opacity: 0.72,
+  },
+  starGlow: {
+    position: "absolute",
+    top: -20,
+    left: -20,
+    right: -20,
+    bottom: -20,
+    borderRadius: 999,
+    backgroundColor: "rgba(131,135,195,0.10)",
+  },
+  starName: {
+    color: colors.textMuted,
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 11,
+    fontWeight: "800",
+    marginTop: 6,
+    textAlign: "center",
+  },
+  starNameUnlocked: {
+    color: colors.text,
+  },
+  statusPill: {
+    alignItems: "center",
+    borderRadius: radii.pill,
+    flexDirection: "row",
+    gap: 4,
+    marginTop: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    backgroundColor: "rgba(255,255,255,0.05)",
+  },
+  pillAffordable: {
+    backgroundColor: "rgba(255,209,102,0.10)",
+  },
+  pillLocked: {
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  statusText: {
+    fontSize: 9,
+    fontWeight: "800",
+  },
+  constDesc: {
+    color: colors.textFaint,
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  completedBanner: {
+    alignItems: "center",
     flexDirection: "row",
     gap: 6,
-    justifyContent: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 10,
+    backgroundColor: "rgba(185,240,215,0.06)",
+    borderRadius: radii.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
   },
-  rewardText: {
-    color: colors.textMuted,
-    flexShrink: 1,
-    fontSize: 10,
+  completedBannerText: {
+    color: colors.success,
+    fontSize: 11,
     fontWeight: "800",
+  },
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: spacing.xl,
+  },
+  emptyText: {
+    color: colors.textFaint,
+    fontSize: 13,
   },
 });

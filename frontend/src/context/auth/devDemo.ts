@@ -7,7 +7,7 @@ export const DEV_DEMO = {
   password: "demo1234",
 } as const;
 
-/** Sadece __DEV__ demo oturumunda — üretim RPC ile aynı temel formül (yaklaşık). */
+/** Sadece __DEV__ demo oturumunda — migration 003 ile uyumlu (2 ✦/dk taban). */
 export const simulateDemoSessionReward = (input: {
   durationMinutes: number;
   pauseCount: number;
@@ -15,7 +15,7 @@ export const simulateDemoSessionReward = (input: {
   streakAfterSession: number;
 }) => {
   const baseXp = input.durationMinutes * 2;
-  const baseStardust = input.durationMinutes * 10;
+  const baseStardust = input.durationMinutes * 2;
   const streakBonus = Math.min(input.streakAfterSession * 0.1, 0.5);
   const pauseBonus = input.pauseCount === 0 ? 0.1 : 0;
   const totalBonus = streakBonus + pauseBonus;
@@ -39,6 +39,7 @@ export const createDevDemoPayload = (input: { email: string }): AuthPayload => {
     longestStreak: 0,
     lastSessionDate: null,
     targetStarId: STARS[0].id,
+    activeConstellationId: "aries",
     onboardingCompleted: true,
     dailyGoalMinutes: 120,
   };
@@ -49,6 +50,7 @@ export const createDevDemoPayload = (input: { email: string }): AuthPayload => {
     sessions: [],
     unlockedStarIds: [STARS[0].id],
     earnedBadgeIds: [],
+    constellationProgress: [],
   };
 };
 

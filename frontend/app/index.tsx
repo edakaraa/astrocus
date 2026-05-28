@@ -33,6 +33,13 @@ export default function Index() {
     void load();
   }, []);
 
+  useEffect(() => {
+    if (user?.onboardingCompleted) {
+      void asyncStorage.set(STORAGE_KEYS.onboardingSeen, true);
+      setHasSeenOnboarding(true);
+    }
+  }, [user?.onboardingCompleted]);
+
   const href = useMemo(() => {
     if (!isReady || hasSeenOnboarding === null) {
       return null;

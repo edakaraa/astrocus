@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -9,11 +9,23 @@ import { SpaceScene } from "../components/SpaceScene";
 import { TextField } from "../components/TextField";
 import { GradientButton } from "../components/GradientButton";
 import { AstroAlertModal } from "../components/AstroAlertModal";
-import { oauthUserMessage } from "../lib/oauthErrors";
+import { isEmailConfirmationRequiredError } from "../lib/authErrors";
+import { oauthUserMessage } from "../lib/authErrors";
+import { isAppleSignInAvailable } from "../lib/appleAuth";
+import { t } from "../shared/i18n";
 
 export const AuthScreen = () => {
   const router = useRouter();
-  const { authMode, setAuthMode, register, login, continueWithGoogle, resetPassword } = useAppContext();
+  const {
+    authMode,
+    setAuthMode,
+    register,
+    login,
+    continueWithGoogle,
+    continueWithApple,
+    resetPassword,
+    language,
+  } = useAppContext();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("");
@@ -23,6 +35,17 @@ export const AuthScreen = () => {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [astroAlert, setAstroAlert] = useState<{ title: string; message: string } | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isAppleLoading, setIsAppleLoading] = useState(false);
+  const [appleAvailable, setAppleAvailable] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== "ios") {
+      return;
+    }
+    void isAppleSignInAvailable().then(setAppleAvailable);
+  }, []);
 
   const showAstroAlert = useCallback((title: string, message: string) => {
     setAstroAlert({ title, message });
@@ -31,27 +54,37 @@ export const AuthScreen = () => {
   const isLogin = authMode === "login";
 
   const handleSubmit = async () => {
+    if (isSubmitting) {
+      return;
+    }
+
     try {
       if (isLogin) {
+        if (!email.trim() || !password.trim()) {
+          Alert.alert("Astrocus", "E-posta ve şifre gerekli.");
+          return;
+        }
+        setIsSubmitting(true);
         await login({ email, password });
         return;
       }
 
       if (!fullName.trim() || !username.trim() || !email.trim() || !password.trim()) {
-        Alert.alert("Astrocus", "Please fill in name, username, email, and password.");
+        Alert.alert("Astrocus", "Ad, kullanıcı adı, e-posta ve şifre gerekli.");
         return;
       }
 
       if (password.length < 8) {
-        Alert.alert("Astrocus", "Password must be at least 8 characters.");
+        Alert.alert("Astrocus", "Şifre en az 8 karakter olmalı.");
         return;
       }
 
       if (!acceptedTerms) {
-        Alert.alert("Astrocus", "Please accept the Privacy Policy.");
+        Alert.alert("Astrocus", "Gizlilik politikasını kabul etmelisin.");
         return;
       }
 
+      setIsSubmitting(true);
       await register({
         email,
         password,
@@ -59,16 +92,47 @@ export const AuthScreen = () => {
         displayName: fullName.trim(),
       });
     } catch (error) {
-      Alert.alert("Astrocus", error instanceof Error ? error.message : "Unknown error");
+      if (isEmailConfirmationRequiredError(error)) {
+        Alert.alert(
+          "Astrocus",
+          `${error.email} adresine doğrulama bağlantısı gönderdik. Gelen kutusu ve spam klasörünü kontrol et; onayladıktan sonra giriş yap.`,
+          [{ text: "Girişe geç", onPress: () => setAuthMode("login") }],
+        );
+        return;
+      }
+      Alert.alert("Astrocus", error instanceof Error ? error.message : "Bir hata oluştu");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleGoogleLogin = async () => {
+    if (isGoogleLoading) {
+      return;
+    }
+    setIsGoogleLoading(true);
     try {
       await continueWithGoogle();
     } catch (error) {
-      const { title, message } = oauthUserMessage(error);
+      const { title, message } = oauthUserMessage(error, "google");
       showAstroAlert(title, message);
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  const handleAppleLogin = async () => {
+    if (isAppleLoading) {
+      return;
+    }
+    setIsAppleLoading(true);
+    try {
+      await continueWithApple();
+    } catch (error) {
+      const { title, message } = oauthUserMessage(error, "apple");
+      showAstroAlert(title, message);
+    } finally {
+      setIsAppleLoading(false);
     }
   };
 
@@ -160,7 +224,10 @@ export const AuthScreen = () => {
               </Pressable>
             </View>
 
-            <GradientButton label="Login" onPress={handleSubmit} />
+            <GradientButton
+              label={isSubmitting ? "Giriş yapılıyor…" : "Login"}
+              onPress={handleSubmit}
+            />
 
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
@@ -171,12 +238,30 @@ export const AuthScreen = () => {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Continue with Google"
-              style={styles.googleBtn}
+              style={[styles.googleBtn, isGoogleLoading ? styles.googleBtnDisabled : null]}
               onPress={handleGoogleLogin}
+              disabled={isGoogleLoading || isAppleLoading}
             >
               <MaterialCommunityIcons name="google" size={20} color={colors.text} />
-              <Text style={styles.googleBtnText}>Continue with Google</Text>
+              <Text style={styles.googleBtnText}>
+                {isGoogleLoading ? "Google bağlanıyor…" : t(language, "continueWithGoogle")}
+              </Text>
             </Pressable>
+
+            {appleAvailable ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t(language, "continueWithApple")}
+                style={[styles.appleBtn, isAppleLoading ? styles.googleBtnDisabled : null]}
+                onPress={handleAppleLogin}
+                disabled={isAppleLoading || isGoogleLoading}
+              >
+                <MaterialCommunityIcons name="apple" size={20} color={colors.text} />
+                <Text style={styles.googleBtnText}>
+                  {isAppleLoading ? "Apple bağlanıyor…" : t(language, "continueWithApple")}
+                </Text>
+              </Pressable>
+            ) : null}
 
             <Pressable accessibilityRole="button" accessibilityLabel="Go to register" onPress={() => setAuthMode("register")}>
               <Text style={styles.bottomLink}>
@@ -242,7 +327,10 @@ export const AuthScreen = () => {
               </View>
             </View>
 
-            <GradientButton label="Create Account" onPress={handleSubmit} />
+            <GradientButton
+              label={isSubmitting ? "Kaydediliyor…" : "Create Account"}
+              onPress={handleSubmit}
+            />
 
             <Pressable accessibilityRole="button" accessibilityLabel="Go to login" onPress={() => setAuthMode("login")}>
               <Text style={styles.bottomLink}>
@@ -362,7 +450,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: "rgba(255,255,255,0.04)",
+    marginBottom: 10,
+  },
+  appleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: "rgba(255,255,255,0.06)",
     marginBottom: 14,
+  },
+  googleBtnDisabled: {
+    opacity: 0.55,
   },
   googleBtnText: {
     color: colors.text,

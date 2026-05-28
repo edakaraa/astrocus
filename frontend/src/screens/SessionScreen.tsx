@@ -1,8 +1,13 @@
-import React, { useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useMemo } from "react";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/AppContext";
-import { BACKGROUND_TOLERANCE_SECONDS, BADGES, PAUSE_LIMIT } from "../shared/constants";
+import {
+  BACKGROUND_TOLERANCE_SECONDS,
+  BADGES,
+  PAUSE_LIMIT,
+  SESSION_DURATION_OPTIONS,
+} from "../shared/constants";
 import { t } from "../shared/i18n";
 import { colors, fontFamilies, radii, spacing, typography } from "../shared/theme";
 import { StarfieldBackground } from "../components/StarfieldBackground";
@@ -10,6 +15,7 @@ import { SurfaceCard } from "../components/SurfaceCard";
 import { CelebrationModal } from "../components/CelebrationModal";
 import { ProgressRing } from "../components/ProgressRing";
 import { CelestialVisual } from "../components/CelestialVisual";
+import { StardustPill } from "../components/StardustPill";
 
 const formatSeconds = (seconds: number) => {
   const minutes = Math.floor(seconds / 60)
@@ -29,8 +35,6 @@ const formatMinutes = (minutes: number) => {
   return remainder === 0 ? `${hours}s` : `${hours}s ${remainder}dk`;
 };
 
-const durationOptions = [15, 25, 45, 50] as const;
-
 const weekDays = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"] as const;
 
 export const SessionScreen = () => {
@@ -46,6 +50,7 @@ export const SessionScreen = () => {
     pauseSession,
     resumeSession,
     resetSession,
+    cancelSession,
     celebration,
     dismissCelebration,
     user,
@@ -127,7 +132,20 @@ export const SessionScreen = () => {
     resumeSession();
   };
 
-  const handleResetSession = () => {
+  const confirmEndSession = useCallback(() => {
+    Alert.alert(t(language, "endSessionTitle"), t(language, "endSessionMessage"), [
+      { text: t(language, "continue"), style: "cancel" },
+      {
+        text: t(language, "endSessionConfirm"),
+        style: "destructive",
+        onPress: () => {
+          void cancelSession();
+        },
+      },
+    ]);
+  }, [cancelSession, language]);
+
+  const handleDismissFailedSession = () => {
     resetSession();
   };
 
@@ -143,7 +161,7 @@ export const SessionScreen = () => {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t(language, "reset")}
-            onPress={handleResetSession}
+            onPress={confirmEndSession}
             style={styles.iconButton}
           >
             <MaterialCommunityIcons name="chevron-left" size={22} color={colors.textMuted} />
@@ -170,8 +188,12 @@ export const SessionScreen = () => {
             <Text style={styles.primaryWideText}>{primaryLabel}</Text>
           </Pressable>
 
-          <Pressable accessibilityRole="button" accessibilityLabel={t(language, "reset")} onPress={handleResetSession}>
-            <Text style={styles.ghostAction}>Seansı Bitir</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t(language, "endSession")}
+            onPress={confirmEndSession}
+          >
+            <Text style={styles.ghostAction}>{t(language, "endSession")}</Text>
           </Pressable>
         </View>
 
@@ -196,12 +218,19 @@ export const SessionScreen = () => {
     <ScrollView contentContainerStyle={styles.container}>
       <StarfieldBackground density={34} />
 
+      {/* Global stardust balance — visible at all times */}
+      <View style={styles.topBar}>
+        <Text style={styles.topBarLabel}>Odak</Text>
+        <StardustPill amount={user?.totalStardust ?? 0} />
+      </View>
+
       <View style={styles.heroCard}>
         <View style={styles.heroGlow} pointerEvents="none" />
         <CelestialVisual variant="planet" size={132} style={styles.heroPlanet} />
         <Text style={styles.heroEyebrow}>Ana Navigasyon</Text>
         <Text style={styles.heroTitle}>Hoş geldin, {user?.username ?? "Kaşif"}</Text>
         <Text style={styles.heroSubtitle}>Bugün evrene odaklı bir iz bırak.</Text>
+        <Text style={styles.heroRateHint}>{t(language, "stardustPerMinute")}</Text>
       </View>
 
       <View style={styles.menuList}>
@@ -266,7 +295,7 @@ export const SessionScreen = () => {
         </View>
 
         <View style={styles.durationRow}>
-          {durationOptions.map((minutes) => (
+          {SESSION_DURATION_OPTIONS.map((minutes) => (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`${minutes} dakika seç`}
@@ -348,7 +377,7 @@ export const SessionScreen = () => {
         <SurfaceCard style={styles.failedCard} borderVariant="strong">
           <Text style={styles.failedTitle}>Seans kaybedildi</Text>
           <Text style={styles.failedText}>{`Uygulamadan ${BACKGROUND_TOLERANCE_SECONDS} saniyeden fazla uzak kaldın.`}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel={t(language, "reset")} onPress={handleResetSession} style={styles.softButton}>
+          <Pressable accessibilityRole="button" accessibilityLabel={t(language, "reset")} onPress={handleDismissFailedSession} style={styles.softButton}>
             <Text style={styles.softButtonText}>Yeniden hazırla</Text>
           </Pressable>
         </SurfaceCard>
@@ -464,7 +493,22 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.md,
     paddingBottom: 104,
+    paddingTop: 14,
+  },
+  topBar: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
     paddingTop: 30,
+    paddingBottom: 4,
+  },
+  topBarLabel: {
+    color: colors.textFaint,
+    fontFamily: fontFamilies.body,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
   },
   heroCard: {
     alignItems: "center",
@@ -507,6 +551,11 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 12,
     marginTop: 6,
+  },
+  heroRateHint: {
+    color: colors.textFaint,
+    fontSize: 11,
+    marginTop: 8,
   },
   menuList: {
     gap: spacing.sm,

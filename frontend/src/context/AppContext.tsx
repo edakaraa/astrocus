@@ -15,12 +15,7 @@ export const useAstrocusInfrastructureRefs = (): AstrocusInfraRefs => {
   const uiSetCelebrationRef = useRef<((state: CelebrationPayload) => void) | null>(null);
 
   return useMemo(
-    () => ({
-      sessionHydrateRef,
-      sessionSetPendingRef,
-      uiSetLanguageRef,
-      uiSetCelebrationRef,
-    }),
+    () => ({ sessionHydrateRef, sessionSetPendingRef, uiSetLanguageRef, uiSetCelebrationRef }),
     [],
   );
 };
@@ -31,18 +26,35 @@ export const useAppContext = () => {
   const ui = useUI();
 
   return {
+    // Auth
     isReady: auth.isReady,
     isOnline: auth.isOnline,
     apiUrl: auth.apiUrl,
     token: auth.token,
     user: auth.user,
+    constellationProgress: auth.constellationProgress,
+    isAuthenticated: auth.isAuthenticated,
+    authMode: auth.authMode,
+    setAuthMode: auth.setAuthMode,
+    setIsOnline: auth.setIsOnline,
+    applyAuthPayload: auth.applyAuthPayload,
+    register: auth.register,
+    login: auth.login,
+    continueWithGoogle: auth.continueWithGoogle,
+    continueWithApple: auth.continueWithApple,
+    resetPassword: auth.resetPassword,
+    completeOnboarding: auth.completeOnboarding,
+    updateProfile: auth.updateProfile,
+    unlockStar: auth.unlockStar,
+    logout: auth.logout,
+    refreshUser: auth.refreshUser,
+    deleteAccount: auth.deleteAccount,
+
+    // Session
     sessions: session.sessions,
     unlockedStarIds: session.unlockedStarIds,
     earnedBadgeIds: session.earnedBadgeIds,
     pendingSessions: session.pendingSessions,
-    language: ui.language,
-    authMode: auth.authMode,
-    celebration: ui.celebration,
     sessionState: session.sessionState,
     stars: session.stars,
     categories: session.categories,
@@ -50,24 +62,20 @@ export const useAppContext = () => {
     dailySummary: session.dailySummary,
     analyticsSummary: session.analyticsSummary,
     refreshAnalytics: session.refreshAnalytics,
-    setAuthMode: auth.setAuthMode,
-    setLanguage: ui.setLanguage,
     setSelectedDurationMinutes: session.setSelectedDurationMinutes,
     setSelectedCategoryId: session.setSelectedCategoryId,
-    register: auth.register,
-    login: auth.login,
-    continueWithGoogle: auth.continueWithGoogle,
-    resetPassword: auth.resetPassword,
-    completeOnboarding: auth.completeOnboarding,
-    updateProfile: auth.updateProfile,
-    unlockStar: auth.unlockStar,
     startSession: session.startSession,
     pauseSession: session.pauseSession,
     resumeSession: session.resumeSession,
     resetSession: session.resetSession,
-    dismissCelebration: ui.dismissCelebration,
+    cancelSession: session.cancelSession,
+    endSession: session.endSession,
     syncOfflineSessions: session.syncOfflineQueue,
-    signOut: auth.logout,
-    deleteAccount: auth.deleteAccount,
+
+    // UI
+    language: ui.language,
+    celebration: ui.celebration,
+    setLanguage: ui.setLanguage,
+    dismissCelebration: ui.dismissCelebration,
   };
 };

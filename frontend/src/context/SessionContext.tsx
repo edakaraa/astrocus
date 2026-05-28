@@ -10,6 +10,7 @@ import React, {
   useState,
 } from "react";
 import { AppState, AppStateStatus } from "react-native";
+import NetInfo from "@react-native-community/netinfo";
 import {
   AVATARS,
   BACKGROUND_TOLERANCE_SECONDS,
@@ -58,6 +59,8 @@ export type SessionContextValue = {
   pauseSession: () => void;
   resumeSession: () => void;
   resetSession: () => void;
+  /** Cancel an in-progress session. Applies the 10-min rule for stardust. */
+  cancelSession: () => Promise<void>;
   endSession: () => void;
   syncOfflineQueue: () => Promise<void>;
 };
@@ -386,6 +389,56 @@ export const SessionProvider = ({
     setSessionState(createGuestSessionState());
   }, []);
 
+  /**
+   * Cancel the active session applying the 10-min rule:
+   * – < 10 min elapsed → 0 Stardust, no server call needed beyond RPC call
+   * – ≥ 10 min elapsed → proportional Stardust via cancel_focus_session RPC
+   */
+  const cancelSession = useCallback(async () => {
+    void cancelScheduledNotification(scheduledNotificationRef.current);
+    backgroundedAtRef.current = null;
+    scheduledNotificationRef.current = null;
+
+    if (!token || !sessionState.startedAt) {
+      setSessionState(createGuestSessionState());
+      return;
+    }
+
+    const cancelledAt = new Date().toISOString();
+    const elapsedMinutes =
+      (new Date(cancelledAt).getTime() - new Date(sessionState.startedAt).getTime()) / 60000;
+
+    setSessionState(createGuestSessionState());
+
+    // Only call the RPC if there's time worth reporting
+    if (elapsedMinutes >= 1) {
+      try {
+        const { result, payload } = await api.cancelSession(token, {
+          categoryId: sessionState.selectedCategoryId,
+          startedAt: sessionState.startedAt,
+          cancelledAt,
+        });
+        await applyAuthPayload(payload);
+        if (result.saved && result.stardustEarned > 0) {
+          uiSetCelebrationRef.current?.({
+            stardustEarned: result.stardustEarned,
+            unlockedStarId: null,
+          });
+        }
+        void refreshAnalytics();
+      } catch {
+        /* best-effort — session already cleared locally */
+      }
+    }
+  }, [
+    applyAuthPayload,
+    refreshAnalytics,
+    sessionState.selectedCategoryId,
+    sessionState.startedAt,
+    token,
+    uiSetCelebrationRef,
+  ]);
+
   const syncOfflineQueue = useCallback(async () => {
     if (!token || pendingSessions.length === 0) {
       return;
@@ -398,6 +451,24 @@ export const SessionProvider = ({
     setIsOnline(true);
     void refreshAnalytics();
   }, [applyAuthPayload, pendingSessions, refreshAnalytics, setIsOnline, token]);
+
+  useEffect(() => {
+    if (!token || pendingSessions.length === 0) {
+      return;
+    }
+
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      const online = Boolean(state.isConnected) && state.isInternetReachable !== false;
+      if (!online) {
+        setIsOnline(false);
+        return;
+      }
+      setIsOnline(true);
+      void syncOfflineQueue();
+    });
+
+    return unsubscribe;
+  }, [pendingSessions.length, setIsOnline, syncOfflineQueue, token]);
 
   const dailySummary = useMemo(() => createDailySummary(sessions, user), [sessions, user]);
 
@@ -429,12 +500,14 @@ export const SessionProvider = ({
       pauseSession,
       resumeSession,
       resetSession,
+      cancelSession,
       endSession: resetSession,
       syncOfflineQueue,
     }),
     [
       analyticsSummary,
       dailySummary,
+      cancelSession,
       pauseSession,
       pendingSessions,
       refreshAnalytics,

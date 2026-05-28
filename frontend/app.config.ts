@@ -38,9 +38,18 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   const isDev = process.env.APP_ENV !== "production";
   const appEnv: "development" | "production" = isDev ? "development" : "production";
 
+  const plugins = (config.plugins ?? []).filter((entry) => {
+    const name = typeof entry === "string" ? entry : entry[0];
+    return name !== "expo-notifications";
+  });
+  if (!isDev) {
+    plugins.push("expo-notifications");
+  }
+
   return {
     ...config,
     scheme: config.scheme ?? "astrocus",
+    plugins,
     android: {
       ...config.android,
       usesCleartextTraffic: isDev,

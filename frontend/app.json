@@ -10,11 +10,13 @@
     "plugins": [
       "expo-localization",
       "expo-secure-store",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-apple-authentication"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.astrocus.app"
+      "bundleIdentifier": "com.astrocus.app",
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "com.astrocus.app"

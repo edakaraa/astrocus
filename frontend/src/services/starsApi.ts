@@ -1,18 +1,37 @@
-import { STARS } from "../shared/constants";
+import type { UnlockStarResult } from "../shared/types";
 
-export type UnlockStarResponse = {
-  starId: string;
+type UnlockStarRpc = {
+  star_id?: string;
+  starId?: string;
   cost: number;
-  totalStardust: number;
-  targetStarId: string;
+  total_stardust?: number;
+  totalStardust?: number;
+  target_star_id?: string;
+  targetStarId?: string;
+  constellation_completed?: boolean;
+  constellationCompleted?: boolean;
+  new_badge_id?: string | null;
+  newBadgeId?: string | null;
+  next_constellation_id?: string | null;
+  nextConstellationId?: string | null;
 };
+
+const mapUnlockResult = (row: UnlockStarRpc): UnlockStarResult => ({
+  starId: row.star_id ?? row.starId ?? "",
+  cost: row.cost,
+  totalStardust: row.total_stardust ?? row.totalStardust ?? 0,
+  targetStarId: row.target_star_id ?? row.targetStarId ?? "",
+  constellationCompleted: Boolean(row.constellation_completed ?? row.constellationCompleted),
+  newBadgeId: row.new_badge_id ?? row.newBadgeId ?? null,
+  nextConstellationId: row.next_constellation_id ?? row.nextConstellationId ?? null,
+});
 
 export const unlockStarViaApi = async (
   apiUrl: string,
   accessToken: string,
   starId: string,
-): Promise<UnlockStarResponse> => {
-  const base = apiUrl.trim().replace(/\/$/, "");
+): Promise<UnlockStarResult> => {
+  const base = apiUrl.replace(/\/$/, "");
   const response = await fetch(`${base}/stars/unlock`, {
     method: "POST",
     headers: {
@@ -23,34 +42,8 @@ export const unlockStarViaApi = async (
   });
 
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(text || "Star unlock failed");
+    throw new Error((await response.text()) || "Star unlock failed");
   }
 
-  const data = (await response.json()) as UnlockStarResponse;
-  return data;
-};
-
-/** Spend stardust to unlock stars the user can afford, in catalog order. */
-export const syncEligibleStarUnlocks = async (apiUrl: string, accessToken: string): Promise<void> => {
-  const base = apiUrl.trim().replace(/\/$/, "");
-  if (!base) {
-    return;
-  }
-
-  for (const star of STARS) {
-    try {
-      await unlockStarViaApi(base, accessToken, star.id);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "";
-      if (
-        message.includes("insufficient_stardust") ||
-        message.includes("already_unlocked") ||
-        message.includes("Insufficient")
-      ) {
-        continue;
-      }
-      throw error;
-    }
-  }
+  return mapUnlockResult((await response.json()) as UnlockStarRpc);
 };

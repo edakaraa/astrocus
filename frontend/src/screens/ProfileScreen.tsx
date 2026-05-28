@@ -10,6 +10,7 @@ import { StarfieldBackground } from "../components/StarfieldBackground";
 import { SurfaceCard } from "../components/SurfaceCard";
 import { GradientButton } from "../components/GradientButton";
 import { CelestialVisual } from "../components/CelestialVisual";
+import { StardustPill } from "../components/StardustPill";
 
 const formatMinutes = (minutes: number) => {
   if (minutes < 60) {
@@ -31,7 +32,7 @@ export const ProfileScreen = () => {
     refreshAnalytics,
     sessions,
     setLanguage,
-    signOut,
+    logout,
     syncOfflineSessions,
     updateProfile,
     user,
@@ -77,6 +78,12 @@ export const ProfileScreen = () => {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <StarfieldBackground density={34} />
+
+      {/* Global stardust balance */}
+      <View style={styles.profileTopBar}>
+        <Text style={styles.profileTopBarLabel}>Profil</Text>
+        <StardustPill amount={user.totalStardust} />
+      </View>
 
       <View style={styles.heroCard}>
         <Pressable
@@ -280,7 +287,7 @@ export const ProfileScreen = () => {
         </View>
       </SurfaceCard>
 
-      <Pressable accessibilityRole="button" style={styles.signOutButton} onPress={signOut}>
+      <Pressable accessibilityRole="button" style={styles.signOutButton} onPress={logout}>
         <Text style={styles.signOutText}>{t(language, "signOut")}</Text>
       </Pressable>
     </ScrollView>
@@ -293,7 +300,22 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.md,
     paddingBottom: 104,
-    paddingTop: 44,
+    paddingTop: 14,
+  },
+  profileTopBar: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingTop: 30,
+    paddingBottom: 4,
+  },
+  profileTopBarLabel: {
+    color: colors.textFaint,
+    fontFamily: fontFamilies.body,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
   },
   heroCard: {
     alignItems: "center",

@@ -1,10 +1,5 @@
-import Constants from "expo-constants";
+import { getApiUrl } from "../shared/config";
 import type { Language } from "../shared/types";
-
-const resolveApiUrl = (): string => {
-  const raw = Constants.expoConfig?.extra?.apiUrl;
-  return typeof raw === "string" ? raw.trim() : "";
-};
 
 export type GalacticAdviceRequest = {
   language: Language;
@@ -19,7 +14,7 @@ export const fetchGalacticAdvice = async (
   accessToken: string,
   input: GalacticAdviceRequest,
 ): Promise<string> => {
-  const base = resolveApiUrl();
+  const base = getApiUrl();
   if (!base) {
     throw new Error("API URL not configured");
   }
