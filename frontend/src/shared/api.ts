@@ -57,12 +57,9 @@ const parseCompleteFocusSessionResult = (data: unknown) => {
   }
   return {
     session_id: sessionId,
-    xp_earned: num(row, "xp_earned"),
     stardust_earned: num(row, "stardust_earned"),
     streak_count: num(row, "streak_count"),
     longest_streak: num(row, "longest_streak"),
-    level: num(row, "level", 1),
-    total_xp: num(row, "total_xp"),
     total_stardust: num(row, "total_stardust"),
     new_badges: row.new_badges,
   };
@@ -399,19 +396,17 @@ export const api = {
   ): Promise<{
     payload: AuthPayload;
     stardustEarned: number;
-    xpEarned: number;
     streakCount: number;
     unlockedStarId: string | null;
     newBadges: string[];
   }> {
     if (isDevDemoToken(token)) {
       const streakAfter = user.currentStreak + 1;
-      const { stardustEarned, xpEarned, streakCount } = simulateDemoSessionReward({
+      const { stardustEarned, streakCount } = simulateDemoSessionReward({
         durationMinutes: input.durationMinutes,
         pauseCount: input.pauseCount,
         streakAfterSession: streakAfter,
       });
-      const totalXp = user.totalXp + xpEarned;
       const demo = createDevDemoPayload({ email: user.email });
       const before = new Set(previousUnlockedStarIds);
       return {
@@ -421,15 +416,12 @@ export const api = {
           user: {
             ...user,
             totalStardust: user.totalStardust + stardustEarned,
-            totalXp,
-            level: Math.max(1, Math.floor(totalXp / 250) + 1),
             currentStreak: streakCount,
             longestStreak: Math.max(user.longestStreak, streakCount),
             lastSessionDate: getDateKey(input.completedAt),
           },
         },
         stardustEarned,
-        xpEarned,
         streakCount,
         unlockedStarId: before.size < 1 ? demo.unlockedStarIds[1] ?? null : null,
         newBadges: [],
@@ -461,7 +453,6 @@ export const api = {
     return {
       payload,
       stardustEarned: result.stardust_earned,
-      xpEarned: result.xp_earned,
       streakCount: result.streak_count,
       unlockedStarId,
       newBadges,

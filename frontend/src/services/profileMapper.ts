@@ -9,8 +9,6 @@ export type ProfileRow = {
   galaxy_name: string;
   language: "tr" | "en";
   total_stardust: number;
-  total_xp?: number | null;
-  level?: number | null;
   /** Supabase migration uses streak_count; legacy drafts used current_streak */
   streak_count?: number | null;
   current_streak?: number | null;
@@ -31,7 +29,6 @@ export type SessionRow = {
   category_id: string;
   duration_minutes: number;
   stardust_earned: number;
-  xp_earned?: number | null;
   pause_used?: boolean | null;
   started_at: string;
   completed_at: string;
@@ -60,8 +57,6 @@ export const mapProfileToUser = (row: ProfileRow): User => ({
   galaxyName: row.galaxy_name,
   language: row.language,
   totalStardust: row.total_stardust,
-  totalXp: row.total_xp ?? 0,
-  level: row.level ?? 1,
   currentStreak: streakFromProfile(row),
   longestStreak: row.longest_streak,
   lastSessionDate: row.last_session_date,
@@ -77,7 +72,6 @@ export const mapSessionRow = (row: SessionRow): SessionRecord => ({
   categoryId: row.category_id,
   durationMinutes: row.duration_minutes,
   stardustEarned: row.stardust_earned,
-  xpEarned: row.xp_earned ?? 0,
   pauseUsed: Boolean(row.pause_used),
   startedAt: row.started_at,
   completedAt: row.completed_at,

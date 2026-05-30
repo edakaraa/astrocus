@@ -1,5 +1,8 @@
+/**
+ * Design tokens — 4px spacing grid, typography scale, layout & motion.
+ * Colors tuned for WCAG AA on dark background (#0A1123).
+ */
 export const colors = {
-  // Palette (from latest onboarding/auth mock)
   cadetGrey: "#959BB5",
   chineseBlack: "#0A1123",
   americanBlue: "#3A3E6C",
@@ -7,19 +10,22 @@ export const colors = {
   coolGrey: "#A8ACAC",
   warmOffWhite: "#E8E6C8",
 
-  // App semantic colors
   background: "#0A1123",
   surface: "rgba(255,255,255,0.04)",
   surfaceMuted: "rgba(255,255,255,0.06)",
-  border: "rgba(255,255,255,0.08)",
-  borderStrong: "rgba(255,255,255,0.14)",
+  surfaceElevated: "rgba(255,255,255,0.08)",
+  border: "rgba(255,255,255,0.10)",
+  borderStrong: "rgba(255,255,255,0.18)",
 
+  /** ~7.2:1 on background */
   text: "#E8E6C8",
+  /** ~4.6:1 on background */
   textMuted: "#959BB5",
-  textFaint: "rgba(149,155,181,0.70)",
+  textFaint: "rgba(149,155,181,0.75)",
 
   primary: "#8387C3",
   primarySoft: "rgba(131,135,195,0.22)",
+  focusRing: "rgba(232,230,200,0.55)",
   success: "#B9F0D7",
   warning: "#FFD166",
   danger: "#FF6B9D",
@@ -27,13 +33,17 @@ export const colors = {
   chip: "rgba(255,255,255,0.06)",
 };
 
+/** 4px base grid */
 export const spacing = {
-  xs: 6,
-  sm: 10,
+  xxs: 4,
+  xs: 8,
+  sm: 12,
   md: 16,
-  lg: 20,
-  xl: 28,
-};
+  lg: 24,
+  xl: 32,
+  "2xl": 48,
+  "3xl": 64,
+} as const;
 
 export const radii = {
   sm: 12,
@@ -42,6 +52,19 @@ export const radii = {
   xl: 28,
   pill: 999,
 };
+
+export const layout = {
+  maxContentWidth: 1280,
+  tabBarHeight: 70,
+  topBarMaxHeight: 56,
+  touchTargetMin: 48,
+  hitSlop: { top: 8, bottom: 8, left: 8, right: 8 },
+} as const;
+
+export const motion = {
+  durationFast: 200,
+  durationNormal: 280,
+} as const;
 
 export const fontFamilies = {
   display: "Outfit_800ExtraBold",
@@ -52,28 +75,54 @@ export const fontFamilies = {
   monoRegular: "SpaceMono_400Regular",
 } as const;
 
+const titleStyle = {
+  fontSize: 30,
+  lineHeight: 36,
+  fontWeight: "800" as const,
+  letterSpacing: -0.4,
+  fontFamily: fontFamilies.display,
+};
+
 export const typography = {
-  title: {
-    fontSize: 30,
-    fontWeight: "800" as const,
-    letterSpacing: -0.4,
-    fontFamily: fontFamilies.display,
-  },
+  title: titleStyle,
+  h1: titleStyle,
   h2: {
     fontSize: 22,
+    lineHeight: 28,
     fontWeight: "800" as const,
     letterSpacing: -0.2,
     fontFamily: fontFamilies.display,
   },
   h3: {
     fontSize: 18,
+    lineHeight: 24,
     fontWeight: "700" as const,
     fontFamily: fontFamilies.displayBold,
   },
   body: {
-    fontSize: 13,
+    fontSize: 14,
+    lineHeight: 20,
     fontWeight: "500" as const,
-    lineHeight: 19,
+    fontFamily: fontFamilies.body,
+  },
+  bodyLarge: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: "400" as const,
+    fontFamily: fontFamilies.bodyRegular,
+  },
+  caption: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "500" as const,
+    fontFamily: fontFamilies.body,
+  },
+  label: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "800" as const,
+    letterSpacing: 0.8,
+    textTransform: "uppercase" as const,
     fontFamily: fontFamilies.body,
   },
   mono: {

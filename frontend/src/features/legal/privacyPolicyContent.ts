@@ -23,6 +23,10 @@ const tr: PolicyBlock[] = [
     title: "Haklarınız",
     body: "Profil → Hesabı Sil ile hesabınızı ve ilişkili verileri kalıcı olarak silebilirsiniz. İletişim: proje geliştirici e-postası (README).",
   },
+  {
+    title: "Üçüncü Taraf İçerik (Profil Görselleri)",
+    body: "Hazır profil avatarları DiceBear «Glyphs» stilini kullanır (lisans: CC BY 4.0). Tasarım: Matt Houser. API: dicebear.com. Seçtiğiniz avatar yalnızca bir kimlik (seed) olarak saklanır; görsel dosyası cihazınıza indirilip veritabanına kaydedilmez.",
+  },
 ];
 
 const en: PolicyBlock[] = [
@@ -45,6 +49,10 @@ const en: PolicyBlock[] = [
   {
     title: "Your Rights",
     body: "Delete your account from Profile → Delete Account. Contact the developer email listed in README.",
+  },
+  {
+    title: "Third-Party Content (Profile Avatars)",
+    body: "Preset profile avatars use the DiceBear “Glyphs” style (license: CC BY 4.0). Design: Matt Houser. API: dicebear.com. Only your avatar choice (seed id) is stored; image files are not saved in our database.",
   },
 ];
 

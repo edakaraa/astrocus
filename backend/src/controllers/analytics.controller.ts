@@ -54,7 +54,7 @@ export const getAnalyticsSummary = async (req: AuthedRequest, res: Response) => 
     const [profileResult, sessionsResult] = await Promise.all([
       supabase
         .from("profiles")
-        .select("streak_count, longest_streak, level, total_xp, total_stardust")
+        .select("streak_count, longest_streak, total_stardust")
         .eq("id", req.userId)
         .single(),
       supabase
@@ -111,8 +111,6 @@ export const getAnalyticsSummary = async (req: AuthedRequest, res: Response) => 
       categoryDistribution,
       streakCount: profileResult.data.streak_count,
       longestStreak: profileResult.data.longest_streak,
-      level: profileResult.data.level,
-      totalXp: profileResult.data.total_xp,
       totalStardust: profileResult.data.total_stardust,
     };
 

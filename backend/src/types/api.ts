@@ -4,8 +4,6 @@ export type AnalyticsSummary = {
   categoryDistribution: Array<{ categoryId: string; minutes: number; percentage: number }>;
   streakCount: number;
   longestStreak: number;
-  level: number;
-  totalXp: number;
   totalStardust: number;
 };
 

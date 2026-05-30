@@ -4,9 +4,29 @@ import * as WebBrowser from "expo-web-browser";
 WebBrowser.maybeCompleteAuthSession();
 
 import React, { useEffect } from "react";
+import { Text, TextInput } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import * as Linking from "expo-linking";
 import { StatusBar } from "expo-status-bar";
+import { MAX_FONT_SCALE } from "../src/shared/responsive";
+
+// Clamp OS font scaling globally so a very large system text setting cannot
+// break tightly-laid-out screens (still allows growth up to MAX_FONT_SCALE).
+type FontScalableDefaults = { defaultProps?: { maxFontSizeMultiplier?: number } };
+const TextWithDefaults = Text as unknown as FontScalableDefaults;
+const TextInputWithDefaults = TextInput as unknown as FontScalableDefaults;
+TextWithDefaults.defaultProps = {
+  ...(TextWithDefaults.defaultProps ?? {}),
+  maxFontSizeMultiplier: MAX_FONT_SCALE,
+};
+TextInputWithDefaults.defaultProps = {
+  ...(TextInputWithDefaults.defaultProps ?? {}),
+  maxFontSizeMultiplier: MAX_FONT_SCALE,
+};
+// TODO: React 19 removes defaultProps support for function components.
+// When upgrading RN/Expo SDK, replace these defaultProps blocks with a
+// project-wide <AppText> / <AppTextInput> wrapper that forwards
+// maxFontSizeMultiplier={MAX_FONT_SCALE} to every Text/TextInput.
 import { useFonts } from "expo-font";
 import {
   DMSans_400Regular,
@@ -38,10 +58,10 @@ const OAuthColdStartProbe = () => {
 
   useEffect(() => {
     void Linking.getInitialURL().then((url) => {
-      if (!__DEV__ || !url) {
-        return;
+      if (!url) return;
+      if (__DEV__) {
+        console.info("[Astrocus OAuth] app launch initialURL =", url.slice(0, 160));
       }
-      console.info("[Astrocus OAuth] app launch initialURL =", url.slice(0, 160));
       if (isOAuthReturnUrl(url)) {
         router.replace("/auth/callback");
       }

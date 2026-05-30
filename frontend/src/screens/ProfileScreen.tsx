@@ -3,9 +3,12 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { useRouter, useFocusEffect } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/AppContext";
-import { colors, fontFamilies, radii, spacing, typography } from "../shared/theme";
-import { t } from "../shared/i18n";
-import { AVATARS, BADGES, getBadgeLabel } from "../shared/constants";
+import { useResponsive } from "../shared/responsive";
+import { colors, fontFamilies, layout, radii, spacing, typography } from "../shared/theme";
+import { t, type TranslationKey } from "../shared/i18n";
+import { Logo } from "../components/Logo";
+import { UserAvatar } from "../components/UserAvatar";
+import { BADGES, getBadgeLabel, PRESET_AVATARS, resolveAvatarId } from "../shared/constants";
 import { formatDuration, formatNumber } from "../shared/formatLocale";
 import { StarfieldBackground } from "../components/StarfieldBackground";
 import { SurfaceCard } from "../components/SurfaceCard";
@@ -15,6 +18,7 @@ import { StardustPill } from "../components/StardustPill";
 
 export const ProfileScreen = () => {
   const router = useRouter();
+  const { contentPadding, tabBarClearance, topInset } = useResponsive();
   const {
     analyticsSummary,
     dailySummary,
@@ -73,12 +77,26 @@ export const ProfileScreen = () => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={[
+        styles.container,
+        {
+          paddingHorizontal: contentPadding,
+          paddingBottom: tabBarClearance,
+          paddingTop: Math.max(spacing.sm, topInset),
+        },
+      ]}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
       <StarfieldBackground density={34} />
 
       {/* Global stardust balance */}
       <View style={styles.profileTopBar}>
-        <Text style={styles.profileTopBarLabel}>{t(language, "profileTitle")}</Text>
+        <View style={styles.profileTopBarLeft}>
+          <Logo size="sm" accessibilityLabel={t(language, "appName")} />
+          <Text style={styles.profileTopBarLabel}>{t(language, "profileTitle")}</Text>
+        </View>
         <StardustPill amount={user.totalStardust} />
       </View>
 
@@ -95,11 +113,11 @@ export const ProfileScreen = () => {
         <View style={styles.avatarHalo}>
           <CelestialVisual variant="planet" size={124} />
           <View style={styles.avatarShell}>
-            <Text style={styles.avatarText}>{user.avatar}</Text>
+            <UserAvatar avatar={user.avatar} size={52} />
           </View>
         </View>
         <Text style={styles.username}>{user.username || t(language, "explorerName")}</Text>
-        <Text style={styles.galaxy}>{`${t(language, "levelXpStardust")} ${user.level} · ${formatNumber(language, user.totalXp)} XP · ${formatNumber(language, user.totalStardust)} ✦`}</Text>
+        <Text style={styles.galaxy}>{`${t(language, "profileTotalStardust")}: ${formatNumber(language, user.totalStardust)} ✦`}</Text>
 
         <View style={styles.headerStats}>
           <View style={styles.pstat}>
@@ -229,19 +247,28 @@ export const ProfileScreen = () => {
 
         <View style={styles.settingBlock}>
           <Text style={styles.settingTitle}>{t(language, "avatar")}</Text>
-          <View style={styles.avatarRow}>
-            {AVATARS.map((avatar) => (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`${avatar} ${t(language, "selectAvatarA11y")}`}
-                key={avatar}
-                style={[styles.avatarOption, user.avatar === avatar ? styles.avatarOptionActive : null]}
-                onPress={() => updateProfile({ avatar })}
-              >
-                <Text style={styles.avatarOptionText}>{avatar}</Text>
-              </Pressable>
-            ))}
-          </View>
+          <Text style={styles.settingSubtitle}>{t(language, "avatarSwipeHint")}</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.avatarScrollContent}
+            style={styles.avatarScroll}
+          >
+            {PRESET_AVATARS.map((preset) => {
+              const selected = resolveAvatarId(user.avatar) === preset.id;
+              return (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t(language, preset.labelKey as TranslationKey)} ${t(language, "selectAvatarA11y")}`}
+                  key={preset.id}
+                  style={[styles.avatarOption, selected ? styles.avatarOptionActive : null]}
+                  onPress={() => updateProfile({ avatar: preset.id })}
+                >
+                  <UserAvatar avatar={preset.id} size={52} style={styles.avatarOptionImage} />
+                </Pressable>
+              );
+            })}
+          </ScrollView>
         </View>
 
         <View style={styles.settingDivider} />
@@ -262,24 +289,27 @@ export const ProfileScreen = () => {
 
         <View style={styles.settingDivider} />
 
-        <View style={styles.legalRow}>
+        <View style={styles.legalColumn}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t(language, "privacyPolicy")}
             onPress={() => router.push("/legal/privacy-policy")}
           >
-            <Text style={styles.legalLink}>
-              {t(language, "privacyPolicy")}
-            </Text>
+            <Text style={styles.legalLink}>{t(language, "privacyPolicy")}</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t(language, "openSourceCredits")}
+            onPress={() => router.push("/legal/acknowledgments")}
+          >
+            <Text style={styles.legalLinkMuted}>{t(language, "openSourceCredits")}</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t(language, "deleteAccount")}
             onPress={() => router.push("/legal/delete-account")}
           >
-            <Text style={styles.legalDanger}>
-              {t(language, "deleteAccount")}
-            </Text>
+            <Text style={styles.legalDanger}>{t(language, "deleteAccount")}</Text>
           </Pressable>
         </View>
       </SurfaceCard>
@@ -295,16 +325,18 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.background,
     gap: spacing.md,
-    padding: spacing.md,
-    paddingBottom: 104,
-    paddingTop: 14,
   },
   profileTopBar: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingTop: 30,
-    paddingBottom: 4,
+    maxHeight: layout.topBarMaxHeight,
+    paddingBottom: spacing.xxs,
+  },
+  profileTopBarLeft: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 8,
   },
   profileTopBarLabel: {
     color: colors.textFaint,
@@ -330,12 +362,12 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radii.pill,
     borderWidth: 1,
-    height: 34,
+    height: layout.touchTargetMin,
     justifyContent: "center",
     position: "absolute",
-    left: 14,
-    top: 14,
-    width: 34,
+    left: spacing.sm,
+    top: spacing.sm,
+    width: layout.touchTargetMin,
   },
   heroGlow: {
     backgroundColor: "rgba(131,135,195,0.12)",
@@ -363,7 +395,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 58,
   },
-  avatarText: { fontSize: 27 },
   username: {
     ...typography.h2,
     color: colors.text,
@@ -601,36 +632,49 @@ const styles = StyleSheet.create({
   languageTextActive: {
     color: colors.warmOffWhite,
   },
-  avatarRow: {
-    flexDirection: "row",
+  avatarScroll: {
+    marginHorizontal: -4,
+    marginTop: spacing.sm,
+  },
+  avatarScrollContent: {
+    alignItems: "center",
     gap: spacing.sm,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
   },
   avatarOption: {
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.04)",
     borderColor: colors.border,
-    borderRadius: radii.md,
+    borderRadius: 999,
     borderWidth: 1,
-    flex: 1,
-    paddingVertical: 10,
+    height: 64,
+    justifyContent: "center",
+    width: 64,
   },
   avatarOptionActive: {
-    backgroundColor: "rgba(131,135,195,0.2)",
-    borderColor: "rgba(232,230,200,0.24)",
+    backgroundColor: "rgba(131,135,195,0.22)",
+    borderColor: colors.primary,
+    borderWidth: 2,
   },
-  avatarOptionText: {
-    fontSize: 20,
+  avatarOptionImage: {
+    borderWidth: 0,
   },
   syncButton: {
     minWidth: 78,
   },
-  legalRow: {
+  legalColumn: {
     gap: spacing.sm,
   },
   legalLink: {
     color: colors.primary,
     fontSize: 13,
     fontWeight: "700",
+  },
+  legalLinkMuted: {
+    color: colors.textFaint,
+    fontFamily: fontFamilies.bodyRegular,
+    fontSize: 12,
   },
   legalDanger: {
     color: colors.danger,

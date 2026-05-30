@@ -1,7 +1,8 @@
 import React from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { BlurView } from "expo-blur";
-import { colors, fontFamilies, radii, spacing } from "../shared/theme";
+import { useModalLayout } from "../shared/responsive";
+import { colors, fontFamilies, radii, spacing, typography } from "../shared/theme";
 import { GradientButton } from "./GradientButton";
 
 export type AstroAlertModalProps = {
@@ -19,16 +20,32 @@ export const AstroAlertModal = ({
   confirmLabel = "OK",
   onClose,
 }: AstroAlertModalProps) => {
+  const modal = useModalLayout();
+
   return (
-    <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Dismiss alert" onPress={onClose} style={styles.backdrop}>
-        <Pressable accessibilityRole="alert" onPress={() => {}} style={styles.cardWrap}>
-          <BlurView intensity={42} tint="dark" style={styles.blur}>
+    <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Dismiss alert"
+        onPress={onClose}
+        style={[styles.backdrop, { justifyContent: modal.backdropJustify, paddingHorizontal: modal.horizontalPad }]}
+      >
+        <Pressable
+          accessibilityRole="alert"
+          onPress={() => {}}
+          style={[
+            styles.cardWrap,
+            modal.isSheet ? styles.cardSheet : null,
+            { maxWidth: modal.cardMaxWidth, width: modal.isSheet ? "100%" : modal.cardWidth },
+          ]}
+        >
+          <BlurView intensity={42} tint="dark" style={[styles.blur, modal.isSheet ? styles.blurSheet : null]}>
             <View style={styles.glassTint} />
+            {modal.isSheet ? <View style={styles.sheetHandle} accessibilityElementsHidden /> : null}
             <View style={styles.content}>
               <Text style={styles.title}>{title}</Text>
               <Text style={styles.message}>{message}</Text>
-              <GradientButton label={confirmLabel} onPress={onClose} style={styles.button} />
+              <GradientButton label={confirmLabel} onPress={onClose} style={styles.button} fullWidth={modal.isSheet} />
             </View>
           </BlurView>
         </Pressable>
@@ -39,46 +56,54 @@ export const AstroAlertModal = ({
 
 const styles = StyleSheet.create({
   backdrop: {
-    flex: 1,
     backgroundColor: "rgba(5, 8, 18, 0.62)",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.lg,
+    flex: 1,
   },
   cardWrap: {
-    width: "100%",
-    maxWidth: 360,
-    borderRadius: radii.xl,
-    overflow: "hidden",
-    borderWidth: 1,
     borderColor: colors.borderStrong,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  cardSheet: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
   },
   blur: {
     borderRadius: radii.xl,
     overflow: "hidden",
   },
+  blurSheet: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
   glassTint: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(10, 17, 35, 0.55)",
   },
+  sheetHandle: {
+    alignSelf: "center",
+    backgroundColor: colors.borderStrong,
+    borderRadius: radii.pill,
+    height: 4,
+    marginTop: spacing.sm,
+    width: 40,
+  },
   content: {
+    paddingBottom: spacing.lg,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
+    paddingTop: spacing.md,
   },
   title: {
+    ...typography.h3,
     color: colors.text,
-    fontSize: 18,
-    lineHeight: 24,
-    letterSpacing: -0.25,
-    fontFamily: fontFamilies.displayBold,
   },
   message: {
-    marginTop: spacing.sm,
+    ...typography.body,
     color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 19,
-    fontFamily: fontFamilies.bodyRegular,
+    marginTop: spacing.sm,
   },
   button: {
     marginTop: spacing.lg,

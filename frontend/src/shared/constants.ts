@@ -99,4 +99,21 @@ export const BADGES: BadgeDefinition[] = [
   { id: "cst_ophiuchus", name: "Yılantaşıyıcı Ustası", nameEn: "Ophiuchus Master", description: "Yılantaşıyıcı takımyıldızını tamamla.", descriptionEn: "Complete the Ophiuchus constellation." },
 ];
 
-export const AVATARS = ["🌙", "🪐", "☄️", "🌠", "✨"];
+import {
+  DEFAULT_AVATAR_ID,
+  PRESET_AVATAR_IDS,
+  PRESET_AVATARS,
+  resolveAvatarId,
+  type PresetAvatarId,
+} from "./presetAvatars";
+
+export {
+  DEFAULT_AVATAR_ID,
+  PRESET_AVATAR_IDS,
+  PRESET_AVATARS,
+  resolveAvatarId,
+  type PresetAvatarId,
+};
+
+/** @deprecated Preset id listesi için `PRESET_AVATAR_IDS` kullan. */
+export const AVATARS = PRESET_AVATAR_IDS;

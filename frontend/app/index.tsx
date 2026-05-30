@@ -4,7 +4,8 @@ import { ActivityIndicator, Text, View } from "react-native";
 import { useAppContext } from "../src/context/AppContext";
 import { asyncStorage } from "../src/shared/storage";
 import { STORAGE_KEYS } from "../src/shared/constants";
-import { colors } from "../src/shared/theme";
+import { Logo } from "../src/components/Logo";
+import { colors, spacing } from "../src/shared/theme";
 
 const LoadingScreen = () => (
   <View
@@ -13,10 +14,11 @@ const LoadingScreen = () => (
       backgroundColor: colors.background,
       flex: 1,
       justifyContent: "center",
+      gap: spacing.md,
     }}
   >
+    <Logo size="xl" />
     <ActivityIndicator color={colors.primary} />
-    <Text style={{ color: colors.text, marginTop: 12 }}>Astrocus</Text>
   </View>
 );
 

@@ -7,6 +7,12 @@
     "platforms": ["ios", "android"],
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "icon": "./assets/brand/logo.png",
+    "splash": {
+      "image": "./assets/brand/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A1123"
+    },
     "plugins": [
       "expo-localization",
       "expo-secure-store",
@@ -19,7 +25,11 @@
       "usesAppleSignIn": true
     },
     "android": {
-      "package": "com.astrocus.app"
+      "package": "com.astrocus.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/brand/logo.png",
+        "backgroundColor": "#0A1123"
+      }
     }
   }
 }

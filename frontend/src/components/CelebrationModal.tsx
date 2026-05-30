@@ -3,14 +3,14 @@ import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useAppContext } from "../context/AppContext";
 import { formatDuration, formatNumber } from "../shared/formatLocale";
 import { t } from "../shared/i18n";
-import { colors, radii, spacing, typography } from "../shared/theme";
+import { useModalLayout } from "../shared/responsive";
+import { colors, layout, radii, spacing, typography } from "../shared/theme";
 import { StarfieldBackground } from "./StarfieldBackground";
 import { GradientButton } from "./GradientButton";
 
 type CelebrationModalProps = {
   visible: boolean;
   stardustEarned: number;
-  xpEarned?: number;
   pendingSync?: boolean;
   unlockedStarLabel?: string | null;
   newBadgeLabels?: string[];
@@ -24,7 +24,6 @@ type CelebrationModalProps = {
 export const CelebrationModal = ({
   visible,
   stardustEarned,
-  xpEarned = 0,
   pendingSync = false,
   unlockedStarLabel,
   newBadgeLabels,
@@ -35,6 +34,7 @@ export const CelebrationModal = ({
   onClose,
 }: CelebrationModalProps) => {
   const { language } = useAppContext();
+  const modal = useModalLayout();
 
   const headline = useMemo(() => {
     if (pendingSync) {
@@ -44,11 +44,18 @@ export const CelebrationModal = ({
   }, [language, pendingSync, unlockedStarLabel]);
 
   return (
-    <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+    <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
+      <View style={[styles.backdrop, { justifyContent: modal.backdropJustify, padding: modal.isSheet ? 0 : spacing.xl }]}>
         <StarfieldBackground density={36} opacity={1} />
 
-        <View style={styles.card}>
+        <View
+          style={[
+            styles.card,
+            modal.isSheet ? styles.cardSheet : null,
+            { maxWidth: modal.cardMaxWidth, width: modal.isSheet ? "100%" : "100%" },
+          ]}
+        >
+          {modal.isSheet ? <View style={styles.sheetHandle} accessibilityElementsHidden /> : null}
           <View style={styles.burst} pointerEvents="none" />
           <Text style={styles.bigStar}>{unlockedStarLabel ? "🌟" : "⭐"}</Text>
           <Text style={styles.headline}>{headline}</Text>
@@ -66,7 +73,6 @@ export const CelebrationModal = ({
             <>
               <Text style={styles.earned}>{`+${formatNumber(language, stardustEarned)} ✦`}</Text>
               <Text style={styles.earnedLabel}>{t(language, "celebrationStardustEarned")}</Text>
-              {xpEarned > 0 ? <Text style={styles.xpLine}>{`+${formatNumber(language, xpEarned)} XP`}</Text> : null}
             </>
           )}
 
@@ -84,7 +90,7 @@ export const CelebrationModal = ({
             </View>
           ) : null}
 
-          <View style={styles.statsRow}>
+          <View style={[styles.statsRow, modal.isSheet ? styles.statsRowStack : null]}>
             <View style={styles.stat}>
               <Text style={styles.statVal}>{formatDuration(language, durationMinutes)}</Text>
               <Text style={styles.statLabel}>{t(language, "celebrationSessionDuration")}</Text>
@@ -101,11 +107,17 @@ export const CelebrationModal = ({
             </View>
           </View>
 
-          <GradientButton label={t(language, "continueJourney")} onPress={onClose} />
+          <GradientButton
+            label={t(language, "continueJourney")}
+            onPress={onClose}
+            fullWidth={modal.isSheet}
+            style={styles.continueBtn}
+          />
 
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t(language, "close")}
+            hitSlop={layout.hitSlop}
             onPress={onClose}
             style={styles.close}
           >
@@ -119,20 +131,32 @@ export const CelebrationModal = ({
 
 const styles = StyleSheet.create({
   backdrop: {
-    flex: 1,
     backgroundColor: "rgba(0,0,0,0.55)",
-    justifyContent: "center",
-    padding: spacing.xl,
+    flex: 1,
   },
   card: {
+    alignItems: "center",
     backgroundColor: "rgba(7, 5, 26, 0.98)",
+    borderColor: "rgba(179, 191, 255, 0.16)",
     borderRadius: radii.xl,
     borderWidth: 1,
-    borderColor: "rgba(179, 191, 255, 0.16)",
-    paddingVertical: 26,
-    paddingHorizontal: 20,
-    alignItems: "center",
     overflow: "hidden",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+  },
+  cardSheet: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    maxHeight: "92%",
+    paddingBottom: spacing.xl,
+  },
+  sheetHandle: {
+    alignSelf: "center",
+    backgroundColor: colors.borderStrong,
+    borderRadius: radii.pill,
+    height: 4,
+    marginBottom: spacing.sm,
+    width: 40,
   },
   burst: {
     position: "absolute",
@@ -155,11 +179,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   sub: {
-    marginTop: 4,
+    ...typography.body,
     color: colors.textMuted,
-    fontSize: 13,
-    textAlign: "center",
+    marginTop: spacing.xxs,
     paddingHorizontal: spacing.sm,
+    textAlign: "center",
   },
   earned: {
     marginTop: 14,
@@ -179,13 +203,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     color: colors.textMuted,
     fontSize: 13,
-  },
-  xpLine: {
-    marginTop: 8,
-    fontSize: 15,
-    fontWeight: "800",
-    color: colors.text,
-    letterSpacing: 0.3,
   },
   adviceBox: {
     marginTop: 14,
@@ -214,9 +231,17 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: "row",
-    gap: 8,
-    marginTop: 18,
-    marginBottom: 18,
+    gap: spacing.xs,
+    marginBottom: spacing.lg,
+    marginTop: spacing.lg,
+    width: "100%",
+  },
+  statsRowStack: {
+    flexWrap: "wrap",
+    justifyContent: "center",
+  },
+  continueBtn: {
+    width: "100%",
   },
   stat: {
     flex: 1,
@@ -240,17 +265,17 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   close: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    width: 34,
-    height: 34,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(179, 191, 255, 0.14)",
-    backgroundColor: "rgba(21, 18, 63, 0.55)",
     alignItems: "center",
+    backgroundColor: "rgba(21, 18, 63, 0.55)",
+    borderColor: "rgba(179, 191, 255, 0.14)",
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    height: layout.touchTargetMin,
     justifyContent: "center",
+    minWidth: layout.touchTargetMin,
+    position: "absolute",
+    right: spacing.sm,
+    top: spacing.sm,
   },
   closeText: {
     color: colors.textMuted,

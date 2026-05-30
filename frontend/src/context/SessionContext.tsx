@@ -12,7 +12,7 @@ import React, {
 import { AppState, AppStateStatus } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
 import {
-  AVATARS,
+  PRESET_AVATARS,
   BACKGROUND_TOLERANCE_SECONDS,
   CATEGORIES,
   DEFAULT_DURATION_MINUTES,
@@ -49,7 +49,7 @@ export type SessionContextValue = {
   sessionState: SessionState;
   stars: typeof STARS;
   categories: typeof CATEGORIES;
-  avatars: typeof AVATARS;
+  avatars: typeof PRESET_AVATARS;
   dailySummary: ReturnType<typeof createDailySummary>;
   analyticsSummary: AnalyticsSummary | null;
   refreshAnalytics: () => Promise<void>;
@@ -206,7 +206,6 @@ export const SessionProvider = ({
     uiSetCelebrationRef.current?.({
       pendingSync: true,
       stardustEarned: 0,
-      xpEarned: 0,
       unlockedStarId: null,
     });
   }, [uiSetCelebrationRef]);
@@ -247,7 +246,6 @@ export const SessionProvider = ({
       }
       uiSetCelebrationRef.current?.({
         stardustEarned: response.stardustEarned,
-        xpEarned: response.xpEarned,
         streakCount: response.streakCount,
         unlockedStarId: response.unlockedStarId,
         newBadgeIds: response.newBadges.length > 0 ? response.newBadges : undefined,
@@ -481,7 +479,7 @@ export const SessionProvider = ({
       sessionState,
       stars: STARS,
       categories: CATEGORIES,
-      avatars: AVATARS,
+      avatars: PRESET_AVATARS,
       dailySummary,
       analyticsSummary,
       refreshAnalytics,

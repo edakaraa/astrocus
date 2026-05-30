@@ -11,7 +11,8 @@ import * as Haptics from "expo-haptics";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/AppContext";
 import { loadSkyCatalog, getSkyCatalogOrNull } from "../services/skyCatalog";
-import { colors, fontFamilies, radii, spacing, typography } from "../shared/theme";
+import { useResponsive } from "../shared/responsive";
+import { colors, fontFamilies, layout, radii, spacing, typography } from "../shared/theme";
 import { StarfieldBackground } from "../components/StarfieldBackground";
 import { SurfaceCard } from "../components/SurfaceCard";
 import { CelestialVisual } from "../components/CelestialVisual";
@@ -242,6 +243,7 @@ const SkySection = ({
 };
 
 export const GalaxyScreen = () => {
+  const { contentPadding, tabBarClearance, topInset } = useResponsive();
   const { user, unlockedStarIds, constellationProgress, unlockStar, language } = useAppContext();
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
   const [catalogReady, setCatalogReady] = useState(Boolean(getSkyCatalogOrNull()));
@@ -414,7 +416,18 @@ export const GalaxyScreen = () => {
         onHide={() => setToastVisible(false)}
       />
 
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          {
+            paddingHorizontal: contentPadding,
+            paddingBottom: tabBarClearance,
+            paddingTop: Math.max(spacing.md, topInset),
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Header */}
         <View style={styles.top}>
           <View>
@@ -510,14 +523,12 @@ const styles = StyleSheet.create({
   },
   container: {
     gap: spacing.md,
-    padding: spacing.md,
-    paddingBottom: 104,
-    paddingTop: 44,
   },
   top: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
+    maxHeight: layout.topBarMaxHeight,
   },
   eyebrow: {
     color: colors.textFaint,

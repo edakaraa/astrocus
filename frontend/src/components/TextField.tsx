@@ -1,6 +1,6 @@
 import React from "react";
-import { Pressable, TextInput, View } from "react-native";
-import { colors, fontFamilies, radii, spacing } from "../shared/theme";
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { colors, fontFamilies, layout, radii, spacing, typography } from "../shared/theme";
 
 type TextFieldProps = {
   value: string;
@@ -38,44 +38,65 @@ export const TextField = ({
       keyboardType={keyboardType}
       autoCapitalize={autoCapitalize}
       editable={editable}
-      style={{
-        color: colors.text,
-        paddingHorizontal: spacing.md,
-        paddingVertical: 13,
-        fontSize: 13,
-        fontFamily: fontFamilies.bodyRegular,
-        paddingRight: right ? 44 : spacing.md,
-      }}
+      style={[styles.input, right ? styles.inputWithRight : null]}
     />
   );
 
   return (
-    <View
-      style={{
-        borderRadius: radii.md,
-        borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: "rgba(21, 18, 63, 0.55)",
-        overflow: "hidden",
-      }}
-    >
+    <View style={styles.shell}>
       {onPress ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={accessibilityLabel}
+          hitSlop={layout.hitSlop}
           onPress={onPress}
-          style={{ flexDirection: "row", alignItems: "center" }}
+          style={styles.pressableRow}
         >
-          <View style={{ flex: 1 }}>{input}</View>
+          <View style={styles.inputFlex}>{input}</View>
         </Pressable>
       ) : (
         input
       )}
 
-      {right ? (
-        <View style={{ position: "absolute", right: 10, top: 0, bottom: 0, justifyContent: "center" }}>{right}</View>
-      ) : null}
+      {right ? <View style={styles.rightSlot}>{right}</View> : null}
     </View>
   );
 };
 
+const styles = StyleSheet.create({
+  shell: {
+    backgroundColor: "rgba(21, 18, 63, 0.55)",
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    minHeight: layout.touchTargetMin,
+    overflow: "hidden",
+  },
+  input: {
+    color: colors.text,
+    flex: 1,
+    fontFamily: fontFamilies.bodyRegular,
+    fontSize: typography.bodyLarge.fontSize,
+    lineHeight: typography.bodyLarge.lineHeight,
+    minHeight: layout.touchTargetMin,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  inputWithRight: {
+    paddingRight: 48,
+  },
+  pressableRow: {
+    alignItems: "center",
+    flexDirection: "row",
+  },
+  inputFlex: {
+    flex: 1,
+  },
+  rightSlot: {
+    bottom: 0,
+    justifyContent: "center",
+    position: "absolute",
+    right: spacing.sm,
+    top: 0,
+  },
+});

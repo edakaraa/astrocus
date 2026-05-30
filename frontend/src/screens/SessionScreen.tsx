@@ -11,12 +11,14 @@ import {
 } from "../shared/constants";
 import { t } from "../shared/i18n";
 import { formatDuration, formatNumber, getWeekDayLabels } from "../shared/formatLocale";
-import { colors, fontFamilies, radii, spacing, typography } from "../shared/theme";
+import { useResponsive } from "../shared/responsive";
+import { colors, fontFamilies, layout, radii, spacing, typography } from "../shared/theme";
 import { StarfieldBackground } from "../components/StarfieldBackground";
 import { SurfaceCard } from "../components/SurfaceCard";
 import { CelebrationModal } from "../components/CelebrationModal";
 import { ProgressRing } from "../components/ProgressRing";
 import { CelestialVisual } from "../components/CelestialVisual";
+import { Logo } from "../components/Logo";
 import { StardustPill } from "../components/StardustPill";
 
 const formatSeconds = (seconds: number) => {
@@ -28,6 +30,7 @@ const formatSeconds = (seconds: number) => {
 };
 
 export const SessionScreen = () => {
+  const { contentPadding, tabBarClearance, topInset, width, availableHeight, isCompact, scale } = useResponsive();
   const {
     analyticsSummary,
     categories,
@@ -148,8 +151,16 @@ export const SessionScreen = () => {
     const primaryLabel = sessionState.status === "running" ? t(language, "pause") : t(language, "resume");
     const primaryA11y = sessionState.status === "running" ? t(language, "pause") : t(language, "resume");
 
+    // Ring fits both width and the available vertical space on any device.
+    const ringSize = Math.round(
+      Math.min(width - contentPadding * 2, availableHeight * 0.42, 280),
+    );
+    const ringSizeClamped = Math.max(168, ringSize);
+    const planetSize = Math.round(ringSizeClamped * 0.875);
+    const timerFontSize = Math.round(ringSizeClamped * 0.24);
+
     return (
-      <View style={styles.fullScreen}>
+      <View style={[styles.fullScreen, { paddingTop: topInset, paddingHorizontal: contentPadding }]}>
         <StarfieldBackground density={36} />
 
         <View style={styles.activeTopBar}>
@@ -158,20 +169,21 @@ export const SessionScreen = () => {
             accessibilityLabel={t(language, "reset")}
             onPress={confirmEndSession}
             style={styles.iconButton}
+            hitSlop={layout.hitSlop}
           >
             <MaterialCommunityIcons name="chevron-left" size={22} color={colors.textMuted} />
           </Pressable>
-          <Text style={styles.activeEyebrow}>{selectedCategoryLabel}</Text>
+          <Text style={styles.activeEyebrow} numberOfLines={1}>{selectedCategoryLabel}</Text>
           <View style={styles.iconButtonGhost} />
         </View>
 
-        <View style={styles.activeContent}>
+        <View style={[styles.activeContent, { paddingBottom: tabBarClearance }]}>
           <Text style={styles.activeTitle}>{t(language, "deepFocus")}</Text>
-          <Text style={styles.activeTime}>{formatSeconds(sessionState.remainingSeconds)}</Text>
+          <Text style={[styles.activeTime, { fontSize: timerFontSize }]}>{formatSeconds(sessionState.remainingSeconds)}</Text>
           <Text style={styles.activeSubtitle}>{t(language, "focusStartHint")}</Text>
 
-          <ProgressRing size={240} strokeWidth={3} progress={progressRatio} progressColor={ringColor}>
-            <CelestialVisual variant="planet" size={210} />
+          <ProgressRing size={ringSizeClamped} strokeWidth={3} progress={progressRatio} progressColor={ringColor}>
+            <CelestialVisual variant="planet" size={planetSize} />
           </ProgressRing>
 
           <Pressable
@@ -187,6 +199,7 @@ export const SessionScreen = () => {
             accessibilityRole="button"
             accessibilityLabel={t(language, "endSession")}
             onPress={confirmEndSession}
+            hitSlop={layout.hitSlop}
           >
             <Text style={styles.ghostAction}>{t(language, "endSession")}</Text>
           </Pressable>
@@ -195,7 +208,6 @@ export const SessionScreen = () => {
         <CelebrationModal
           visible={Boolean(celebration)}
           stardustEarned={celebration?.stardustEarned ?? 0}
-          xpEarned={celebration?.xpEarned}
           pendingSync={celebration?.pendingSync}
           unlockedStarLabel={unlockedStarLabel}
           newBadgeLabels={newBadgeLabels}
@@ -210,20 +222,35 @@ export const SessionScreen = () => {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={[
+        styles.container,
+        {
+          paddingHorizontal: contentPadding,
+          paddingBottom: tabBarClearance,
+          paddingTop: Math.max(spacing.sm, topInset),
+        },
+      ]}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
       <StarfieldBackground density={34} />
 
       {/* Global stardust balance — visible at all times */}
       <View style={styles.topBar}>
-        <Text style={styles.topBarLabel}>{t(language, "session")}</Text>
+        <View style={styles.topBarLeft}>
+          <Logo size="md" accessibilityLabel={t(language, "appName")} />
+          <Text style={styles.brandTitle}>{t(language, "appName")}</Text>
+        </View>
         <StardustPill amount={user?.totalStardust ?? 0} />
       </View>
 
       <View style={styles.heroCard}>
         <View style={styles.heroGlow} pointerEvents="none" />
-        <CelestialVisual variant="planet" size={132} style={styles.heroPlanet} />
+        <Logo size={isCompact ? "md" : "lg"} style={styles.heroLogo} accessibilityLabel={t(language, "appName")} />
+        <CelestialVisual variant="planet" size={scale(132)} style={styles.heroPlanet} />
         <Text style={styles.heroEyebrow}>{t(language, "mainNavigation")}</Text>
-        <Text style={styles.heroTitle}>{`${t(language, "welcomeUser")}, ${user?.username ?? t(language, "explorerName")}`}</Text>
+        <Text style={styles.heroTitle} numberOfLines={2}>{`${t(language, "welcomeUser")}, ${user?.username ?? t(language, "explorerName")}`}</Text>
         <Text style={styles.heroSubtitle}>{t(language, "sessionHeroSubtitle")}</Text>
         <Text style={styles.heroRateHint}>{t(language, "stardustPerMinute")}</Text>
       </View>
@@ -390,7 +417,6 @@ export const SessionScreen = () => {
       <CelebrationModal
         visible={Boolean(celebration)}
         stardustEarned={celebration?.stardustEarned ?? 0}
-        xpEarned={celebration?.xpEarned}
         pendingSync={celebration?.pendingSync}
         unlockedStarLabel={unlockedStarLabel}
         newBadgeLabels={newBadgeLabels}
@@ -408,13 +434,12 @@ const styles = StyleSheet.create({
   fullScreen: {
     backgroundColor: colors.background,
     flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingTop: 54,
   },
   activeTopBar: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
+    paddingTop: spacing.sm,
   },
   iconButton: {
     alignItems: "center",
@@ -422,25 +447,26 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radii.pill,
     borderWidth: 1,
-    height: 38,
+    height: layout.touchTargetMin,
     justifyContent: "center",
-    width: 38,
+    width: layout.touchTargetMin,
   },
   iconButtonGhost: {
-    height: 38,
-    width: 38,
+    height: layout.touchTargetMin,
+    width: layout.touchTargetMin,
   },
   activeEyebrow: {
     color: colors.textFaint,
+    flex: 1,
     fontFamily: fontFamilies.body,
     fontSize: 12,
     fontWeight: "700",
+    textAlign: "center",
   },
   activeContent: {
     alignItems: "center",
     flex: 1,
     justifyContent: "center",
-    paddingBottom: 64,
   },
   activeTitle: {
     color: colors.text,
@@ -452,9 +478,9 @@ const styles = StyleSheet.create({
   activeTime: {
     color: colors.text,
     fontFamily: fontFamilies.mono,
-    fontSize: 44,
     fontWeight: "800",
     letterSpacing: -1,
+    marginVertical: spacing.xxs,
   },
   activeSubtitle: {
     color: colors.textMuted,
@@ -489,24 +515,29 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.background,
     gap: spacing.md,
-    padding: spacing.md,
-    paddingBottom: 104,
-    paddingTop: 14,
   },
   topBar: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingTop: 30,
-    paddingBottom: 4,
+    maxHeight: layout.topBarMaxHeight,
+    paddingBottom: spacing.xxs,
   },
-  topBarLabel: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: 10,
+  topBarLeft: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+  },
+  brandTitle: {
+    color: colors.text,
+    fontFamily: fontFamilies.display,
+    fontSize: 18,
     fontWeight: "800",
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  heroLogo: {
+    marginBottom: 4,
+    marginTop: 4,
   },
   heroCard: {
     alignItems: "center",
@@ -633,6 +664,7 @@ const styles = StyleSheet.create({
   },
   suggestionRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm,
   },
   suggestionCard: {
@@ -640,9 +672,11 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
-    flex: 1,
+    flexBasis: "30%",
+    flexGrow: 1,
     minHeight: 106,
-    padding: 12,
+    minWidth: 100,
+    padding: spacing.sm,
   },
   suggestionCardActive: {
     backgroundColor: "rgba(131,135,195,0.18)",
