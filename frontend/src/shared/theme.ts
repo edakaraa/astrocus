@@ -7,7 +7,7 @@ export const colors = {
   chineseBlack: "#0A1123",
   americanBlue: "#3A3E6C",
   ube: "#8387C3",
-  coolGrey: "#A8ACAC",
+  coolGrey: "#8A8CAC",
   warmOffWhite: "#E8E6C8",
 
   background: "#0A1123",
@@ -55,11 +55,27 @@ export const radii = {
 
 export const layout = {
   maxContentWidth: 1280,
-  tabBarHeight: 70,
+  /** Visible tab bar pill height (icons + labels only; safe area is separate). */
+  tabBarHeight: 52,
   topBarMaxHeight: 56,
   touchTargetMin: 48,
   hitSlop: { top: 8, bottom: 8, left: 8, right: 8 },
 } as const;
+
+/** Floating tab bar geometry — keep in sync with app/(tabs)/_layout.tsx */
+export const getTabBarMetrics = (bottomInset: number) => {
+  const bottomOffset = Math.max(spacing.sm, bottomInset);
+  const height = layout.tabBarHeight;
+  /** Space reserved above the home indicator for tab bar + breathing room for footer CTAs */
+  const clearance = height + bottomOffset + spacing.sm;
+  return { bottomOffset, height, clearance };
+};
+
+/** Full-width block inside screen horizontal gutter (Session, Profile, Galaxy, etc.). */
+export const screenBlock = {
+  alignSelf: "stretch" as const,
+  width: "100%" as const,
+};
 
 export const motion = {
   durationFast: 200,
@@ -124,6 +140,30 @@ export const typography = {
     letterSpacing: 0.8,
     textTransform: "uppercase" as const,
     fontFamily: fontFamilies.body,
+  },
+  /** Outfit ExtraBold — session category, timer, hero welcome. */
+  sessionDisplay: {
+    fontFamily: fontFamilies.display,
+    letterSpacing: -0.3,
+    color: colors.text,
+  },
+  /** Uppercase section headings on the Focus tab (Odak). */
+  focusSectionLabel: {
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: "800" as const,
+    letterSpacing: 0.8,
+    textTransform: "uppercase" as const,
+    fontFamily: fontFamilies.body,
+    color: colors.textFaint,
+  },
+  /** Primary CTA on the Focus tab — e.g. “Start focus”. */
+  focusCta: {
+    fontSize: 15,
+    lineHeight: 18,
+    fontFamily: fontFamilies.displayBold,
+    color: colors.warmOffWhite,
+    textAlign: "center" as const,
   },
   mono: {
     fontSize: 40,

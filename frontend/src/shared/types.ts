@@ -159,6 +159,38 @@ export type DailySummary = {
   categoryBreakdown: Array<{ categoryId: string; minutes: number }>;
 };
 
+export type WeeklyReportUserType = "inactive" | "new" | "low" | "medium" | "high";
+
+export type WeeklyReportStats = {
+  user_name: string;
+  week_label_tr: string;
+  week_label_en: string;
+  total_minutes: number;
+  total_sessions: number;
+  completed_sessions: number;
+  best_day_tr: string | null;
+  best_day_en: string | null;
+  best_day_minutes: number | null;
+  peak_hour_range: string | null;
+  current_streak: number;
+  longest_streak: number;
+  personal_record_broken: boolean;
+  vs_last_week_minutes: number | null;
+  daily_goal_minutes: number;
+  goal_met_days: number;
+  user_type: WeeklyReportUserType;
+};
+
+export type WeeklyReport = {
+  id: string;
+  userId: string;
+  weekStart: string;
+  stats: WeeklyReportStats;
+  reportText: { tr: string; en: string };
+  fallbackUsed: boolean;
+  createdAt: string;
+};
+
 /** Express GET /analytics/summary */
 export type AnalyticsSummary = {
   totalFocusMinutes: number;
@@ -176,6 +208,9 @@ export type CelebrationPayload = {
   unlockedStarId: string | null;
   newBadgeIds?: string[];
   galacticAdvice?: string;
+  /** Snapshot at completion time — sessionState is cleared before the modal renders */
+  durationMinutes?: number;
+  todayTotalMinutes?: number;
   /** Set when a full constellation was just completed */
   completedConstellationId?: string | null;
 } | null;

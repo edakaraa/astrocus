@@ -14,24 +14,62 @@ import {
 import { signInWithApple } from "../lib/appleAuth";
 import { getOAuthRedirectUri, signInWithGoogle } from "../lib/oauth";
 import { getDateKey } from "../context/session/dateKey";
+import { createDailySummary } from "../context/session/stardust";
 import { t } from "./i18n";
 import type { Language } from "./types";
+import { asyncStorage } from "./storage";
+import { STORAGE_KEYS } from "./constants";
 import {
+  appendDemoCompletedSession,
+  appendDemoPartialSession,
   createDevDemoPayload,
   isDevDemoToken,
-  simulateDemoSessionReward,
+  simulatePartialCancelReward,
 } from "../context/auth/devDemo";
 import { getApiUrl } from "./config";
 import {
   AuthPayload,
   CancelSessionResult,
   PendingSession,
+  SessionRecord,
   UnlockStarResult,
   User,
 } from "./types";
 
 const MIGRATION_HINT =
-  "Supabase şeması güncel değil. SQL Editor'da backend/supabase/migrations/008 ve 009 dosyalarını uygulayın.";
+  "Supabase şeması güncel değil. SQL Editor'da backend/supabase/migrations/011 ve 012 dosyalarını uygulayın.";
+
+export const isTransientNetworkError = (error: unknown): boolean => {
+  const msg = error instanceof Error ? error.message : String(error);
+  return /network|fetch|timeout|internet|failed to fetch|network request failed|econnrefused|enotfound/i.test(
+    msg,
+  );
+};
+
+export const isSchemaSessionError = (error: unknown): boolean => {
+  const msg = error instanceof Error ? error.message : String(error);
+  return /uuid = text|schema cache|migration/i.test(msg);
+};
+
+export const formatSessionSaveError = (error: unknown): string => {
+  const msg = error instanceof Error ? error.message : String(error);
+  if (/uuid = text/i.test(msg)) {
+    if (/categories where id/i.test(msg)) {
+      return `Kategori eşleşmesi hatası: sunucu slug bekliyor. Migration 012 uygulandığından emin olun. (${msg})`;
+    }
+    return `${MIGRATION_HINT} (${msg})`;
+  }
+  if (/invalid_category/i.test(msg)) {
+    return `Geçersiz kategori. Uygulamayı yeniden başlatın veya farklı bir kategori seçin. (${msg})`;
+  }
+  if (/duration_mismatch/i.test(msg)) {
+    return `Seans süresi doğrulanamadı. Timer bitene kadar bekleyin. (${msg})`;
+  }
+  if (/profile_not_found/i.test(msg)) {
+    return `Profil bulunamadı. Çıkış yapıp tekrar giriş yapın. (${msg})`;
+  }
+  return msg;
+};
 
 const rpcRow = (data: unknown, label: string): Record<string, unknown> => {
   if (!data || typeof data !== "object") {
@@ -106,7 +144,7 @@ const fetchUserData = async (userId: string, accessToken: string): Promise<AuthP
     supabase.from("user_badges").select("badge_id").eq("user_id", userId),
     supabase
       .from("user_constellations")
-      .select("constellation_id, started_at, completed_at, is_starter, unlock_order")
+      .select("*")
       .eq("user_id", userId),
   ]);
 
@@ -174,11 +212,79 @@ const requireSession = async () => {
 
 const withDemoPayload = (
   token: string,
+  base: AuthPayload,
   patchUser: (user: User) => User,
-  patchPayload?: Partial<AuthPayload>,
+): AuthPayload => ({
+  ...base,
+  token,
+  user: patchUser(base.user),
+});
+
+const mergeCompleteSessionIntoPayload = (
+  payload: AuthPayload,
+  result: ReturnType<typeof parseCompleteFocusSessionResult>,
+  input: {
+    categoryId: string;
+    durationMinutes: number;
+    startedAt: string;
+    completedAt: string;
+    pauseCount: number;
+  },
+  userId: string,
 ): AuthPayload => {
-  const demo = createDevDemoPayload({ email: "demo@astrocus.dev" });
-  return { ...demo, ...patchPayload, token, user: patchUser(demo.user) };
+  const sessionRecord: SessionRecord = {
+    id: result.session_id,
+    userId,
+    categoryId: input.categoryId,
+    durationMinutes: input.durationMinutes,
+    stardustEarned: result.stardust_earned,
+    pauseUsed: input.pauseCount > 0,
+    startedAt: input.startedAt,
+    completedAt: input.completedAt,
+    isOffline: false,
+  };
+
+  const hasSession = payload.sessions.some((session) => session.id === result.session_id);
+  const newBadges = normalizeBadgeList(result.new_badges);
+  const earnedBadgeIds = [...new Set([...payload.earnedBadgeIds, ...newBadges])];
+
+  return {
+    ...payload,
+    user: {
+      ...payload.user,
+      totalStardust: result.total_stardust,
+      currentStreak: result.streak_count,
+      longestStreak: Math.max(payload.user.longestStreak, result.longest_streak),
+      lastSessionDate: getDateKey(input.completedAt),
+    },
+    sessions: hasSession ? payload.sessions : [sessionRecord, ...payload.sessions],
+    earnedBadgeIds,
+  };
+};
+
+const hydratePayloadAfterSessionWrite = async (
+  current: AuthPayload,
+  result: ReturnType<typeof parseCompleteFocusSessionResult>,
+  input: {
+    categoryId: string;
+    durationMinutes: number;
+    startedAt: string;
+    completedAt: string;
+    pauseCount: number;
+  },
+  userId: string,
+  accessToken: string,
+): Promise<AuthPayload> => {
+  let payload = mergeCompleteSessionIntoPayload(current, result, input, userId);
+  try {
+    const fetched = await fetchUserData(userId, accessToken);
+    payload = mergeCompleteSessionIntoPayload(fetched, result, input, userId);
+  } catch (error) {
+    if (__DEV__) {
+      console.warn("[Astrocus session hydrate fallback]", error);
+    }
+  }
+  return { ...payload, token: accessToken };
 };
 
 /** OAuth deep-link veya WebBrowser dönüşü — profil tetikleyicisi için retry. */
@@ -339,7 +445,12 @@ export const api = {
 
   async updateProfile(token: string, input: Partial<User>): Promise<AuthPayload> {
     if (isDevDemoToken(token)) {
-      return withDemoPayload(token, (user) => ({ ...user, ...input }));
+      const stored = await asyncStorage.get<AuthPayload | null>(STORAGE_KEYS.demoAuthPayload, null);
+      const base =
+        stored?.token === token
+          ? stored
+          : createDevDemoPayload({ email: stored?.user.email ?? "demo@astrocus.dev" });
+      return withDemoPayload(token, base, (user) => ({ ...user, ...input }));
     }
     const session = await requireSession();
     const patch = profileUpdateFromUser(input);
@@ -390,40 +501,42 @@ export const api = {
       completedAt: string;
       pauseCount: number;
     },
-    user: User,
+    current: AuthPayload,
     previousUnlockedStarIds: readonly string[],
     previousEarnedBadgeIds: readonly string[],
   ): Promise<{
     payload: AuthPayload;
     stardustEarned: number;
     streakCount: number;
+    durationMinutes: number;
+    todayTotalMinutes: number;
     unlockedStarId: string | null;
     newBadges: string[];
   }> {
     if (isDevDemoToken(token)) {
-      const streakAfter = user.currentStreak + 1;
-      const { stardustEarned, streakCount } = simulateDemoSessionReward({
-        durationMinutes: input.durationMinutes,
-        pauseCount: input.pauseCount,
-        streakAfterSession: streakAfter,
-      });
-      const demo = createDevDemoPayload({ email: user.email });
+      const demoResult = appendDemoCompletedSession(current, input);
+      const { payload, durationMinutes, todayTotalMinutes, streakCount, stardustEarned } = demoResult;
       const before = new Set(previousUnlockedStarIds);
+      const unlockedStarId = payload.unlockedStarIds.find((id) => !before.has(id)) ?? null;
+
+      if (__DEV__) {
+        console.info("[Astrocus completeSession demo]", {
+          stardustEarned,
+          totalStardust: payload.user.totalStardust,
+          sessionCount: payload.sessions.length,
+          streakCount,
+          durationMinutes,
+          todayTotalMinutes,
+        });
+      }
+
       return {
-        payload: {
-          ...demo,
-          token,
-          user: {
-            ...user,
-            totalStardust: user.totalStardust + stardustEarned,
-            currentStreak: streakCount,
-            longestStreak: Math.max(user.longestStreak, streakCount),
-            lastSessionDate: getDateKey(input.completedAt),
-          },
-        },
+        payload,
         stardustEarned,
         streakCount,
-        unlockedStarId: before.size < 1 ? demo.unlockedStarIds[1] ?? null : null,
+        durationMinutes,
+        todayTotalMinutes,
+        unlockedStarId,
         newBadges: [],
       };
     }
@@ -438,22 +551,53 @@ export const api = {
       p_is_offline: false,
       p_timezone: tz,
     });
+
+    if (__DEV__) {
+      console.info("[Astrocus completeSession rpc]", { data, error: error?.message ?? null });
+    }
+
     if (error) {
-      throw new Error(error.message);
+      throw new Error(formatSessionSaveError(error));
     }
 
     const result = parseCompleteFocusSessionResult(data);
     const session = await requireSession();
-    const payload = await fetchUserData(session.user.id, session.access_token);
+    const payload = await hydratePayloadAfterSessionWrite(
+      current,
+      result,
+      input,
+      session.user.id,
+      session.access_token,
+    );
+
     const before = new Set(previousUnlockedStarIds);
     const unlockedStarId = payload.unlockedStarIds.find((id) => !before.has(id)) ?? null;
     const previousBadges = new Set(previousEarnedBadgeIds);
-    const newBadges = normalizeBadgeList(result.new_badges).filter((id) => !previousBadges.has(id));
+    const newBadges = payload.earnedBadgeIds.filter((id) => !previousBadges.has(id));
+
+    const todaySummary = createDailySummary(payload.sessions, payload.user);
+
+    if (__DEV__) {
+      console.info("[Astrocus completeSession merged]", {
+        stardustEarned: result.stardust_earned,
+        totalStardust: payload.user.totalStardust,
+        sessionCount: payload.sessions.length,
+        streakCount: result.streak_count,
+      });
+    }
+
+    const actualElapsedSeconds = Math.max(
+      0,
+      Math.floor((new Date(input.completedAt).getTime() - new Date(input.startedAt).getTime()) / 1000),
+    );
+    const durationMinutes = Math.floor(actualElapsedSeconds / 60);
 
     return {
       payload,
       stardustEarned: result.stardust_earned,
       streakCount: result.streak_count,
+      durationMinutes,
+      todayTotalMinutes: todaySummary.totalMinutes,
       unlockedStarId,
       newBadges,
     };
@@ -461,12 +605,42 @@ export const api = {
 
   async cancelSession(
     token: string,
-    input: { categoryId: string; startedAt: string; cancelledAt: string },
+    input: {
+      categoryId: string;
+      startedAt: string;
+      cancelledAt: string;
+      plannedDurationMinutes: number;
+    },
+    current: AuthPayload,
   ): Promise<{ result: CancelSessionResult; payload: AuthPayload }> {
     if (isDevDemoToken(token)) {
+      const elapsedMinutes =
+        (new Date(input.cancelledAt).getTime() - new Date(input.startedAt).getTime()) / 60000;
+      const partial = simulatePartialCancelReward({
+        plannedDurationMinutes: input.plannedDurationMinutes,
+        elapsedMinutes,
+      });
+      if (!partial.saved) {
+        return {
+          result: {
+            saved: false,
+            stardustEarned: 0,
+            minutesFocused: partial.minutesFocused,
+          },
+          payload: current,
+        };
+      }
+
+      const payload = appendDemoPartialSession(current, input, partial);
+
       return {
-        result: { saved: false, stardustEarned: 0, minutesFocused: 0 },
-        payload: createDevDemoPayload({ email: "demo@astrocus.dev" }),
+        result: {
+          saved: true,
+          stardustEarned: partial.stardustEarned,
+          minutesFocused: partial.minutesFocused,
+          totalStardust: payload.user.totalStardust,
+        },
+        payload,
       };
     }
 
@@ -474,14 +648,54 @@ export const api = {
       p_category_id: input.categoryId,
       p_started_at: input.startedAt,
       p_cancelled_at: input.cancelledAt,
+      p_planned_duration_minutes: input.plannedDurationMinutes,
     });
+
+    if (__DEV__) {
+      console.info("[Astrocus cancelSession rpc]", { data, error: error?.message ?? null });
+    }
+
     if (error) {
       throw new Error(error.message);
     }
 
     const result = parseCancelSessionResult(data);
     const session = await requireSession();
-    const payload = await fetchUserData(session.user.id, session.access_token);
+    let payload = await fetchUserData(session.user.id, session.access_token);
+
+    if (result.saved && result.sessionId) {
+      const hasSession = payload.sessions.some((row) => row.id === result.sessionId);
+      if (!hasSession) {
+        payload = {
+          ...payload,
+          sessions: [
+            {
+              id: result.sessionId,
+              userId: session.user.id,
+              categoryId: input.categoryId,
+              durationMinutes: result.minutesFocused,
+              stardustEarned: result.stardustEarned,
+              pauseUsed: false,
+              startedAt: input.startedAt,
+              completedAt: input.cancelledAt,
+              isOffline: false,
+            },
+            ...payload.sessions,
+          ],
+        };
+      }
+    }
+
+    if (result.saved && typeof result.totalStardust === "number") {
+      payload = {
+        ...payload,
+        user: {
+          ...payload.user,
+          totalStardust: result.totalStardust,
+        },
+      };
+    }
+
     return { result, payload };
   },
 
@@ -514,14 +728,27 @@ export const api = {
     return { result, payload };
   },
 
-  async syncSessions(token: string, sessions: PendingSession[]): Promise<AuthPayload> {
+  async syncSessions(token: string, sessions: PendingSession[], current: AuthPayload): Promise<AuthPayload> {
     if (isDevDemoToken(token)) {
-      return createDevDemoPayload({ email: "demo@astrocus.dev" });
+      let payload = current;
+      for (const pending of sessions) {
+        const demoResult = appendDemoCompletedSession(payload, {
+          categoryId: pending.categoryId,
+          durationMinutes: pending.durationMinutes,
+          startedAt: pending.startedAt,
+          completedAt: pending.completedAt,
+          pauseCount: 0,
+        });
+        payload = demoResult.payload;
+      }
+      return payload;
     }
     const authSession = await requireSession();
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    let payload = current;
+
     for (const pending of sessions) {
-      const { error } = await supabase.rpc("complete_focus_session", {
+      const { data, error } = await supabase.rpc("complete_focus_session", {
         p_category_id: pending.categoryId,
         p_duration_minutes: pending.durationMinutes,
         p_started_at: pending.startedAt,
@@ -531,10 +758,26 @@ export const api = {
         p_timezone: tz,
       });
       if (error) {
-        throw new Error(error.message);
+        throw new Error(formatSessionSaveError(error));
       }
+
+      const result = parseCompleteFocusSessionResult(data);
+      payload = await hydratePayloadAfterSessionWrite(
+        payload,
+        result,
+        {
+          categoryId: pending.categoryId,
+          durationMinutes: pending.durationMinutes,
+          startedAt: pending.startedAt,
+          completedAt: pending.completedAt,
+          pauseCount: 0,
+        },
+        authSession.user.id,
+        authSession.access_token,
+      );
     }
-    return fetchUserData(authSession.user.id, authSession.access_token);
+
+    return payload;
   },
 
   async signOut(): Promise<void> {

@@ -12,3 +12,6 @@ major_version = 17
 [auth]
 enabled = true
 site_url = "http://localhost:8081"
+
+[functions.generate-weekly-reports]
+verify_jwt = false

@@ -20,18 +20,8 @@ export const getLocaleTag = (language: Language): string =>
 export const formatNumber = (language: Language, value: number): string =>
   value.toLocaleString(getLocaleTag(language));
 
-export const formatDuration = (language: Language, minutes: number): string => {
-  if (minutes < 60) {
-    return language === "tr" ? `${minutes} dk` : `${minutes} min`;
-  }
-
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  if (language === "tr") {
-    return remainder === 0 ? `${hours}s` : `${hours}s ${remainder}dk`;
-  }
-  return remainder === 0 ? `${hours}h` : `${hours}h ${remainder}m`;
-};
+export const formatDuration = (language: Language, minutes: number): string =>
+  language === "tr" ? `${minutes} dk` : `${minutes} min`;
 
 export const formatDateKey = (language: Language, iso: string): string =>
   new Date(iso).toLocaleDateString(getLocaleTag(language));

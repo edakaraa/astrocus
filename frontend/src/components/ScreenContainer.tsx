@@ -22,7 +22,7 @@ export const ScreenContainer = ({
   edges = ["top"],
 }: ScreenContainerProps) => {
   const insets = useSafeAreaInsets();
-  const { contentPadding, maxContentWidth, tabBarClearance } = useResponsive();
+  const { edgePadding, maxContentWidth, tabBarClearance } = useResponsive();
 
   const padTop = edges.includes("top") ? Math.max(spacing.sm, insets.top) : 0;
   const padBottom = withTabBarInset && edges.includes("bottom") ? tabBarClearance : spacing.lg;
@@ -33,7 +33,7 @@ export const ScreenContainer = ({
         styles.inner,
         {
           maxWidth: maxContentWidth,
-          paddingHorizontal: contentPadding,
+          paddingHorizontal: edgePadding,
           paddingTop: padTop,
           paddingBottom: padBottom,
         },
@@ -69,7 +69,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   inner: {
-    alignSelf: "center",
+    alignItems: "stretch",
+    alignSelf: "stretch",
     width: "100%",
   },
 });

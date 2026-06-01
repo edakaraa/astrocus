@@ -23,6 +23,9 @@ export type AstrocusInfraRefs = {
   sessionSetPendingRef: React.MutableRefObject<((sessions: PendingSession[]) => void) | null>;
   uiSetLanguageRef: React.MutableRefObject<((language: User["language"]) => void) | null>;
   uiSetCelebrationRef: React.MutableRefObject<((state: CelebrationPayload) => void) | null>;
+  uiPatchCelebrationRef: React.MutableRefObject<
+    ((patch: Partial<NonNullable<CelebrationPayload>>) => void) | null
+  >;
 };
 
 export type AuthContextValue = {
@@ -86,6 +89,9 @@ export const AuthProvider = ({
       setConstellationProgress(payload.constellationProgress ?? []);
       sessionHydrateRef.current?.(payload);
       await secureStorage.set(STORAGE_KEYS.authToken, payload.token);
+      if (isDevDemoToken(payload.token)) {
+        await asyncStorage.set(STORAGE_KEYS.demoAuthPayload, payload);
+      }
       uiSetLanguageRef.current?.(payload.user.language);
     },
     [sessionHydrateRef, uiSetLanguageRef],

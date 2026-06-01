@@ -1,25 +1,178 @@
-import React, { useCallback, useMemo } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  Animated,
+  Easing,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "expo-router";
+import Svg, { Circle, Line } from "react-native-svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/AppContext";
 import {
   BACKGROUND_TOLERANCE_SECONDS,
-  BADGES,
-  getBadgeLabel,
   PAUSE_LIMIT,
-  SESSION_DURATION_OPTIONS,
 } from "../shared/constants";
-import { t } from "../shared/i18n";
-import { formatDuration, formatNumber, getWeekDayLabels } from "../shared/formatLocale";
-import { useResponsive } from "../shared/responsive";
-import { colors, fontFamilies, layout, radii, spacing, typography } from "../shared/theme";
+import { fetchGalacticAdvice } from "../services/galacticAdvice";
+import { t, type TranslationKey } from "../shared/i18n";
+import type { Language, SessionRecord } from "../shared/types";
+import { formatDuration, getWeekDayLabels } from "../shared/formatLocale";
+import { MAX_FONT_SCALE, useResponsive } from "../shared/responsive";
+import { colors, fontFamilies, layout, radii, screenBlock, spacing, typography } from "../shared/theme";
+import { GalaxyBackground } from "../components/GalaxyBackground";
+import { preloadGalaxyScene } from "../components/galaxy/preloadGalaxyScene";
 import { StarfieldBackground } from "../components/StarfieldBackground";
+import { ScreenContentColumn } from "../components/ScreenContentColumn";
 import { SurfaceCard } from "../components/SurfaceCard";
-import { CelebrationModal } from "../components/CelebrationModal";
-import { ProgressRing } from "../components/ProgressRing";
-import { CelestialVisual } from "../components/CelestialVisual";
-import { Logo } from "../components/Logo";
+import { CustomDurationSheet } from "../components/CustomDurationSheet";
 import { StardustPill } from "../components/StardustPill";
+import { WeeklyReportCard } from "../components/WeeklyReportCard";
+import { WeeklyReportModal } from "../components/WeeklyReportModal";
+import { useWeeklyReport } from "../hooks/useWeeklyReport";
+
+/** Recommended durations in the "Duration" section (distinct from quick-start presets). */
+const DURATION_OPTIONS = [15, 30, 90, 120] as const;
+const QUICK_PRESETS = [
+  { titleKey: "presetBreath" as const, minutes: 10, emoji: "🌬️" },
+  { titleKey: "presetPomodoro" as const, minutes: 25, emoji: "🍅" },
+  { titleKey: "presetFlow" as const, minutes: 45, emoji: "⚡" },
+  { titleKey: "presetDeep" as const, minutes: 60, emoji: "🌙" },
+] as const;
+
+const FOCUS_CATEGORY_IDS = [
+  "general",
+  "work",
+  "reading",
+  "project",
+  "creativity",
+  "coding",
+  "sports",
+  "meditation",
+] as const;
+const FOCUS_CATEGORY_LABEL: Record<(typeof FOCUS_CATEGORY_IDS)[number], TranslationKey> = {
+  general: "category_general",
+  work: "category_work",
+  reading: "category_reading",
+  project: "category_project",
+  creativity: "category_creativity",
+  coding: "category_coding",
+  sports: "category_sports",
+  meditation: "category_meditation",
+};
+
+const COSMIC_QUOTE_KEYS = ["cosmicQuote1", "cosmicQuote2", "cosmicQuote3"] as const satisfies readonly TranslationKey[];
+
+const getWeeklyFocusMinutes = (
+  analyticsWeek: number[] | undefined,
+  language: Language,
+  sessions: SessionRecord[],
+) => {
+  if (analyticsWeek?.length === 7) {
+    return analyticsWeek;
+  }
+  const today = new Date();
+  const firstDay = new Date(today);
+  const day = today.getDay() === 0 ? 6 : today.getDay() - 1;
+  firstDay.setDate(today.getDate() - day);
+  const labels = getWeekDayLabels(language);
+  return labels.map((_, index) => {
+    const date = new Date(firstDay);
+    date.setDate(firstDay.getDate() + index);
+    const key = date.toLocaleDateString("en-CA");
+    return sessions
+      .filter((session) => new Date(session.completedAt).toLocaleDateString("en-CA") === key)
+      .reduce((sum, session) => sum + session.durationMinutes, 0);
+  });
+};
+
+const getWeekStarRating = (weekMinutes: number, weekGoalMinutes: number) => {
+  const ratio = weekMinutes / Math.max(weekGoalMinutes, 1);
+  const filled = Math.min(5, Math.max(0, Math.ceil(ratio * 5)));
+  return `${"★".repeat(filled)}${"☆".repeat(5 - filled)}`;
+};
+
+function AnimatedStar({ size }: { size: number }) {
+  const pulse = useRef(new Animated.Value(0)).current;
+  const rotate = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 2400,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 2400,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ]),
+    ).start();
+
+    Animated.loop(
+      Animated.timing(rotate, {
+        toValue: 1,
+        duration: 20000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    ).start();
+  }, []);
+
+  const coreScale = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.86, 1.14],
+  });
+  const rayRotate = rotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+
+  const coreSize = size * 0.26;
+  const coreOffset = (size - coreSize) / 2;
+
+  return (
+    <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          width: size,
+          height: size,
+          transform: [{ rotate: rayRotate }],
+        }}
+      >
+        <Svg width={size} height={size} viewBox="0 0 100 100">
+          <Line x1={50} y1={8} x2={50} y2={92} stroke="#E8E6C8" strokeWidth={1} strokeOpacity={0.5} />
+          <Line x1={8} y1={50} x2={92} y2={50} stroke="#E8E6C8" strokeWidth={1} strokeOpacity={0.38} />
+          <Line x1={18} y1={18} x2={82} y2={82} stroke="#E8C97A" strokeWidth={0.7} strokeOpacity={0.25} />
+          <Line x1={82} y1={18} x2={18} y2={82} stroke="#E8C97A" strokeWidth={0.7} strokeOpacity={0.25} />
+        </Svg>
+      </Animated.View>
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          left: coreOffset,
+          top: coreOffset,
+          transform: [{ scale: coreScale }],
+        }}
+      >
+        <Svg width={coreSize} height={coreSize} viewBox="0 0 100 100">
+          <Circle cx={50} cy={50} r={46} fill="#E8E6C8" opacity={0.94} />
+        </Svg>
+      </Animated.View>
+    </View>
+  );
+}
 
 const formatSeconds = (seconds: number) => {
   const minutes = Math.floor(seconds / 60)
@@ -30,9 +183,21 @@ const formatSeconds = (seconds: number) => {
 };
 
 export const SessionScreen = () => {
-  const { contentPadding, tabBarClearance, topInset, width, availableHeight, isCompact, scale } = useResponsive();
+  const insets = useSafeAreaInsets();
   const {
-    analyticsSummary,
+    contentPadding,
+    edgePadding,
+    tabBarClearance,
+    topInset,
+    width,
+    height,
+    availableHeight,
+    isCompact,
+    isShort,
+    scale,
+    font,
+  } = useResponsive();
+  const {
     categories,
     dailySummary,
     language,
@@ -44,78 +209,129 @@ export const SessionScreen = () => {
     resumeSession,
     resetSession,
     cancelSession,
-    celebration,
-    dismissCelebration,
+    showAlert,
+    showConfirm,
     user,
-    unlockedStarIds,
-    stars,
+    token,
     sessions,
+    analyticsSummary,
   } = useAppContext();
+
+  const [customDurationOpen, setCustomDurationOpen] = useState(false);
+  const [cosmicMessage, setCosmicMessage] = useState<string | null>(null);
+  const [weeklyReportOpen, setWeeklyReportOpen] = useState(false);
+
+  const {
+    report: weeklyReport,
+    reportText: weeklyReportText,
+    weekLabel: weeklyReportWeekLabel,
+    loading: weeklyReportLoading,
+    refetch: refetchWeeklyReport,
+  } = useWeeklyReport(user?.id, language);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refetchWeeklyReport();
+      return undefined;
+    }, [refetchWeeklyReport]),
+  );
 
   const selectedCategory = useMemo(
     () => categories.find((item) => item.id === sessionState.selectedCategoryId) ?? categories[categories.length - 1],
     [categories, sessionState.selectedCategoryId],
   );
 
-  const unlockedStarLabel = useMemo(() => {
-    if (!celebration?.unlockedStarId) {
-      return null;
-    }
-    const star = stars.find((item) => item.id === celebration.unlockedStarId);
-    return star?.name ?? null;
-  }, [celebration?.unlockedStarId, stars]);
+  const isSessionActive =
+    sessionState.status === "running" ||
+    sessionState.status === "paused" ||
+    sessionState.status === "completed";
 
-  const newBadgeLabels = useMemo(() => {
-    if (!celebration?.newBadgeIds?.length) {
-      return undefined;
-    }
-    return celebration.newBadgeIds
-      .map((id) => {
-        const badge = BADGES.find((item) => item.id === id);
-        return badge ? getBadgeLabel(badge, language).name : id;
-      })
-      .filter(Boolean);
-  }, [celebration?.newBadgeIds, language]);
+  useLayoutEffect(() => {
+    preloadGalaxyScene(0.5);
+  }, []);
 
-  const progressRatio = useMemo(() => {
-    const totalSeconds = sessionState.selectedDurationMinutes * 60;
-    if (totalSeconds <= 0) {
-      return 0;
-    }
-    return 1 - Math.min(sessionState.remainingSeconds / totalSeconds, 1);
-  }, [sessionState.remainingSeconds, sessionState.selectedDurationMinutes]);
-
-  const ringColor = sessionState.status === "running" ? colors.primary : colors.borderStrong;
-  const isSessionActive = sessionState.status === "running" || sessionState.status === "paused";
   const dailyGoalMinutes = user?.dailyGoalMinutes ?? 90;
-  const dailyProgress = Math.min(dailySummary.totalMinutes / Math.max(dailyGoalMinutes, 1), 1);
-  const latestSession = sessions[sessions.length - 1] ?? null;
-  const bestSuggestedDuration = dailySummary.totalMinutes >= dailyGoalMinutes ? 15 : sessionState.selectedDurationMinutes;
   const selectedCategoryLabel = t(language, `category_${selectedCategory.id}` as never);
 
-  const weeklyMinutes = useMemo(() => {
-    if (analyticsSummary?.weekFocusMinutes?.length === 7) {
-      return analyticsSummary.weekFocusMinutes;
+  const weeklyMinutes = useMemo(
+    () => getWeeklyFocusMinutes(analyticsSummary?.weekFocusMinutes, language, sessions),
+    [analyticsSummary?.weekFocusMinutes, language, sessions],
+  );
+  const weekTotalMinutes = useMemo(() => weeklyMinutes.reduce((sum, m) => sum + m, 0), [weeklyMinutes]);
+  const weekStarRating = useMemo(
+    () => getWeekStarRating(weekTotalMinutes, dailyGoalMinutes * 7),
+    [dailyGoalMinutes, weekTotalMinutes],
+  );
+
+  const fallbackCosmicQuote = useMemo(() => {
+    const dayIndex = new Date().getDate() % COSMIC_QUOTE_KEYS.length;
+    return t(language, COSMIC_QUOTE_KEYS[dayIndex]);
+  }, [language]);
+
+  useEffect(() => {
+    if (!token || !user) {
+      setCosmicMessage(fallbackCosmicQuote);
+      return;
     }
-    const today = new Date();
-    const firstDay = new Date(today);
-    const day = today.getDay() === 0 ? 6 : today.getDay() - 1;
-    firstDay.setDate(today.getDate() - day);
+    let cancelled = false;
+    void fetchGalacticAdvice(token, {
+      language,
+      durationMinutes: sessionState.selectedDurationMinutes,
+      categoryId: sessionState.selectedCategoryId,
+      currentStreak: user.currentStreak,
+      todayTotalMinutes: dailySummary.totalMinutes,
+      totalStardust: user.totalStardust,
+    })
+      .then((advice) => {
+        if (!cancelled) {
+          setCosmicMessage(advice.trim() || fallbackCosmicQuote);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCosmicMessage(fallbackCosmicQuote);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    dailySummary.totalMinutes,
+    fallbackCosmicQuote,
+    language,
+    sessionState.selectedCategoryId,
+    sessionState.selectedDurationMinutes,
+    token,
+    user,
+  ]);
 
-    const weekDayLabels = getWeekDayLabels(language);
+  const isCustomDuration = !(DURATION_OPTIONS as readonly number[]).includes(sessionState.selectedDurationMinutes);
 
-    return weekDayLabels.map((_, index) => {
-      const date = new Date(firstDay);
-      date.setDate(firstDay.getDate() + index);
-      const key = date.toLocaleDateString("en-CA");
+  const focusCategories = useMemo(
+    () =>
+      FOCUS_CATEGORY_IDS.map((id) => categories.find((c) => c.id === id)).filter(
+        (c): c is (typeof categories)[number] => Boolean(c),
+      ),
+    [categories],
+  );
 
-      return sessions
-        .filter((session) => new Date(session.completedAt).toLocaleDateString("en-CA") === key)
-        .reduce((sum, session) => sum + session.durationMinutes, 0);
-    });
-  }, [analyticsSummary?.weekFocusMinutes, language, sessions]);
-
-  const streakForCelebration = celebration?.streakCount ?? user?.currentStreak ?? 0;
+  const heroStarSize = scale(isCompact ? 52 : isShort ? 58 : 64);
+  const heroTitleSize = font(isCompact ? 17 : 19);
+  const heroSubtitleSize = font(isCompact ? 12 : 13);
+  const heroNumberSize = font(isCompact ? 36 : 40);
+  const sectionLabelSize = font(10);
+  const presetTitleSize = font(11);
+  const presetDurationSize = font(10);
+  const cardInnerWidth = width - edgePadding * 2 - spacing.md * 2;
+  const presetTileWidth = Math.max(72, Math.floor((cardInnerWidth - spacing.sm * 3) / 4));
+  const idleGap = isShort ? spacing.xs : spacing.sm;
+  const heroSubtitle =
+    dailySummary.totalMinutes <= 0
+      ? t(language, "heroSubtitleZero")
+      : t(language, "heroSubtitleToday").replace(
+          "{duration}",
+          formatDuration(language, dailySummary.totalMinutes),
+        );
 
   const handleStartSession = () => {
     void startSession();
@@ -123,325 +339,458 @@ export const SessionScreen = () => {
 
   const handlePrimaryTimerAction = () => {
     if (sessionState.status === "running") {
+      if (sessionState.pauseCount >= PAUSE_LIMIT) {
+        void showAlert({
+          title: t(language, "pauseExhaustedTitle"),
+          message: t(language, "pauseExhaustedMessage"),
+          confirmLabel: t(language, "continue"),
+        });
+        return;
+      }
+
       pauseSession();
+      void showAlert({
+        title: t(language, "pauseUsedTitle"),
+        message: t(language, "pauseUsedMessage"),
+        confirmLabel: t(language, "continue"),
+      });
       return;
     }
 
     resumeSession();
   };
 
-  const confirmEndSession = useCallback(() => {
-    Alert.alert(t(language, "endSessionTitle"), t(language, "endSessionMessage"), [
-      { text: t(language, "continue"), style: "cancel" },
-      {
-        text: t(language, "endSessionConfirm"),
-        style: "destructive",
-        onPress: () => {
-          void cancelSession();
-        },
-      },
-    ]);
-  }, [cancelSession, language]);
+  const openEndSessionConfirm = useCallback(() => {
+    void showConfirm({
+      title: t(language, "endSessionTitle"),
+      message: t(language, "endSessionMessage"),
+      cancelLabel: t(language, "continue"),
+      confirmLabel: t(language, "endSessionConfirm"),
+      destructive: true,
+    }).then((confirmed) => {
+      if (confirmed) {
+        void cancelSession();
+      }
+    });
+  }, [cancelSession, language, showConfirm]);
 
   const handleDismissFailedSession = () => {
     resetSession();
   };
 
-  if (isSessionActive) {
-    const primaryLabel = sessionState.status === "running" ? t(language, "pause") : t(language, "resume");
-    const primaryA11y = sessionState.status === "running" ? t(language, "pause") : t(language, "resume");
+  const primaryLabel = sessionState.status === "running" ? t(language, "pause") : t(language, "resume");
+  const primaryA11y = sessionState.status === "running" ? t(language, "pause") : t(language, "resume");
 
-    // Ring fits both width and the available vertical space on any device.
-    const ringSize = Math.round(
-      Math.min(width - contentPadding * 2, availableHeight * 0.42, 280),
-    );
-    const ringSizeClamped = Math.max(168, ringSize);
-    const planetSize = Math.round(ringSizeClamped * 0.875);
-    const timerFontSize = Math.round(ringSizeClamped * 0.24);
+  const ringSize = Math.round(Math.min(width - contentPadding * 2, availableHeight * 0.42, 280));
+  const timerFontSizeActive = Math.round(Math.max(168, ringSize) * 0.24);
+  const layoutBase = Math.min(width, height);
+  const galaxyCenterY = height * 0.5;
+  const galaxyHalfBand = Math.round(layoutBase * 0.34) / 2;
+  const gapAboveGalaxy = scale(52);
+  const gapBelowGalaxy = scale(50);
+  const sessionTitleSize = font(15);
+  const sessionTitleLineHeight = Math.round(sessionTitleSize * 1.14);
+  const categoryLabelUpper =
+    language === "tr"
+      ? selectedCategoryLabel.toLocaleUpperCase("tr-TR")
+      : selectedCategoryLabel.toLocaleUpperCase("en-US");
 
-    return (
-      <View style={[styles.fullScreen, { paddingTop: topInset, paddingHorizontal: contentPadding }]}>
-        <StarfieldBackground density={36} />
+  const backLeft = Math.max(edgePadding, insets.left + spacing.xs);
+  const backTop = topInset + spacing.sm;
+  const timerAnchorBottom = galaxyCenterY - galaxyHalfBand - gapAboveGalaxy;
+  const controlsAnchorTop = galaxyCenterY + galaxyHalfBand + gapBelowGalaxy;
 
-        <View style={styles.activeTopBar}>
+  return (
+    <View style={[styles.sessionShell, isSessionActive && styles.fullScreen]}>
+      <View
+        style={[styles.galaxyHost, !isSessionActive && styles.galaxyHostHidden]}
+        pointerEvents="none"
+      >
+        <GalaxyBackground centerYRatio={0.5} animate={isSessionActive} />
+      </View>
+
+      {isSessionActive ? (
+        <View style={styles.activeContentLayer}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t(language, "reset")}
-            onPress={confirmEndSession}
-            style={styles.iconButton}
+            onPress={openEndSessionConfirm}
+            style={[styles.activeBackButton, { top: backTop, left: backLeft }]}
             hitSlop={layout.hitSlop}
           >
             <MaterialCommunityIcons name="chevron-left" size={22} color={colors.textMuted} />
           </Pressable>
-          <Text style={styles.activeEyebrow} numberOfLines={1}>{selectedCategoryLabel}</Text>
-          <View style={styles.iconButtonGhost} />
-        </View>
 
-        <View style={[styles.activeContent, { paddingBottom: tabBarClearance }]}>
-          <Text style={styles.activeTitle}>{t(language, "deepFocus")}</Text>
-          <Text style={[styles.activeTime, { fontSize: timerFontSize }]}>{formatSeconds(sessionState.remainingSeconds)}</Text>
-          <Text style={styles.activeSubtitle}>{t(language, "focusStartHint")}</Text>
-
-          <ProgressRing size={ringSizeClamped} strokeWidth={3} progress={progressRatio} progressColor={ringColor}>
-            <CelestialVisual variant="planet" size={planetSize} />
-          </ProgressRing>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={primaryA11y}
-            onPress={handlePrimaryTimerAction}
-            style={styles.primaryWideButton}
-          >
-            <Text style={styles.primaryWideText}>{primaryLabel}</Text>
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t(language, "endSession")}
-            onPress={confirmEndSession}
-            hitSlop={layout.hitSlop}
-          >
-            <Text style={styles.ghostAction}>{t(language, "endSession")}</Text>
-          </Pressable>
-        </View>
-
-        <CelebrationModal
-          visible={Boolean(celebration)}
-          stardustEarned={celebration?.stardustEarned ?? 0}
-          pendingSync={celebration?.pendingSync}
-          unlockedStarLabel={unlockedStarLabel}
-          newBadgeLabels={newBadgeLabels}
-          galacticAdvice={celebration?.galacticAdvice}
-          durationMinutes={sessionState.selectedDurationMinutes}
-          currentStreak={streakForCelebration}
-          todayTotalMinutes={dailySummary.totalMinutes}
-          onClose={dismissCelebration}
-        />
-      </View>
-    );
-  }
-
-  return (
-    <ScrollView
-      contentContainerStyle={[
-        styles.container,
-        {
-          paddingHorizontal: contentPadding,
-          paddingBottom: tabBarClearance,
-          paddingTop: Math.max(spacing.sm, topInset),
-        },
-      ]}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-    >
-      <StarfieldBackground density={34} />
-
-      {/* Global stardust balance — visible at all times */}
-      <View style={styles.topBar}>
-        <View style={styles.topBarLeft}>
-          <Logo size="md" accessibilityLabel={t(language, "appName")} />
-          <Text style={styles.brandTitle}>{t(language, "appName")}</Text>
-        </View>
-        <StardustPill amount={user?.totalStardust ?? 0} />
-      </View>
-
-      <View style={styles.heroCard}>
-        <View style={styles.heroGlow} pointerEvents="none" />
-        <Logo size={isCompact ? "md" : "lg"} style={styles.heroLogo} accessibilityLabel={t(language, "appName")} />
-        <CelestialVisual variant="planet" size={scale(132)} style={styles.heroPlanet} />
-        <Text style={styles.heroEyebrow}>{t(language, "mainNavigation")}</Text>
-        <Text style={styles.heroTitle} numberOfLines={2}>{`${t(language, "welcomeUser")}, ${user?.username ?? t(language, "explorerName")}`}</Text>
-        <Text style={styles.heroSubtitle}>{t(language, "sessionHeroSubtitle")}</Text>
-        <Text style={styles.heroRateHint}>{t(language, "stardustPerMinute")}</Text>
-      </View>
-
-      <View style={styles.menuList}>
-        <SurfaceCard style={styles.menuItem}>
-          <View style={styles.menuIcon}>
-            <MaterialCommunityIcons name="timer-outline" size={18} color={colors.primary} />
-          </View>
-          <View style={styles.menuTextWrap}>
-            <Text style={styles.menuTitle}>{t(language, "session")}</Text>
-            <Text style={styles.menuSubtitle}>{t(language, "focusMenuSubtitle")}</Text>
-          </View>
-          <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textFaint} />
-        </SurfaceCard>
-
-        <SurfaceCard style={styles.dailyGoalCard} borderVariant="strong">
-          <View style={styles.dailyHeader}>
-            <Text style={styles.cardLabel}>{t(language, "todayFocusLabel")}</Text>
-            <Text style={styles.dailyMeta}>{`${formatDuration(language, dailySummary.totalMinutes)} / ${formatDuration(language, dailyGoalMinutes)}`}</Text>
-          </View>
-          <View style={styles.progressBg}>
-            <View style={[styles.progressFill, { width: `${Math.round(dailyProgress * 100)}%` }]} />
-          </View>
-        </SurfaceCard>
-      </View>
-
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>{t(language, "suggestedSessions")}</Text>
-      </View>
-
-      <View style={styles.suggestionRow}>
-        {[
-          { titleKey: "deepFocus" as const, minutes: bestSuggestedDuration, icon: "star-four-points" as const },
-          { titleKey: "longFocus" as const, minutes: 50, icon: "moon-waning-crescent" as const },
-          { titleKey: "shortBreath" as const, minutes: 15, icon: "weather-windy" as const },
-        ].map((item) => (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${t(language, item.titleKey)} ${item.minutes} ${t(language, "selectSessionMinutesA11y")}`}
-            key={`${item.titleKey}-${item.minutes}`}
-            onPress={() => setSelectedDurationMinutes(item.minutes)}
+          <View
             style={[
-              styles.suggestionCard,
-              sessionState.selectedDurationMinutes === item.minutes ? styles.suggestionCardActive : null,
+              styles.activeLayout,
+              {
+                paddingHorizontal: contentPadding,
+                paddingBottom: tabBarClearance,
+              },
             ]}
           >
-            <MaterialCommunityIcons name={item.icon} size={20} color={colors.warmOffWhite} />
-            <Text style={styles.suggestionTitle}>{t(language, item.titleKey)}</Text>
-            <Text style={styles.suggestionTime}>{formatDuration(language, item.minutes)}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <SurfaceCard style={styles.startCard} borderVariant="strong">
-        <View style={styles.startTop}>
-          <View>
-            <Text style={styles.cardLabel}>{t(language, "sessionType")}</Text>
-            <Text style={styles.startTitle}>{selectedCategoryLabel}</Text>
-          </View>
-          <View style={styles.durationBubble}>
-            <Text style={styles.durationBubbleText}>{formatDuration(language, sessionState.selectedDurationMinutes)}</Text>
-          </View>
-        </View>
-
-        <View style={styles.durationRow}>
-          {SESSION_DURATION_OPTIONS.map((minutes) => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`${minutes} ${t(language, "selectSessionMinutesA11y")}`}
-              key={minutes}
-              onPress={() => setSelectedDurationMinutes(minutes)}
-              style={[styles.durationChip, sessionState.selectedDurationMinutes === minutes ? styles.durationChipActive : null]}
-            >
-              <Text style={[styles.durationChipText, sessionState.selectedDurationMinutes === minutes ? styles.durationChipTextActive : null]}>
-                {formatDuration(language, minutes)}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroller}>
-          {categories.map((category) => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`${t(language, `category_${category.id}` as never)} ${t(language, "selectCategoryA11y")}`}
-              key={category.id}
-              onPress={() => setSelectedCategoryId(category.id)}
+            <View
               style={[
-                styles.categoryOptionChip,
-                sessionState.selectedCategoryId === category.id ? styles.categoryChipActive : null,
+                styles.activeTimerAnchor,
+                {
+                  left: contentPadding,
+                  right: contentPadding,
+                  bottom: height - timerAnchorBottom,
+                },
               ]}
             >
-              <Text style={styles.categoryChipText}>{`${category.emoji} ${t(language, `category_${category.id}` as never)}`}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+              <View style={styles.activeTimerBlock}>
+                <Text
+                  style={[
+                    typography.sessionDisplay,
+                    styles.activeCategoryLabel,
+                    { fontSize: sessionTitleSize, lineHeight: sessionTitleLineHeight },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {categoryLabelUpper}
+                </Text>
+                <Text
+                  style={[
+                    typography.sessionDisplay,
+                    styles.activeTime,
+                    { fontSize: timerFontSizeActive, lineHeight: Math.round(timerFontSizeActive * 1.08) },
+                  ]}
+                >
+                  {formatSeconds(sessionState.remainingSeconds)}
+                </Text>
+                <Text style={[typography.caption, styles.activeSubtitle]}>
+                  {t(language, "focusActiveHint")}
+                </Text>
+              </View>
+            </View>
 
+            <View
+              style={[
+                styles.activeControlsAnchor,
+                {
+                  left: contentPadding,
+                  right: contentPadding,
+                  top: controlsAnchorTop,
+                },
+              ]}
+            >
+              <View style={styles.activeControls}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={primaryA11y}
+                  onPress={handlePrimaryTimerAction}
+                  style={styles.primaryWideButton}
+                >
+                  <Text style={typography.focusCta}>{primaryLabel}</Text>
+                </Pressable>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t(language, "endSession")}
+                  onPress={openEndSessionConfirm}
+                  hitSlop={layout.hitSlop}
+                >
+                  <Text style={styles.ghostAction}>{t(language, "endSession")}</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </View>
+      ) : (
+        <>
+      <StarfieldBackground key="session-idle-starfield" density={68} />
+
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          {
+            alignItems: "center",
+            flexGrow: 1,
+            paddingBottom: spacing.md,
+            paddingTop: Math.max(spacing.xs, topInset),
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <ScreenContentColumn style={{ gap: idleGap }}>
+          <View style={styles.heroStardustRow}>
+            <StardustPill amount={user?.totalStardust ?? 0} />
+          </View>
+
+          <SurfaceCard
+            contentPadding={spacing.md}
+            style={[screenBlock, styles.heroSurface, isShort ? styles.heroSurfaceCompact : null]}
+          >
+          <View style={styles.heroStarWrap}>
+            <AnimatedStar size={heroStarSize} />
+          </View>
+          <Text
+            style={[styles.heroWelcome, { fontSize: heroTitleSize, lineHeight: Math.round(heroTitleSize * 1.14) }]}
+            numberOfLines={2}
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
+          >
+            {`${t(language, "welcomeUser")}, ${user?.username ?? t(language, "explorerName")}`}
+          </Text>
+          <Text
+            style={[styles.heroSubtitle, { fontSize: heroSubtitleSize }]}
+            numberOfLines={3}
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
+          >
+            {heroSubtitle}
+          </Text>
+          <View style={styles.heroStatBlock}>
+            <Text style={[styles.heroStatNumber, { fontSize: heroNumberSize }]} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+              {formatDuration(language, dailySummary.totalMinutes)}
+            </Text>
+            <Text style={styles.heroStatLabel} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+              {t(language, "todayFocusLabel")}
+            </Text>
+          </View>
+        </SurfaceCard>
+
+        <SurfaceCard contentPadding={spacing.md} style={[screenBlock, styles.sectionCard]}>
+          <Text
+            style={[typography.focusSectionLabel, { fontSize: sectionLabelSize }]}
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
+          >
+            {t(language, "quickStartTitle")}
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={[styles.presetScroller, { minWidth: cardInnerWidth }]}
+          >
+            {QUICK_PRESETS.map((item) => {
+              const active = sessionState.selectedDurationMinutes === item.minutes;
+              return (
+                <Pressable
+                  key={item.titleKey}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t(language, item.titleKey)} ${item.minutes} ${t(language, "selectSessionMinutesA11y")}`}
+                  onPress={() => setSelectedDurationMinutes(item.minutes)}
+                  android_ripple={undefined}
+                  style={({ pressed }) => [
+                    styles.presetTile,
+                    { width: presetTileWidth },
+                    active ? styles.presetTileActive : styles.presetTileIdle,
+                    pressed ? styles.presetTilePressed : null,
+                  ]}
+                >
+                  <Text style={styles.presetEmoji}>{item.emoji}</Text>
+                  <Text
+                    style={[styles.presetTitle, { fontSize: presetTitleSize }]}
+                    numberOfLines={1}
+                    maxFontSizeMultiplier={MAX_FONT_SCALE}
+                  >
+                    {t(language, item.titleKey)}
+                  </Text>
+                  <Text
+                    style={[styles.presetDuration, { fontSize: presetDurationSize }]}
+                    numberOfLines={1}
+                    maxFontSizeMultiplier={MAX_FONT_SCALE}
+                  >
+                    {formatDuration(language, item.minutes)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </SurfaceCard>
+
+        <SurfaceCard contentPadding={spacing.md} style={[screenBlock, styles.sectionCard]}>
+          <Text
+            style={[typography.focusSectionLabel, { fontSize: sectionLabelSize }]}
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
+          >
+            {t(language, "durationTitle")}
+          </Text>
+          <View style={styles.durationRow}>
+            {DURATION_OPTIONS.map((minutes) => {
+              const active = sessionState.selectedDurationMinutes === minutes;
+              return (
+                <Pressable
+                  key={minutes}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${minutes} ${t(language, "selectSessionMinutesA11y")}`}
+                  onPress={() => setSelectedDurationMinutes(minutes)}
+                  style={[styles.durationPill, active ? styles.durationPillActive : null]}
+                >
+                  <Text
+                    style={[styles.durationPillText, active ? styles.durationPillTextActive : null]}
+                    maxFontSizeMultiplier={MAX_FONT_SCALE}
+                  >
+                    {formatDuration(language, minutes)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t(language, "customDuration")}
+              onPress={() => setCustomDurationOpen(true)}
+              style={[styles.durationPill, styles.durationPillCustom, isCustomDuration ? styles.durationPillActive : null]}
+            >
+              <Text
+                style={[styles.durationPillText, isCustomDuration ? styles.durationPillTextActive : null]}
+                numberOfLines={1}
+                maxFontSizeMultiplier={MAX_FONT_SCALE}
+              >
+                {isCustomDuration
+                  ? formatDuration(language, sessionState.selectedDurationMinutes)
+                  : t(language, "customDuration")}
+              </Text>
+            </Pressable>
+          </View>
+        </SurfaceCard>
+
+        <SurfaceCard contentPadding={spacing.md} style={[screenBlock, styles.sectionCard]}>
+          <Text
+            style={[typography.focusSectionLabel, { fontSize: sectionLabelSize }]}
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
+          >
+            {t(language, "activityTitle")}
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroller}>
+            {focusCategories.map((category) => {
+              const active = sessionState.selectedCategoryId === category.id;
+              const labelKey = FOCUS_CATEGORY_LABEL[category.id as (typeof FOCUS_CATEGORY_IDS)[number]] ?? (`category_${category.id}` as TranslationKey);
+              return (
+                <Pressable
+                  key={category.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t(language, labelKey)} ${t(language, "selectCategoryA11y")}`}
+                  onPress={() => setSelectedCategoryId(category.id)}
+                  style={[styles.activityChip, active ? styles.activityChipActive : null]}
+                >
+                  <Text style={styles.activityChipText} numberOfLines={1} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+                    {`${category.emoji} ${t(language, labelKey)}`}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </SurfaceCard>
+
+        <SurfaceCard contentPadding={spacing.md} style={[screenBlock, styles.sectionCard]}>
+          <Text
+            style={[typography.focusSectionLabel, { fontSize: sectionLabelSize }]}
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
+          >
+            ✨ {t(language, "cosmicMessageTitle")}
+          </Text>
+          <Text style={styles.cosmicQuote} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+            "{cosmicMessage ?? fallbackCosmicQuote}"
+          </Text>
+          <Text style={styles.cosmicAttribution} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+            {t(language, "cosmicMessageAttribution")}
+          </Text>
+        </SurfaceCard>
+
+        <SurfaceCard contentPadding={spacing.md} style={[screenBlock, styles.sectionCard]}>
+          <Text
+            style={[typography.focusSectionLabel, { fontSize: sectionLabelSize }]}
+            maxFontSizeMultiplier={MAX_FONT_SCALE}
+          >
+            {t(language, "thisWeekTitle")}
+          </Text>
+          <View style={styles.weekStatBlock}>
+            <Text style={styles.weekStars} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+              {weekStarRating}
+            </Text>
+            <Text style={styles.weekLabel} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+              {t(language, "totalFocusWeek")}
+            </Text>
+            <Text style={styles.weekTotal} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+              {formatDuration(language, weekTotalMinutes)}
+            </Text>
+          </View>
+        </SurfaceCard>
+
+        <WeeklyReportCard
+          language={language}
+          reportText={weeklyReportText}
+          weekLabel={weeklyReportWeekLabel}
+          stats={weeklyReport?.stats}
+          loading={weeklyReportLoading}
+          onPress={weeklyReport ? () => setWeeklyReportOpen(true) : undefined}
+        />
+
+        {sessionState.status === "failed" ? (
+          <SurfaceCard style={[screenBlock, styles.failedCard]} borderVariant="strong">
+            <Text style={styles.failedTitle}>{t(language, "failedSessionTitle")}</Text>
+            <Text style={styles.failedText}>
+              {t(language, "failedSessionBackground").replace("{seconds}", String(BACKGROUND_TOLERANCE_SECONDS))}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t(language, "reset")}
+              onPress={handleDismissFailedSession}
+              style={styles.softButton}
+            >
+              <Text style={styles.softButtonText}>{t(language, "prepareAgain")}</Text>
+            </Pressable>
+          </SurfaceCard>
+        ) : null}
+        </ScreenContentColumn>
+      </ScrollView>
+
+      <ScreenContentColumn
+        style={[styles.idleFooter, { paddingBottom: tabBarClearance }]}
+      >
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t(language, "startSession")}
           onPress={handleStartSession}
-          style={styles.primaryWideButton}
+          style={styles.startFocusButton}
         >
-          <Text style={styles.primaryWideText}>{t(language, "start")}</Text>
-        </Pressable>
-      </SurfaceCard>
-
-      {latestSession ? (
-        <SurfaceCard style={styles.lastSessionCard}>
-          <View style={styles.miniPlanet}>
-            <CelestialVisual variant="planet" size={54} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.cardLabel}>{t(language, "lastSession")}</Text>
-            <Text style={styles.lastSessionTitle}>
-              {`${t(language, `category_${latestSession.categoryId}` as never)} · ${formatDuration(language, latestSession.durationMinutes)}`}
-            </Text>
-          </View>
-          <Text style={styles.lastSessionReward}>{`+${formatNumber(language, latestSession.stardustEarned)} ✦`}</Text>
-        </SurfaceCard>
-      ) : null}
-
-      <SurfaceCard style={styles.weekCard}>
-        <View style={styles.dailyHeader}>
-          <Text style={styles.sectionTitle}>{t(language, "weeklyProgress")}</Text>
-          <Text style={styles.dailyMeta}>{`${formatNumber(language, unlockedStarIds.length)} ${t(language, "starsOpenCount")}`}</Text>
-        </View>
-        <View style={styles.weekBars}>
-          {weeklyMinutes.map((minutes, index) => {
-            const barHeight = 22 + Math.min(minutes / Math.max(dailyGoalMinutes, 1), 1) * 58;
-            const weekDayLabels = getWeekDayLabels(language);
-
-            return (
-              <View key={weekDayLabels[index]} style={styles.weekBarItem}>
-                <View style={styles.weekTrack}>
-                  <View style={[styles.weekFill, { height: barHeight }]} />
-                </View>
-                <Text style={styles.weekLabel}>{weekDayLabels[index]}</Text>
-              </View>
-            );
-          })}
-        </View>
-      </SurfaceCard>
-
-      {sessionState.status === "failed" ? (
-        <SurfaceCard style={styles.failedCard} borderVariant="strong">
-          <Text style={styles.failedTitle}>{t(language, "failedSessionTitle")}</Text>
-          <Text style={styles.failedText}>
-            {t(language, "failedSessionBackground").replace("{seconds}", String(BACKGROUND_TOLERANCE_SECONDS))}
+          <Text style={typography.focusCta} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+            {t(language, "startFocusCta")}
           </Text>
-          <Pressable accessibilityRole="button" accessibilityLabel={t(language, "reset")} onPress={handleDismissFailedSession} style={styles.softButton}>
-            <Text style={styles.softButtonText}>{t(language, "prepareAgain")}</Text>
-          </Pressable>
-        </SurfaceCard>
-      ) : null}
+        </Pressable>
+      </ScreenContentColumn>
 
-      <View style={styles.statsRow}>
-        <Text style={styles.statItem}>{`◎ ${sessionState.pauseCount} ${t(language, "pauseBreak")} / ${PAUSE_LIMIT}`}</Text>
-        <Text style={styles.statItem}>{`⏱ ${formatDuration(language, sessionState.selectedDurationMinutes)} ${t(language, "sessionGoal")}`}</Text>
-        <Text style={styles.statItem}>{`✦ ${formatNumber(language, user?.currentStreak ?? 0)} ${t(language, "dayStreak")}`}</Text>
-      </View>
-
-      <CelebrationModal
-        visible={Boolean(celebration)}
-        stardustEarned={celebration?.stardustEarned ?? 0}
-        pendingSync={celebration?.pendingSync}
-        unlockedStarLabel={unlockedStarLabel}
-        newBadgeLabels={newBadgeLabels}
-        galacticAdvice={celebration?.galacticAdvice}
-        durationMinutes={sessionState.selectedDurationMinutes}
-        currentStreak={streakForCelebration}
-        todayTotalMinutes={dailySummary.totalMinutes}
-        onClose={dismissCelebration}
+      <CustomDurationSheet
+        visible={customDurationOpen}
+        language={language}
+        selectedMinutes={sessionState.selectedDurationMinutes}
+        onSelect={setSelectedDurationMinutes}
+        onClose={() => setCustomDurationOpen(false)}
       />
-    </ScrollView>
+
+      <WeeklyReportModal
+        visible={weeklyReportOpen}
+        report={weeklyReport}
+        onClose={() => setWeeklyReportOpen(false)}
+      />
+        </>
+      )}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  fullScreen: {
+  sessionShell: {
     backgroundColor: colors.background,
     flex: 1,
   },
-  activeTopBar: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingTop: spacing.sm,
+  galaxyHost: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
   },
-  iconButton: {
+  galaxyHostHidden: {
+    opacity: 0,
+  },
+  fullScreen: {
+    overflow: "hidden",
+  },
+  activeContentLayer: {
+    flex: 1,
+    zIndex: 1,
+  },
+  activeBackButton: {
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.04)",
     borderColor: colors.border,
@@ -449,44 +798,43 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     height: layout.touchTargetMin,
     justifyContent: "center",
+    position: "absolute",
     width: layout.touchTargetMin,
+    zIndex: 2,
   },
-  iconButtonGhost: {
-    height: layout.touchTargetMin,
-    width: layout.touchTargetMin,
-  },
-  activeEyebrow: {
-    color: colors.textFaint,
+  activeLayout: {
     flex: 1,
-    fontFamily: fontFamilies.body,
-    fontSize: 12,
-    fontWeight: "700",
+  },
+  activeTimerAnchor: {
+    alignItems: "center",
+    position: "absolute",
+  },
+  activeControlsAnchor: {
+    alignItems: "center",
+    position: "absolute",
+  },
+  activeTimerBlock: {
+    alignItems: "center",
+    width: "100%",
+  },
+  activeControls: {
+    alignItems: "center",
+    width: "100%",
+  },
+  activeCategoryLabel: {
+    alignSelf: "center",
+    marginBottom: spacing.md,
     textAlign: "center",
   },
-  activeContent: {
-    alignItems: "center",
-    flex: 1,
-    justifyContent: "center",
-  },
-  activeTitle: {
-    color: colors.text,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 12,
-  },
   activeTime: {
-    color: colors.text,
-    fontFamily: fontFamilies.mono,
-    fontWeight: "800",
-    letterSpacing: -1,
-    marginVertical: spacing.xxs,
+    marginBottom: spacing.xxs,
+    marginTop: spacing.xxs,
+    textAlign: "center",
   },
   activeSubtitle: {
-    color: colors.textMuted,
-    fontSize: 12,
-    marginBottom: 22,
-    marginTop: 4,
+    color: colors.textFaint,
+    marginTop: spacing.xs,
+    textAlign: "center",
   },
   primaryWideButton: {
     alignItems: "center",
@@ -495,339 +843,224 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1,
     justifyContent: "center",
-    marginTop: spacing.md,
     paddingVertical: 14,
     width: "100%",
-  },
-  primaryWideText: {
-    color: colors.warmOffWhite,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 15,
-    fontWeight: "800",
   },
   ghostAction: {
     color: colors.textFaint,
     fontFamily: fontFamilies.body,
     fontSize: 12,
     fontWeight: "700",
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
   },
   container: {
-    backgroundColor: colors.background,
-    gap: spacing.md,
+    flexGrow: 1,
   },
-  topBar: {
+  heroStardustRow: {
     alignItems: "center",
     flexDirection: "row",
-    justifyContent: "space-between",
-    maxHeight: layout.topBarMaxHeight,
+    justifyContent: "flex-end",
+    minHeight: layout.touchTargetMin,
     paddingBottom: spacing.xxs,
+    width: "100%",
   },
-  topBarLeft: {
+  heroSurface: {
     alignItems: "center",
-    flexDirection: "row",
-    gap: 10,
-  },
-  brandTitle: {
-    color: colors.text,
-    fontFamily: fontFamilies.display,
-    fontSize: 18,
-    fontWeight: "800",
-    letterSpacing: 0.3,
-  },
-  heroLogo: {
-    marginBottom: 4,
-    marginTop: 4,
-  },
-  heroCard: {
-    alignItems: "center",
-    backgroundColor: "rgba(5, 7, 23, 0.78)",
-    borderColor: "rgba(149,155,181,0.12)",
-    borderRadius: 26,
-    borderWidth: 1,
-    minHeight: 220,
+    gap: spacing.xs,
     overflow: "hidden",
-    paddingBottom: spacing.lg,
-    paddingTop: spacing.md,
   },
-  heroGlow: {
-    backgroundColor: "rgba(131,135,195,0.12)",
-    borderRadius: 999,
-    height: 190,
-    position: "absolute",
-    top: 8,
-    width: 190,
+  heroStarWrap: {
+    alignItems: "center",
+    alignSelf: "center",
   },
-  heroPlanet: {
-    marginBottom: -4,
-    marginTop: 0,
+  heroSurfaceCompact: {
+    gap: spacing.xxs,
   },
-  heroEyebrow: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1.6,
-    marginBottom: 12,
-    textTransform: "uppercase",
-  },
-  heroTitle: {
-    ...typography.h3,
-    color: colors.text,
+  heroWelcome: {
+    ...typography.sessionDisplay,
     textAlign: "center",
   },
   heroSubtitle: {
     color: colors.textMuted,
-    fontSize: 12,
-    marginTop: 6,
+    fontFamily: fontFamilies.bodyRegular,
+    lineHeight: 18,
+    textAlign: "center",
   },
-  heroRateHint: {
-    color: colors.textFaint,
+  heroStatBlock: {
+    alignItems: "center",
+    marginTop: spacing.xs,
+  },
+  heroStatNumber: {
+    color: colors.warmOffWhite,
+    fontFamily: fontFamilies.mono,
+    fontWeight: "800",
+    letterSpacing: -1,
+  },
+  heroStatLabel: {
+    color: colors.textMuted,
+    fontFamily: fontFamilies.body,
     fontSize: 11,
-    marginTop: 8,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+    marginTop: 4,
+    textTransform: "uppercase",
   },
-  menuList: {
+  sectionCard: {
     gap: spacing.sm,
   },
-  menuItem: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-  },
-  menuIcon: {
-    alignItems: "center",
-    backgroundColor: "rgba(131,135,195,0.14)",
-    borderColor: colors.border,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    height: 34,
-    justifyContent: "center",
-    width: 34,
-  },
-  menuTextWrap: {
-    flex: 1,
-  },
-  menuTitle: {
-    color: colors.text,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  menuSubtitle: {
-    color: colors.textFaint,
-    fontSize: 10,
-    marginTop: 3,
-  },
-  dailyGoalCard: {
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-  },
-  dailyHeader: {
-    alignItems: "center",
-    flexDirection: "row",
+  presetScroller: {
+    flexGrow: 1,
+    gap: spacing.sm,
     justifyContent: "space-between",
   },
-  cardLabel: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 0.7,
-  },
-  dailyMeta: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.monoRegular,
-    fontSize: 11,
-  },
-  progressBg: {
-    backgroundColor: "rgba(149,155,181,0.14)",
-    borderRadius: 999,
-    height: 6,
-    overflow: "hidden",
-  },
-  progressFill: {
-    backgroundColor: colors.primary,
-    borderRadius: 999,
-    height: "100%",
-  },
-  sectionHeader: {
-    marginTop: 2,
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 15,
-    fontWeight: "800",
-  },
-  suggestionRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  suggestionCard: {
-    backgroundColor: "rgba(13, 11, 43, 0.82)",
-    borderColor: colors.border,
+  presetTile: {
+    alignItems: "center",
     borderRadius: radii.md,
     borderWidth: 1,
-    flexBasis: "30%",
-    flexGrow: 1,
-    minHeight: 106,
-    minWidth: 100,
-    padding: spacing.sm,
+    gap: 2,
+    justifyContent: "center",
+    minHeight: 58,
+    paddingHorizontal: spacing.xxs,
+    paddingVertical: spacing.sm,
   },
-  suggestionCardActive: {
-    backgroundColor: "rgba(131,135,195,0.18)",
-    borderColor: "rgba(232,230,200,0.22)",
+  presetTileIdle: {
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: colors.border,
   },
-  suggestionTitle: {
-    color: colors.text,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 12,
-    fontWeight: "800",
-    marginTop: 14,
+  presetTileActive: {
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderColor: "rgba(232,230,200,0.32)",
   },
-  suggestionTime: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.monoRegular,
-    fontSize: 10,
-    marginTop: 3,
+  presetTilePressed: {
+    opacity: 0.92,
   },
-  startCard: {
-    gap: spacing.md,
-  },
-  startTop: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  startTitle: {
-    color: colors.text,
-    fontFamily: fontFamilies.displayBold,
+  presetEmoji: {
     fontSize: 20,
-    fontWeight: "800",
-    marginTop: 3,
+    lineHeight: 24,
   },
-  durationBubble: {
-    backgroundColor: "rgba(131,135,195,0.16)",
-    borderColor: "rgba(232,230,200,0.16)",
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  durationBubbleText: {
+  presetTitle: {
     color: colors.text,
+    fontFamily: fontFamilies.displayBold,
+    textAlign: "center",
+  },
+  presetDuration: {
+    color: colors.cadetGrey,
     fontFamily: fontFamilies.monoRegular,
-    fontSize: 11,
+    textAlign: "center",
   },
   durationRow: {
     flexDirection: "row",
     gap: spacing.sm,
   },
-  durationChip: {
+  durationPill: {
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.04)",
     borderColor: colors.border,
     borderRadius: radii.pill,
     borderWidth: 1,
     flex: 1,
-    paddingVertical: 10,
+    justifyContent: "center",
+    minHeight: layout.touchTargetMin,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.sm,
   },
-  durationChipActive: {
+  durationPillCustom: {
+    flex: 1,
+  },
+  durationPillActive: {
     backgroundColor: colors.primary,
-    borderColor: "rgba(232,230,200,0.24)",
+    borderColor: "rgba(232,230,200,0.28)",
   },
-  durationChipText: {
+  durationPillText: {
     color: colors.textMuted,
     fontFamily: fontFamilies.body,
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: "800",
   },
-  durationChipTextActive: {
+  durationPillTextActive: {
     color: colors.warmOffWhite,
   },
   categoryScroller: {
     gap: spacing.sm,
-    paddingRight: spacing.md,
+    paddingRight: spacing.xs,
   },
-  categoryOptionChip: {
+  activityChip: {
     backgroundColor: "rgba(255,255,255,0.04)",
     borderColor: colors.border,
     borderRadius: radii.pill,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    minHeight: layout.touchTargetMin,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
-  categoryChipActive: {
+  activityChipActive: {
     backgroundColor: "rgba(131,135,195,0.22)",
-    borderColor: "rgba(232,230,200,0.2)",
+    borderColor: "rgba(232,230,200,0.28)",
   },
-  categoryChipText: {
+  activityChipText: {
     color: colors.text,
+    fontFamily: fontFamilies.body,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  cosmicQuote: {
+    color: colors.text,
+    fontFamily: fontFamilies.bodyRegular,
+    fontSize: 15,
+    fontStyle: "italic",
+    lineHeight: 22,
+    textAlign: "center",
+  },
+  cosmicAttribution: {
+    alignSelf: "center",
+    color: colors.textFaint,
     fontFamily: fontFamilies.body,
     fontSize: 11,
     fontWeight: "700",
+    textAlign: "center",
   },
-  lastSessionCard: {
+  weekStatBlock: {
     alignItems: "center",
-    flexDirection: "row",
-    gap: 12,
-    paddingVertical: 12,
+    gap: spacing.xxs,
   },
-  miniPlanet: {
-    height: 54,
-    overflow: "hidden",
-    width: 54,
-  },
-  lastSessionTitle: {
-    color: colors.text,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 14,
-    fontWeight: "800",
-    marginTop: 3,
-  },
-  lastSessionReward: {
-    color: colors.primary,
+  weekStars: {
+    color: colors.warning,
     fontFamily: fontFamilies.mono,
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  weekCard: {
-    gap: spacing.md,
-  },
-  weekBars: {
-    alignItems: "flex-end",
-    flexDirection: "row",
-    gap: 10,
-    height: 112,
-    justifyContent: "space-between",
-  },
-  weekBarItem: {
-    alignItems: "center",
-    flex: 1,
-    gap: 8,
-  },
-  weekTrack: {
-    alignItems: "center",
-    backgroundColor: "rgba(149,155,181,0.12)",
-    borderRadius: radii.pill,
-    height: 82,
-    justifyContent: "flex-end",
-    overflow: "hidden",
-    width: 12,
-  },
-  weekFill: {
-    backgroundColor: colors.primary,
-    borderRadius: radii.pill,
-    width: "100%",
+    fontSize: 14,
+    letterSpacing: 2,
   },
   weekLabel: {
-    color: colors.textFaint,
-    fontSize: 9,
+    color: colors.textMuted,
+    fontFamily: fontFamilies.body,
+    fontSize: 11,
     fontWeight: "700",
+    textAlign: "center",
+    textTransform: "uppercase",
+  },
+  weekTotal: {
+    color: colors.warmOffWhite,
+    fontFamily: fontFamilies.mono,
+    fontSize: 22,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  idleFooter: {
+    backgroundColor: "transparent",
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
+  },
+  startFocusButton: {
+    alignItems: "center",
+    backgroundColor: colors.primary,
+    borderColor: "rgba(232,230,200,0.28)",
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: layout.touchTargetMin,
+    paddingVertical: spacing.sm,
+    width: "100%",
   },
   failedCard: {
     borderColor: "rgba(255,107,157,0.22)",
@@ -854,16 +1087,5 @@ const styles = StyleSheet.create({
   softButtonText: {
     color: colors.text,
     fontWeight: "800",
-  },
-  statsRow: {
-    flexDirection: "row",
-    gap: 14,
-    justifyContent: "center",
-  },
-  statItem: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: 10,
-    fontWeight: "700",
   },
 });

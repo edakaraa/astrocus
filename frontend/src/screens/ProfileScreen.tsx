@@ -1,10 +1,10 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/AppContext";
 import { useResponsive } from "../shared/responsive";
-import { colors, fontFamilies, layout, radii, spacing, typography } from "../shared/theme";
+import { colors, fontFamilies, layout, radii, screenBlock, spacing, typography } from "../shared/theme";
 import { t, type TranslationKey } from "../shared/i18n";
 import { Logo } from "../components/Logo";
 import { UserAvatar } from "../components/UserAvatar";
@@ -14,11 +14,14 @@ import { StarfieldBackground } from "../components/StarfieldBackground";
 import { SurfaceCard } from "../components/SurfaceCard";
 import { GradientButton } from "../components/GradientButton";
 import { CelestialVisual } from "../components/CelestialVisual";
+import { ScreenContentColumn } from "../components/ScreenContentColumn";
 import { StardustPill } from "../components/StardustPill";
+import { WeeklyReportModal } from "../components/WeeklyReportModal";
+import { useWeeklyReport } from "../hooks/useWeeklyReport";
 
 export const ProfileScreen = () => {
   const router = useRouter();
-  const { contentPadding, tabBarClearance, topInset } = useResponsive();
+  const { tabBarClearance, topInset } = useResponsive();
   const {
     analyticsSummary,
     dailySummary,
@@ -35,11 +38,20 @@ export const ProfileScreen = () => {
     earnedBadgeIds,
   } = useAppContext();
 
+  const [weeklyReportOpen, setWeeklyReportOpen] = useState(false);
+  const {
+    report: weeklyReport,
+    reportText: weeklyReportText,
+    loading: weeklyReportLoading,
+    refetch: refetchWeeklyReport,
+  } = useWeeklyReport(user?.id, language);
+
   useFocusEffect(
     useCallback(() => {
       void refreshAnalytics();
+      void refetchWeeklyReport();
       return undefined;
-    }, [refreshAnalytics]),
+    }, [refreshAnalytics, refetchWeeklyReport]),
   );
 
   if (!user) {
@@ -81,7 +93,8 @@ export const ProfileScreen = () => {
       contentContainerStyle={[
         styles.container,
         {
-          paddingHorizontal: contentPadding,
+          alignItems: "center",
+          flexGrow: 1,
           paddingBottom: tabBarClearance,
           paddingTop: Math.max(spacing.sm, topInset),
         },
@@ -91,6 +104,7 @@ export const ProfileScreen = () => {
     >
       <StarfieldBackground density={34} />
 
+      <ScreenContentColumn style={{ gap: spacing.md }}>
       {/* Global stardust balance */}
       <View style={styles.profileTopBar}>
         <View style={styles.profileTopBarLeft}>
@@ -100,7 +114,7 @@ export const ProfileScreen = () => {
         <StardustPill amount={user.totalStardust} />
       </View>
 
-      <View style={styles.heroCard}>
+      <View style={[styles.heroCard, screenBlock]}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t(language, "settings")}
@@ -135,7 +149,36 @@ export const ProfileScreen = () => {
         </View>
       </View>
 
-      <SurfaceCard style={styles.progressCard} borderVariant="strong">
+      <SurfaceCard style={[screenBlock, styles.weeklyReportCard]} borderVariant="strong">
+        <View style={styles.cardTop}>
+          <View style={styles.weeklyReportHeading}>
+            <MaterialCommunityIcons name="chart-timeline-variant" size={20} color={colors.primary} />
+            <View>
+              <Text style={styles.cardLabel}>{t(language, "weeklyReportTitle")}</Text>
+              <Text style={styles.weeklyReportMeta}>{t(language, "weeklyReportSubtitle")}</Text>
+            </View>
+          </View>
+        </View>
+        {weeklyReportLoading ? (
+          <Text style={styles.weeklyReportEmpty}>…</Text>
+        ) : weeklyReport && weeklyReportText ? (
+          <>
+            <Text style={styles.weeklyReportPreview} numberOfLines={3}>
+              {weeklyReportText}
+            </Text>
+            <GradientButton
+              label={t(language, "weeklyReportOpen")}
+              onPress={() => setWeeklyReportOpen(true)}
+              variant="soft"
+              accessibilityLabel={t(language, "weeklyReportOpen")}
+            />
+          </>
+        ) : (
+          <Text style={styles.weeklyReportEmpty}>{t(language, "weeklyReportEmpty")}</Text>
+        )}
+      </SurfaceCard>
+
+      <SurfaceCard style={[screenBlock, styles.progressCard]} borderVariant="strong">
         <View style={styles.cardTop}>
           <View>
             <Text style={styles.cardLabel}>{t(language, "todayProgress")}</Text>
@@ -150,7 +193,7 @@ export const ProfileScreen = () => {
       </SurfaceCard>
 
       {piePreview.length > 0 ? (
-        <SurfaceCard style={styles.distributionCard}>
+        <SurfaceCard style={[screenBlock, styles.distributionCard]}>
           <Text style={styles.cardLabel}>{t(language, "categoryDistribution")}</Text>
           {piePreview.map((row) => (
             <Text key={row.categoryId} style={styles.distributionRow}>
@@ -160,7 +203,7 @@ export const ProfileScreen = () => {
         </SurfaceCard>
       ) : null}
 
-      <View style={styles.listCard}>
+      <View style={[styles.listCard, screenBlock]}>
         <View style={styles.listItem}>
           <View style={styles.listIcon}>
             <MaterialCommunityIcons name="medal-outline" size={18} color={colors.primary} />
@@ -222,7 +265,7 @@ export const ProfileScreen = () => {
         <Text style={styles.sectionTitle}>{t(language, "settings")}</Text>
       </View>
 
-      <SurfaceCard style={styles.settingsCard}>
+      <SurfaceCard style={[screenBlock, styles.settingsCard]}>
         <View style={styles.settingRow}>
           <View>
             <Text style={styles.settingTitle}>{t(language, "language")}</Text>
@@ -317,6 +360,13 @@ export const ProfileScreen = () => {
       <Pressable accessibilityRole="button" style={styles.signOutButton} onPress={logout}>
         <Text style={styles.signOutText}>{t(language, "signOut")}</Text>
       </Pressable>
+      </ScreenContentColumn>
+
+      <WeeklyReportModal
+        visible={weeklyReportOpen}
+        report={weeklyReport}
+        onClose={() => setWeeklyReportOpen(false)}
+      />
     </ScrollView>
   );
 };
@@ -325,6 +375,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.background,
     gap: spacing.md,
+    width: "100%",
   },
   profileTopBar: {
     alignItems: "center",
@@ -332,6 +383,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     maxHeight: layout.topBarMaxHeight,
     paddingBottom: spacing.xxs,
+    width: "100%",
   },
   profileTopBarLeft: {
     alignItems: "center",
@@ -432,6 +484,29 @@ const styles = StyleSheet.create({
     fontSize: 9,
     marginTop: 4,
     textAlign: "center",
+  },
+  weeklyReportCard: {
+    gap: spacing.sm,
+  },
+  weeklyReportHeading: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  weeklyReportMeta: {
+    color: colors.textFaint,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  weeklyReportPreview: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  weeklyReportEmpty: {
+    color: colors.textFaint,
+    fontSize: 12,
+    lineHeight: 18,
   },
   progressCard: {
     gap: spacing.sm,

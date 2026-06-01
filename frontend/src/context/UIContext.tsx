@@ -27,9 +27,16 @@ export type UIContextValue = {
 
 const UIContext = createContext<UIContextValue | null>(null);
 
-type UIProviderProps = PropsWithChildren<Pick<AstrocusInfraRefs, "uiSetLanguageRef" | "uiSetCelebrationRef">>;
+type UIProviderProps = PropsWithChildren<
+  Pick<AstrocusInfraRefs, "uiSetLanguageRef" | "uiSetCelebrationRef" | "uiPatchCelebrationRef">
+>;
 
-export const UIProvider = ({ children, uiSetLanguageRef, uiSetCelebrationRef }: UIProviderProps) => {
+export const UIProvider = ({
+  children,
+  uiSetLanguageRef,
+  uiSetCelebrationRef,
+  uiPatchCelebrationRef,
+}: UIProviderProps) => {
   const { token, applyAuthPayload, setIsOnline } = useAuth();
   const [language, setLanguageState] = useState<Language>("tr");
   const [celebration, setCelebration] = useState<CelebrationState>(null);
@@ -41,14 +48,20 @@ export const UIProvider = ({ children, uiSetLanguageRef, uiSetCelebrationRef }: 
     });
   }, [uiSetLanguageRef]);
 
+  const patchCelebration = useCallback((patch: Partial<NonNullable<CelebrationPayload>>) => {
+    setCelebration((prev) => (prev ? { ...prev, ...patch } : prev));
+  }, []);
+
   useLayoutEffect(() => {
     uiSetLanguageRef.current = setLanguageState;
     uiSetCelebrationRef.current = setCelebration;
+    uiPatchCelebrationRef.current = patchCelebration;
     return () => {
       uiSetLanguageRef.current = null;
       uiSetCelebrationRef.current = null;
+      uiPatchCelebrationRef.current = null;
     };
-  }, [uiSetCelebrationRef, uiSetLanguageRef]);
+  }, [patchCelebration, uiPatchCelebrationRef, uiSetCelebrationRef, uiSetLanguageRef]);
 
   const setLanguage = useCallback(
     async (nextLanguage: Language) => {

@@ -44,8 +44,10 @@ import {
   AuthProvider,
   SessionProvider,
   UIProvider,
+  NotificationProvider,
   useAstrocusInfrastructureRefs,
 } from "../src/context/AppContext";
+import { CelebrationHost } from "../src/components/CelebrationHost";
 import { loadSkyCatalog } from "../src/services/skyCatalog";
 import { colors } from "../src/shared/theme";
 
@@ -99,14 +101,17 @@ export default function RootLayout() {
     <AuthProvider {...refs}>
       <SessionProvider {...refs}>
         <UIProvider {...refs}>
-          <OAuthColdStartProbe />
-          <StatusBar style="light" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.background },
-            }}
-          />
+          <NotificationProvider>
+            <OAuthColdStartProbe />
+            <CelebrationHost />
+            <StatusBar style="light" />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.background },
+              }}
+            />
+          </NotificationProvider>
         </UIProvider>
       </SessionProvider>
     </AuthProvider>

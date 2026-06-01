@@ -9,7 +9,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { AppState, AppStateStatus } from "react-native";
+import { AppState, AppStateStatus, Alert } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
 import {
   PRESET_AVATARS,
@@ -20,17 +20,18 @@ import {
   STORAGE_KEYS,
   STARS,
 } from "../shared/constants";
-import { api } from "../shared/api";
+import { api, formatSessionSaveError, isSchemaSessionError, isTransientNetworkError } from "../shared/api";
 import { fetchAnalyticsSummary } from "../services/analyticsApi";
 import { fetchGalacticAdvice } from "../services/galacticAdvice";
 import { asyncStorage } from "../shared/storage";
+import { t } from "../shared/i18n";
 import { trackEvent } from "../shared/analytics";
 import { cancelScheduledNotification, scheduleBackgroundWarning } from "../shared/notifications";
 import { AnalyticsSummary, AuthPayload, PendingSession, SessionRecord, TimerStatus } from "../shared/types";
 import { useAuth } from "./AuthContext";
 import { isDevDemoToken } from "./auth/devDemo";
 import type { AstrocusInfraRefs } from "./AuthContext";
-import { createDailySummary } from "./session/stardust";
+import { createDailySummary, estimateSessionCelebration } from "./session/stardust";
 
 type SessionState = {
   selectedDurationMinutes: number;
@@ -77,7 +78,10 @@ const createGuestSessionState = (): SessionState => ({
 });
 
 type SessionProviderProps = PropsWithChildren<
-  Pick<AstrocusInfraRefs, "sessionHydrateRef" | "sessionSetPendingRef" | "uiSetCelebrationRef">
+  Pick<
+    AstrocusInfraRefs,
+    "sessionHydrateRef" | "sessionSetPendingRef" | "uiSetCelebrationRef" | "uiPatchCelebrationRef"
+  >
 >;
 
 export const SessionProvider = ({
@@ -85,8 +89,9 @@ export const SessionProvider = ({
   sessionHydrateRef,
   sessionSetPendingRef,
   uiSetCelebrationRef,
+  uiPatchCelebrationRef,
 }: SessionProviderProps) => {
-  const { token, user, isReady, applyAuthPayload, setIsOnline, apiUrl } = useAuth();
+  const { token, user, isReady, applyAuthPayload, setIsOnline, apiUrl, constellationProgress } = useAuth();
   const prevTokenRef = useRef<string | null>(null);
   const sessionBootstrapPrimedRef = useRef(false);
 
@@ -202,13 +207,38 @@ export const SessionProvider = ({
     return () => clearInterval(intervalId);
   }, [sessionState.status]);
 
-  const notifyQueuedForSync = useCallback(() => {
-    uiSetCelebrationRef.current?.({
-      pendingSync: true,
-      stardustEarned: 0,
-      unlockedStarId: null,
-    });
-  }, [uiSetCelebrationRef]);
+  const notifyQueuedForSync = useCallback(
+    (meta: {
+      durationMinutes: number;
+      todayTotalMinutes: number;
+      streakCount: number;
+      stardustEarned: number;
+    }) => {
+      uiSetCelebrationRef.current?.({
+        pendingSync: true,
+        stardustEarned: meta.stardustEarned,
+        durationMinutes: meta.durationMinutes,
+        todayTotalMinutes: meta.todayTotalMinutes,
+        streakCount: meta.streakCount,
+        unlockedStarId: null,
+      });
+    },
+    [uiSetCelebrationRef],
+  );
+
+  const buildAuthSnapshot = useCallback((): AuthPayload | null => {
+    if (!token || !user) {
+      return null;
+    }
+    return {
+      token,
+      user,
+      sessions,
+      unlockedStarIds,
+      earnedBadgeIds,
+      constellationProgress,
+    };
+  }, [constellationProgress, earnedBadgeIds, sessions, token, unlockedStarIds, user]);
 
   const finalizeSession = useCallback(async () => {
     if (!token || !user || !sessionState.startedAt) {
@@ -217,50 +247,78 @@ export const SessionProvider = ({
     }
 
     const completedAt = new Date().toISOString();
-    const payload = {
+    const actualElapsedSeconds = Math.max(
+      0,
+      Math.floor((new Date(completedAt).getTime() - new Date(sessionState.startedAt).getTime()) / 1000),
+    );
+    const durationMinutes = Math.floor(actualElapsedSeconds / 60);
+    const sessionInput = {
       categoryId: sessionState.selectedCategoryId,
-      durationMinutes: sessionState.selectedDurationMinutes,
+      durationMinutes,
       startedAt: sessionState.startedAt,
       completedAt,
       pauseCount: sessionState.pauseCount,
     };
+    const authSnapshot = buildAuthSnapshot();
+    if (!authSnapshot) {
+      setSessionState(createGuestSessionState());
+      return;
+    }
 
     try {
-      const response = await api.completeSession(token, payload, user, unlockedStarIds, earnedBadgeIds);
+      const response = await api.completeSession(
+        token,
+        sessionInput,
+        authSnapshot,
+        unlockedStarIds,
+        earnedBadgeIds,
+      );
       await applyAuthPayload(response.payload);
       void refreshAnalytics();
-      let galacticAdvice: string | undefined;
-      if (!isDevDemoToken(token)) {
-        try {
-          galacticAdvice = await fetchGalacticAdvice(token, {
-            language: user.language,
-            durationMinutes: payload.durationMinutes,
-            categoryId: payload.categoryId,
-            currentStreak: response.payload.user.currentStreak,
-            todayTotalMinutes: createDailySummary(response.payload.sessions, response.payload.user).totalMinutes,
-            totalStardust: response.payload.user.totalStardust,
-          });
-        } catch {
-          galacticAdvice = undefined;
-        }
-      }
       uiSetCelebrationRef.current?.({
         stardustEarned: response.stardustEarned,
         streakCount: response.streakCount,
+        durationMinutes: response.durationMinutes,
+        todayTotalMinutes: response.todayTotalMinutes,
         unlockedStarId: response.unlockedStarId,
         newBadgeIds: response.newBadges.length > 0 ? response.newBadges : undefined,
-        galacticAdvice,
       });
+      if (!isDevDemoToken(token)) {
+        void fetchGalacticAdvice(token, {
+          language: user.language,
+          durationMinutes: response.durationMinutes,
+          categoryId: sessionInput.categoryId,
+          currentStreak: response.payload.user.currentStreak,
+          todayTotalMinutes: response.todayTotalMinutes,
+          totalStardust: response.payload.user.totalStardust,
+        })
+          .then((galacticAdvice) => {
+            uiPatchCelebrationRef.current?.({ galacticAdvice });
+          })
+          .catch(() => undefined);
+      }
       await trackEvent("session_completed", {
         stardust: response.stardustEarned,
       });
-    } catch {
+    } catch (error) {
+      if (__DEV__) {
+        console.warn("[Astrocus session complete failed]", error);
+      }
+
+      const message = formatSessionSaveError(error);
+      const language = user.language;
+
+      if (isSchemaSessionError(error) || !isTransientNetworkError(error)) {
+        Alert.alert(t(language, "sessionSaveFailedTitle"), message);
+        return;
+      }
+
       setIsOnline(false);
       const pendingSession: PendingSession = {
         id: `${Date.now()}`,
-        categoryId: payload.categoryId,
-        durationMinutes: payload.durationMinutes,
-        startedAt: payload.startedAt,
+        categoryId: sessionInput.categoryId,
+        durationMinutes: sessionInput.durationMinutes,
+        startedAt: sessionInput.startedAt,
         completedAt,
       };
       setPendingSessions((current) => {
@@ -268,12 +326,20 @@ export const SessionProvider = ({
         void asyncStorage.set(STORAGE_KEYS.pendingSessions, nextPendingSessions);
         return nextPendingSessions;
       });
-      notifyQueuedForSync();
+
+      const estimate = estimateSessionCelebration(authSnapshot, {
+        durationMinutes: sessionInput.durationMinutes,
+        startedAt: sessionInput.startedAt,
+        completedAt,
+        pauseCount: sessionInput.pauseCount,
+      });
+      notifyQueuedForSync(estimate);
     } finally {
       setSessionState(createGuestSessionState());
     }
   }, [
     applyAuthPayload,
+    buildAuthSnapshot,
     notifyQueuedForSync,
     refreshAnalytics,
     sessionState.pauseCount,
@@ -282,6 +348,7 @@ export const SessionProvider = ({
     sessionState.startedAt,
     setIsOnline,
     token,
+    uiPatchCelebrationRef,
     uiSetCelebrationRef,
     earnedBadgeIds,
     unlockedStarIds,
@@ -388,9 +455,9 @@ export const SessionProvider = ({
   }, []);
 
   /**
-   * Cancel the active session applying the 10-min rule:
-   * – < 10 min elapsed → 0 Stardust, no server call needed beyond RPC call
-   * – ≥ 10 min elapsed → proportional Stardust via cancel_focus_session RPC
+   * Cancel the active session applying the dynamic partial-stardust rule:
+   * – elapsed < max(5 min, 50% of planned duration) → 0 ✦
+   * – otherwise → proportional Stardust via cancel_focus_session RPC
    */
   const cancelSession = useCallback(async () => {
     void cancelScheduledNotification(scheduledNotificationRef.current);
@@ -411,27 +478,43 @@ export const SessionProvider = ({
     // Only call the RPC if there's time worth reporting
     if (elapsedMinutes >= 1) {
       try {
-        const { result, payload } = await api.cancelSession(token, {
-          categoryId: sessionState.selectedCategoryId,
-          startedAt: sessionState.startedAt,
-          cancelledAt,
-        });
+        const authSnapshot = buildAuthSnapshot();
+        if (!authSnapshot) {
+          return;
+        }
+        const { result, payload } = await api.cancelSession(
+          token,
+          {
+            categoryId: sessionState.selectedCategoryId,
+            startedAt: sessionState.startedAt,
+            cancelledAt,
+            plannedDurationMinutes: sessionState.selectedDurationMinutes,
+          },
+          authSnapshot,
+        );
         await applyAuthPayload(payload);
         if (result.saved && result.stardustEarned > 0) {
+          const todaySummary = createDailySummary(payload.sessions, payload.user);
           uiSetCelebrationRef.current?.({
             stardustEarned: result.stardustEarned,
+            durationMinutes: result.minutesFocused,
+            todayTotalMinutes: todaySummary.totalMinutes,
             unlockedStarId: null,
           });
         }
         void refreshAnalytics();
-      } catch {
-        /* best-effort — session already cleared locally */
+      } catch (error) {
+        if (__DEV__) {
+          console.warn("[Astrocus session cancel failed]", error);
+        }
       }
     }
   }, [
     applyAuthPayload,
+    buildAuthSnapshot,
     refreshAnalytics,
     sessionState.selectedCategoryId,
+    sessionState.selectedDurationMinutes,
     sessionState.startedAt,
     token,
     uiSetCelebrationRef,
@@ -442,13 +525,30 @@ export const SessionProvider = ({
       return;
     }
 
-    const payload = await api.syncSessions(token, pendingSessions);
-    await applyAuthPayload(payload);
-    setPendingSessions([]);
-    await asyncStorage.set(STORAGE_KEYS.pendingSessions, []);
-    setIsOnline(true);
-    void refreshAnalytics();
-  }, [applyAuthPayload, pendingSessions, refreshAnalytics, setIsOnline, token]);
+    const authSnapshot = buildAuthSnapshot();
+    if (!authSnapshot) {
+      return;
+    }
+
+    try {
+      const payload = await api.syncSessions(token, pendingSessions, authSnapshot);
+      await applyAuthPayload(payload);
+      setPendingSessions([]);
+      await asyncStorage.set(STORAGE_KEYS.pendingSessions, []);
+      setIsOnline(true);
+      void refreshAnalytics();
+    } catch (error) {
+      if (__DEV__) {
+        console.warn("[Astrocus sync offline queue failed]", error);
+      }
+      if (isSchemaSessionError(error)) {
+        Alert.alert(
+          t(authSnapshot.user.language, "sessionSaveFailedTitle"),
+          formatSessionSaveError(error),
+        );
+      }
+    }
+  }, [applyAuthPayload, buildAuthSnapshot, pendingSessions, refreshAnalytics, setIsOnline, token]);
 
   useEffect(() => {
     if (!token || pendingSessions.length === 0) {

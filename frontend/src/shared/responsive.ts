@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { PixelRatio, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { layout, spacing } from "./theme";
+import { layout, spacing, getTabBarMetrics } from "./theme";
 
 /** Web-aligned breakpoints adapted for React Native / tablet layouts */
 export const breakpoints = {
@@ -77,10 +77,11 @@ export const useResponsive = () => {
     const isShort = height <= 700;
 
     const contentPadding = fluid(spacing.md, spacing["3xl"], width, BASE_WIDTH);
+    /** Tab screens: consistent left/right inset; blocks stretch edge-to-edge inside this gutter. */
+    const edgePadding = isMobile ? (isCompact ? spacing.sm : spacing.md) : contentPadding;
     const maxContentWidth = isDesktop ? layout.maxContentWidth : width;
-    const tabBarClearance = isMobile
-      ? layout.tabBarHeight + insets.bottom + spacing.md
-      : spacing.xl + spacing.md;
+    const tabBarMetrics = getTabBarMetrics(insets.bottom);
+    const tabBarClearance = isMobile ? tabBarMetrics.clearance : spacing.xl + spacing.md;
     const topInset = insets.top;
     const topBarHeight = Math.max(layout.topBarMaxHeight, spacing.lg + topInset);
 
@@ -98,6 +99,7 @@ export const useResponsive = () => {
       isCompact,
       isShort,
       contentPadding,
+      edgePadding,
       maxContentWidth,
       tabBarClearance,
       topInset,

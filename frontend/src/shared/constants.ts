@@ -18,6 +18,15 @@ export const WARNING_THRESHOLD_SECONDS = 10;
 export const PAUSE_LIMIT = 1;
 /** Tamamlanan seanslarda kazanç: 2 ✦/dk (migration 003 ile uyumlu) */
 export const STARDUST_PER_MINUTE = 2;
+/** Erken bitirmede kısmi ödül eşiği: en az 5 dk veya planlanan sürenin %50'si */
+export const MIN_PARTIAL_STARDUST_MINUTES = 5;
+export const PARTIAL_STARDUST_DURATION_RATIO = 0.5;
+
+export const getPartialStardustThresholdMinutes = (plannedDurationMinutes: number): number =>
+  Math.max(
+    MIN_PARTIAL_STARDUST_MINUTES,
+    plannedDurationMinutes * PARTIAL_STARDUST_DURATION_RATIO,
+  );
 
 // ---------------------------------------------------------------------------
 // Dynamic pricing — mirrors compute_star_cost SQL function

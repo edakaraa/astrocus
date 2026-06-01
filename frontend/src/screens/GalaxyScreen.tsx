@@ -9,14 +9,14 @@ import {
 } from "react-native";
 import * as Haptics from "expo-haptics";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useAppContext } from "../context/AppContext";
+import { toastTone, useAppContext } from "../context/AppContext";
 import { loadSkyCatalog, getSkyCatalogOrNull } from "../services/skyCatalog";
 import { useResponsive } from "../shared/responsive";
-import { colors, fontFamilies, layout, radii, spacing, typography } from "../shared/theme";
+import { colors, fontFamilies, layout, radii, screenBlock, spacing, typography } from "../shared/theme";
 import { StarfieldBackground } from "../components/StarfieldBackground";
 import { SurfaceCard } from "../components/SurfaceCard";
 import { CelestialVisual } from "../components/CelestialVisual";
-import { GlassToast } from "../components/GlassToast";
+import { ScreenContentColumn } from "../components/ScreenContentColumn";
 import { StardustPill } from "../components/StardustPill";
 import {
   buildConstellationProgressList,
@@ -129,6 +129,7 @@ const ConstellationCard = React.memo(({ progress, totalStardust, onStarPress }: 
   return (
     <SurfaceCard
       style={[
+        screenBlock,
         styles.constellationCard,
         isActive && styles.constellationCardActive,
         isNext && styles.constellationCardNext,
@@ -243,14 +244,10 @@ const SkySection = ({
 };
 
 export const GalaxyScreen = () => {
-  const { contentPadding, tabBarClearance, topInset } = useResponsive();
-  const { user, unlockedStarIds, constellationProgress, unlockStar, language } = useAppContext();
+  const { tabBarClearance, topInset } = useResponsive();
+  const { user, unlockedStarIds, constellationProgress, unlockStar, language, showToast } = useAppContext();
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
   const [catalogReady, setCatalogReady] = useState(Boolean(getSkyCatalogOrNull()));
-  const [toastVisible, setToastVisible] = useState(false);
-  const [toastTitle, setToastTitle] = useState("");
-  const [toastSubtitle, setToastSubtitle] = useState("");
-  const [toastIcon, setToastIcon] = useState<"star-four-points" | "trophy-variant">("star-four-points");
   const [unlocking, setUnlocking] = useState<string | null>(null);
 
   useEffect(() => {
@@ -318,13 +315,6 @@ export const GalaxyScreen = () => {
     [unlockedStarIds, constellationStarIds],
   );
 
-  const showToast = useCallback((title: string, subtitle: string, icon: "star-four-points" | "trophy-variant") => {
-    setToastTitle(title);
-    setToastSubtitle(subtitle);
-    setToastIcon(icon);
-    setToastVisible(true);
-  }, []);
-
   const handleStarPress = useCallback(
     async (star: StarWithProgress, constellation: ConstellationProgress) => {
       if (star.isUnlocked) return;
@@ -332,20 +322,32 @@ export const GalaxyScreen = () => {
 
       if (constellation.isLocked) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        showToast(t(language, "toastLocked"), t(language, "toastLockedSub"), "star-four-points");
+        showToast({
+          title: t(language, "toastLocked"),
+          subtitle: t(language, "toastLockedSub"),
+          ...toastTone.star,
+        });
         return;
       }
 
       if (!constellation.isActive) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        showToast(t(language, "toastWrongConstellation"), t(language, "toastWrongConstellationSub"), "star-four-points");
+        showToast({
+          title: t(language, "toastWrongConstellation"),
+          subtitle: t(language, "toastWrongConstellationSub"),
+          ...toastTone.star,
+        });
         return;
       }
 
       const nextIndex = constellation.stars.findIndex((s) => !s.isUnlocked);
       if (constellation.stars[nextIndex]?.id !== star.id) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        showToast(t(language, "toastSequenceRequired"), t(language, "toastSequenceRequiredSub"), "star-four-points");
+        showToast({
+          title: t(language, "toastSequenceRequired"),
+          subtitle: t(language, "toastSequenceRequiredSub"),
+          ...toastTone.star,
+        });
         return;
       }
 
@@ -353,11 +355,11 @@ export const GalaxyScreen = () => {
       if (totalStardust < starCost) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         const need = starCost - totalStardust;
-        showToast(
-          t(language, "toastInsufficient"),
-          `${formatNumber(language, need)} ✦ ${t(language, "toastInsufficientSub")}`,
-          "star-four-points",
-        );
+        showToast({
+          title: t(language, "toastInsufficient"),
+          subtitle: `${formatNumber(language, need)} ✦ ${t(language, "toastInsufficientSub")}`,
+          ...toastTone.warning,
+        });
         return;
       }
 
@@ -370,27 +372,31 @@ export const GalaxyScreen = () => {
 
         if (result?.constellationCompleted) {
           await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-          showToast(
-            `${constellation.constellation.nameAstronomical} ${t(language, "constellationComplete")}`,
-            t(language, "toastConstellationDone"),
-            "trophy-variant",
-          );
+          showToast({
+            title: `${constellation.constellation.nameAstronomical} ${t(language, "constellationComplete")}`,
+            subtitle: t(language, "toastConstellationDone"),
+            ...toastTone.trophy,
+          });
         } else {
-          showToast(
-            `${starDisplayName(star, language)} ${t(language, "toastStarUnlocked")}`,
-            `${formatNumber(language, starUnlockCost(star))} ${t(language, "toastStardustSpent")}`,
-            "star-four-points",
-          );
+          showToast({
+            title: `${starDisplayName(star, language)} ${t(language, "toastStarUnlocked")}`,
+            subtitle: `${formatNumber(language, starUnlockCost(star))} ${t(language, "toastStardustSpent")}`,
+            ...toastTone.star,
+          });
         }
       } catch (error) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         const msg = error instanceof Error ? error.message : t(language, "toastUnlockFailed");
-        showToast(t(language, "toastError"), msg, "star-four-points");
+        showToast({
+          title: t(language, "toastError"),
+          subtitle: msg,
+          ...toastTone.error,
+        });
       } finally {
         setUnlocking(null);
       }
     },
-    [language, unlocking, totalStardust, unlockStar, showToast],
+    [language, showToast, totalStardust, unlockStar, unlocking],
   );
 
   if (!catalogReady || !skyCatalog) {
@@ -406,21 +412,12 @@ export const GalaxyScreen = () => {
     <View style={styles.root}>
       <StarfieldBackground density={38} />
 
-      {/* Glassmorphism toast overlay */}
-      <GlassToast
-        visible={toastVisible}
-        title={toastTitle}
-        subtitle={toastSubtitle}
-        icon={toastIcon}
-        iconColor={toastIcon === "trophy-variant" ? colors.warning : colors.primary}
-        onHide={() => setToastVisible(false)}
-      />
-
       <ScrollView
         contentContainerStyle={[
           styles.container,
           {
-            paddingHorizontal: contentPadding,
+            alignItems: "center",
+            flexGrow: 1,
             paddingBottom: tabBarClearance,
             paddingTop: Math.max(spacing.md, topInset),
           },
@@ -428,6 +425,7 @@ export const GalaxyScreen = () => {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        <ScreenContentColumn style={{ gap: spacing.md }}>
         {/* Header */}
         <View style={styles.top}>
           <View>
@@ -438,7 +436,7 @@ export const GalaxyScreen = () => {
         </View>
 
         {/* Overall progress bar */}
-        <SurfaceCard style={styles.summaryCard} borderVariant="strong">
+        <SurfaceCard style={[screenBlock, styles.summaryCard]} borderVariant="strong">
           <View style={styles.summaryRow}>
             <View>
               <Text style={styles.summaryLabel}>{t(language, "skyProgress")}</Text>
@@ -499,6 +497,7 @@ export const GalaxyScreen = () => {
             </Text>
           </View>
         ) : null}
+        </ScreenContentColumn>
       </ScrollView>
     </View>
   );
@@ -523,12 +522,14 @@ const styles = StyleSheet.create({
   },
   container: {
     gap: spacing.md,
+    width: "100%",
   },
   top: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-between",
     maxHeight: layout.topBarMaxHeight,
+    width: "100%",
   },
   eyebrow: {
     color: colors.textFaint,

@@ -5,23 +5,25 @@ import { colors, radii, spacing } from "../shared/theme";
 type SurfaceCardProps = PropsWithChildren<{
   style?: StyleProp<ViewStyle>;
   borderVariant?: "subtle" | "strong";
+  /** Inner padding — defaults to lg; hero cards use md to stay compact. */
+  contentPadding?: number;
 }>;
 
-export const SurfaceCard = ({ children, style, borderVariant = "subtle" }: SurfaceCardProps) => {
+export const SurfaceCard = ({
+  children,
+  style,
+  borderVariant = "subtle",
+  contentPadding = spacing.lg,
+}: SurfaceCardProps) => {
   return (
     <View
       style={[
         {
-          backgroundColor: "rgba(13, 11, 43, 0.88)",
+          backgroundColor: "rgba(58, 62, 108, 0.42)",
           borderRadius: radii.lg,
           borderWidth: 1,
           borderColor: borderVariant === "strong" ? colors.borderStrong : colors.border,
-          padding: spacing.lg,
-          shadowColor: colors.primary,
-          shadowOpacity: borderVariant === "strong" ? 0.14 : 0.08,
-          shadowRadius: borderVariant === "strong" ? 18 : 12,
-          shadowOffset: { width: 0, height: 10 },
-          elevation: borderVariant === "strong" ? 8 : 4,
+          padding: contentPadding,
         },
         style,
       ]}

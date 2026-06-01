@@ -37,7 +37,7 @@ const Planet = ({ size }: { size: number }) => (
       </RadialGradient>
     </Defs>
     <Circle cx="100" cy="104" r="76" fill="url(#planetGlow)" />
-    <G rotation="-12" origin="100,102">
+    <G rotation={-12} originX={100} originY={102}>
       <Ellipse cx="100" cy="102" rx="86" ry="24" stroke={colors.warmOffWhite} strokeOpacity={0.28} strokeWidth="2.6" fill="transparent" />
       <Ellipse cx="100" cy="102" rx="67" ry="17" stroke={colors.ube} strokeOpacity={0.3} strokeWidth="2" fill="transparent" />
     </G>
@@ -56,12 +56,12 @@ const Galaxy = ({ size }: { size: number }) => (
         <Stop offset="100%" stopColor={colors.chineseBlack} stopOpacity={0} />
       </RadialGradient>
     </Defs>
-    <G rotation="-16" origin="110,110">
+    <G rotation={-16} originX={110} originY={110}>
       <Ellipse cx="110" cy="110" rx="86" ry="36" fill="url(#galaxyCoreSmall)" />
       <Ellipse cx="110" cy="110" rx="78" ry="22" stroke={colors.ube} strokeOpacity={0.45} strokeWidth="2.4" fill="transparent" />
       <Ellipse cx="110" cy="110" rx="54" ry="14" stroke={colors.warmOffWhite} strokeOpacity={0.2} strokeWidth="1.4" fill="transparent" />
     </G>
-    <G rotation="18" origin="110,110">
+    <G rotation={18} originX={110} originY={110}>
       <Ellipse cx="110" cy="110" rx="98" ry="26" stroke={colors.americanBlue} strokeOpacity={0.32} strokeWidth="2.6" fill="transparent" />
     </G>
     {[0, 1, 2, 3, 4, 5].map((index) => (

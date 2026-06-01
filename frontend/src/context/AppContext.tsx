@@ -2,20 +2,39 @@ import React, { useMemo, useRef } from "react";
 import { AuthProvider, useAuth, type AstrocusInfraRefs } from "./AuthContext";
 import { SessionProvider, useSession } from "./SessionContext";
 import { UIProvider, useUI } from "./UIContext";
+import { NotificationProvider, useAppNotifier } from "./NotificationContext";
 import { AuthPayload, CelebrationPayload, Language, PendingSession } from "../shared/types";
 
 export { AuthProvider, useAuth, type AstrocusInfraRefs } from "./AuthContext";
 export { SessionProvider, useSession } from "./SessionContext";
 export { UIProvider, useUI } from "./UIContext";
+export {
+  NotificationProvider,
+  useAppNotifier,
+  toastTone,
+  type AppAlertOptions,
+  type AppConfirmOptions,
+  type AppToastOptions,
+  type ToastIcon,
+} from "./NotificationContext";
 
 export const useAstrocusInfrastructureRefs = (): AstrocusInfraRefs => {
   const sessionHydrateRef = useRef<((payload: AuthPayload) => void) | null>(null);
   const sessionSetPendingRef = useRef<((sessions: PendingSession[]) => void) | null>(null);
   const uiSetLanguageRef = useRef<((language: Language) => void) | null>(null);
   const uiSetCelebrationRef = useRef<((state: CelebrationPayload) => void) | null>(null);
+  const uiPatchCelebrationRef = useRef<
+    ((patch: Partial<NonNullable<CelebrationPayload>>) => void) | null
+  >(null);
 
   return useMemo(
-    () => ({ sessionHydrateRef, sessionSetPendingRef, uiSetLanguageRef, uiSetCelebrationRef }),
+    () => ({
+      sessionHydrateRef,
+      sessionSetPendingRef,
+      uiSetLanguageRef,
+      uiSetCelebrationRef,
+      uiPatchCelebrationRef,
+    }),
     [],
   );
 };
@@ -24,6 +43,7 @@ export const useAppContext = () => {
   const auth = useAuth();
   const session = useSession();
   const ui = useUI();
+  const notifier = useAppNotifier();
 
   return {
     // Auth
@@ -77,5 +97,11 @@ export const useAppContext = () => {
     celebration: ui.celebration,
     setLanguage: ui.setLanguage,
     dismissCelebration: ui.dismissCelebration,
+
+    // Notifications
+    showAlert: notifier.showAlert,
+    showConfirm: notifier.showConfirm,
+    showToast: notifier.showToast,
+    dismissToast: notifier.dismissToast,
   };
 };
