@@ -12,12 +12,13 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { toastTone, useAppContext } from "../context/AppContext";
 import { loadSkyCatalog, getSkyCatalogOrNull } from "../services/skyCatalog";
 import { useResponsive } from "../shared/responsive";
-import { colors, fontFamilies, layout, radii, screenBlock, spacing, typography } from "../shared/theme";
-import { StarfieldBackground } from "../components/StarfieldBackground";
+import { colors, fontFamilies, radii, screenBlock, spacing } from "../shared/theme";
+import { StarryBackground } from "../components/StarryBackground";
 import { SurfaceCard } from "../components/SurfaceCard";
 import { CelestialVisual } from "../components/CelestialVisual";
 import { ScreenContentColumn } from "../components/ScreenContentColumn";
-import { StardustPill } from "../components/StardustPill";
+import { TabScreenTopBar } from "../components/layout/TabScreenTopBar";
+import theme from "../theme";
 import {
   buildConstellationProgressList,
   constellationLabel,
@@ -178,8 +179,14 @@ const ConstellationCard = React.memo(({ progress, totalStardust, onStarPress }: 
         <View style={[styles.progressFill, { width: `${Math.round(progressFraction * 100)}%` }]} />
       </View>
 
-      {/* Stars row */}
-      <View style={styles.starsRow}>
+      {/* Stars row — horizontal scroll when many stars */}
+      <ScrollView
+        horizontal
+        nestedScrollEnabled
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.starsRow}
+        keyboardShouldPersistTaps="handled"
+      >
         {stars.map((star, idx) => (
           <StarCard
             key={star.id}
@@ -191,7 +198,7 @@ const ConstellationCard = React.memo(({ progress, totalStardust, onStarPress }: 
             cardIndex={idx}
           />
         ))}
-      </View>
+      </ScrollView>
 
       {/* Completion reward hint */}
       {isCompleted ? (
@@ -244,7 +251,7 @@ const SkySection = ({
 };
 
 export const GalaxyScreen = () => {
-  const { tabBarClearance, topInset } = useResponsive();
+  const { tabBarClearance } = useResponsive();
   const { user, unlockedStarIds, constellationProgress, unlockStar, language, showToast } = useAppContext();
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
   const [catalogReady, setCatalogReady] = useState(Boolean(getSkyCatalogOrNull()));
@@ -401,40 +408,32 @@ export const GalaxyScreen = () => {
 
   if (!catalogReady || !skyCatalog) {
     return (
-      <View style={[styles.root, styles.centered]}>
-        <StarfieldBackground density={38} />
-        <Text style={styles.loadingText}>{t(language, "loadingCatalog")}</Text>
-      </View>
+      <StarryBackground>
+        <View style={[styles.root, styles.centered]}>
+          <Text style={styles.loadingText}>{t(language, "loadingCatalog")}</Text>
+        </View>
+      </StarryBackground>
     );
   }
 
   return (
-    <View style={styles.root}>
-      <StarfieldBackground density={38} />
-
+    <StarryBackground>
+      <TabScreenTopBar stardustAmount={totalStardust} />
       <ScrollView
+        style={styles.root}
         contentContainerStyle={[
           styles.container,
           {
             alignItems: "center",
             flexGrow: 1,
             paddingBottom: tabBarClearance,
-            paddingTop: Math.max(spacing.md, topInset),
+            paddingTop: theme.layout.topBarBottomGap,
           },
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         <ScreenContentColumn style={{ gap: spacing.md }}>
-        {/* Header */}
-        <View style={styles.top}>
-          <View>
-            <Text style={styles.eyebrow}>{t(language, "skyEyebrow")}</Text>
-            <Text style={styles.title}>{t(language, "skyTitle")}</Text>
-          </View>
-          <StardustPill amount={totalStardust} />
-        </View>
-
         {/* Overall progress bar */}
         <SurfaceCard style={[screenBlock, styles.summaryCard]} borderVariant="strong">
           <View style={styles.summaryRow}>
@@ -482,7 +481,7 @@ export const GalaxyScreen = () => {
         />
 
         <SkySection
-          title={t(language, "journey")}
+          title={t(language, "skyTitle")}
           items={filteredSections.journey}
           totalStardust={totalStardust}
           onStarPress={handleStarPress}
@@ -499,7 +498,7 @@ export const GalaxyScreen = () => {
         ) : null}
         </ScreenContentColumn>
       </ScrollView>
-    </View>
+    </StarryBackground>
   );
 };
 
@@ -523,26 +522,6 @@ const styles = StyleSheet.create({
   container: {
     gap: spacing.md,
     width: "100%",
-  },
-  top: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    maxHeight: layout.topBarMaxHeight,
-    width: "100%",
-  },
-  eyebrow: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
-  },
-  title: {
-    ...typography.h3,
-    color: colors.text,
-    marginTop: 4,
   },
   summaryCard: {
     gap: 10,
@@ -742,6 +721,7 @@ const styles = StyleSheet.create({
   starsRow: {
     flexDirection: "row",
     gap: spacing.sm,
+    paddingRight: spacing.xs,
   },
   starCard: {
     alignItems: "center",
@@ -749,11 +729,11 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
-    flex: 1,
     minHeight: 140,
     padding: 10,
     position: "relative",
     overflow: "hidden",
+    width: 100,
   },
   starCardUnlocked: {
     backgroundColor: "rgba(22,18,70,0.86)",

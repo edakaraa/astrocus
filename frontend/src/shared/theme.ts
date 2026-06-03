@@ -1,55 +1,55 @@
 /**
- * Design tokens — 4px spacing grid, typography scale, layout & motion.
- * Colors tuned for WCAG AA on dark background (#0A1123).
+ * Legacy design tokens — canonical palette lives in `src/theme/index.ts`.
+ * New screens should import `theme` from `../theme` directly.
  */
+import appTheme from "../theme";
+
 export const colors = {
-  cadetGrey: "#959BB5",
-  chineseBlack: "#0A1123",
-  americanBlue: "#3A3E6C",
-  ube: "#8387C3",
-  coolGrey: "#8A8CAC",
-  warmOffWhite: "#E8E6C8",
+  cadetGrey: appTheme.colors.textSecondary,
+  chineseBlack: appTheme.colors.bg,
+  americanBlue: appTheme.colors.surface,
+  ube: appTheme.colors.accent,
+  coolGrey: appTheme.colors.muted,
+  warmOffWhite: appTheme.colors.textPrimary,
 
-  background: "#0A1123",
-  surface: "rgba(255,255,255,0.04)",
-  surfaceMuted: "rgba(255,255,255,0.06)",
-  surfaceElevated: "rgba(255,255,255,0.08)",
-  border: "rgba(255,255,255,0.10)",
-  borderStrong: "rgba(255,255,255,0.18)",
+  background: appTheme.colors.bg,
+  surface: appTheme.colors.overlay,
+  surfaceMuted: appTheme.colors.overlay,
+  surfaceElevated: appTheme.colors.surfaceCard,
+  border: appTheme.colors.border,
+  borderStrong: appTheme.colors.border,
 
-  /** ~7.2:1 on background */
-  text: "#E8E6C8",
-  /** ~4.6:1 on background */
-  textMuted: "#959BB5",
-  textFaint: "rgba(149,155,181,0.75)",
+  text: appTheme.colors.textPrimary,
+  textMuted: appTheme.colors.textSecondary,
+  textFaint: appTheme.colors.muted,
 
-  primary: "#8387C3",
-  primarySoft: "rgba(131,135,195,0.22)",
-  focusRing: "rgba(232,230,200,0.55)",
+  primary: appTheme.colors.accent,
+  primarySoft: appTheme.colors.surfaceCard,
+  focusRing: appTheme.colors.textPrimary,
   success: "#B9F0D7",
   warning: "#FFD166",
-  danger: "#FF6B9D",
+  danger: appTheme.colors.badgeScorpio,
 
-  chip: "rgba(255,255,255,0.06)",
+  chip: appTheme.colors.overlay,
 };
 
 /** 4px base grid */
 export const spacing = {
-  xxs: 4,
-  xs: 8,
-  sm: 12,
-  md: 16,
-  lg: 24,
-  xl: 32,
+  xxs: appTheme.spacing.xs,
+  xs: appTheme.spacing.sm,
+  sm: appTheme.spacing.md,
+  md: appTheme.spacing.lg,
+  lg: appTheme.spacing.xl,
+  xl: appTheme.spacing.xxl,
   "2xl": 48,
   "3xl": 64,
 } as const;
 
 export const radii = {
-  sm: 12,
-  md: 16,
-  lg: 20,
-  xl: 28,
+  sm: appTheme.radii.sm,
+  md: appTheme.radii.md,
+  lg: appTheme.radii.lg,
+  xl: appTheme.radii.xl,
   pill: 999,
 };
 

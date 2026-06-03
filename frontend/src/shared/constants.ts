@@ -1,14 +1,6 @@
 import { Category, Language, Star, StarCostInfo, StarCostTier } from "./types";
 
-export const STORAGE_KEYS = {
-  authToken: "astrocus.authToken",
-  language: "astrocus.language",
-  onboardingSeen: "astrocus.onboardingSeen",
-  pendingSessions: "astrocus.pendingSessions",
-  analyticsEvents: "astrocus.analyticsEvents",
-  demoAuthPayload: "astrocus.demoAuthPayload",
-  oauthPending: "astrocus.oauthPending",
-} as const;
+export { STORAGE_KEYS } from "../constants/storageKeys";
 
 export const DEFAULT_DURATION_MINUTES = 25;
 /** PRD: 5–120 dakika arası seans süreleri */

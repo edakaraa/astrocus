@@ -16,7 +16,6 @@ import {
   BACKGROUND_TOLERANCE_SECONDS,
   CATEGORIES,
   DEFAULT_DURATION_MINUTES,
-  PAUSE_LIMIT,
   STORAGE_KEYS,
   STARS,
 } from "../shared/constants";
@@ -27,20 +26,27 @@ import { asyncStorage } from "../shared/storage";
 import { t } from "../shared/i18n";
 import { trackEvent } from "../shared/analytics";
 import { cancelScheduledNotification, scheduleBackgroundWarning } from "../shared/notifications";
-import { AnalyticsSummary, AuthPayload, PendingSession, SessionRecord, TimerStatus } from "../shared/types";
+import { AnalyticsSummary, AuthPayload, PendingSession, SessionRecord } from "../shared/types";
 import { useAuth } from "./AuthContext";
 import { isDevDemoToken } from "./auth/devDemo";
 import type { AstrocusInfraRefs } from "./AuthContext";
+import {
+  buildCompletionSnapshot,
+  completeFocusTimer,
+  createIdleFocusTimerState,
+  failFocusSession,
+  heartbeatTick,
+  pauseFocusSession,
+  resumeFocusSession,
+  snapshotFocusedMinutes,
+  startFocusSession,
+  syncFocusTimer,
+  type FocusTimerState,
+  type SessionCompletionSnapshot,
+} from "./session/sessionTimer";
 import { createDailySummary, estimateSessionCelebration } from "./session/stardust";
 
-type SessionState = {
-  selectedDurationMinutes: number;
-  selectedCategoryId: string;
-  status: TimerStatus;
-  remainingSeconds: number;
-  pauseCount: number;
-  startedAt: string | null;
-};
+type SessionState = FocusTimerState;
 
 export type SessionContextValue = {
   sessions: SessionRecord[];
@@ -68,14 +74,7 @@ export type SessionContextValue = {
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
-const createGuestSessionState = (): SessionState => ({
-  selectedDurationMinutes: DEFAULT_DURATION_MINUTES,
-  selectedCategoryId: "general",
-  status: "idle",
-  remainingSeconds: DEFAULT_DURATION_MINUTES * 60,
-  pauseCount: 0,
-  startedAt: null,
-});
+const createGuestSessionState = (): SessionState => createIdleFocusTimerState();
 
 type SessionProviderProps = PropsWithChildren<
   Pick<
@@ -103,6 +102,8 @@ export const SessionProvider = ({
   const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummary | null>(null);
   const backgroundedAtRef = useRef<string | null>(null);
   const scheduledNotificationRef = useRef<string | null>(null);
+  const completionSnapshotRef = useRef<SessionCompletionSnapshot | null>(null);
+  const finalizingRef = useRef(false);
 
   const refreshAnalytics = useCallback(async () => {
     if (!token || !apiUrl?.trim() || isDevDemoToken(token)) {
@@ -189,18 +190,11 @@ export const SessionProvider = ({
           return current;
         }
 
-        if (current.remainingSeconds <= 1) {
-          return {
-            ...current,
-            remainingSeconds: 0,
-            status: "completed",
-          };
+        const next = heartbeatTick(current, Date.now());
+        if (next.status === "completed" && current.status === "running") {
+          completionSnapshotRef.current = buildCompletionSnapshot(next) ?? null;
         }
-
-        return {
-          ...current,
-          remainingSeconds: current.remainingSeconds - 1,
-        };
+        return next;
       });
     }, 1000);
 
@@ -240,127 +234,147 @@ export const SessionProvider = ({
     };
   }, [constellationProgress, earnedBadgeIds, sessions, token, unlockedStarIds, user]);
 
-  const finalizeSession = useCallback(async () => {
-    if (!token || !user || !sessionState.startedAt) {
-      setSessionState(createGuestSessionState());
-      return;
-    }
-
-    const completedAt = new Date().toISOString();
-    const actualElapsedSeconds = Math.max(
-      0,
-      Math.floor((new Date(completedAt).getTime() - new Date(sessionState.startedAt).getTime()) / 1000),
-    );
-    const durationMinutes = Math.floor(actualElapsedSeconds / 60);
-    const sessionInput = {
-      categoryId: sessionState.selectedCategoryId,
-      durationMinutes,
-      startedAt: sessionState.startedAt,
-      completedAt,
-      pauseCount: sessionState.pauseCount,
-    };
-    const authSnapshot = buildAuthSnapshot();
-    if (!authSnapshot) {
-      setSessionState(createGuestSessionState());
-      return;
-    }
-
-    try {
-      const response = await api.completeSession(
-        token,
-        sessionInput,
-        authSnapshot,
-        unlockedStarIds,
-        earnedBadgeIds,
-      );
-      await applyAuthPayload(response.payload);
-      void refreshAnalytics();
-      uiSetCelebrationRef.current?.({
-        stardustEarned: response.stardustEarned,
-        streakCount: response.streakCount,
-        durationMinutes: response.durationMinutes,
-        todayTotalMinutes: response.todayTotalMinutes,
-        unlockedStarId: response.unlockedStarId,
-        newBadgeIds: response.newBadges.length > 0 ? response.newBadges : undefined,
-      });
-      if (!isDevDemoToken(token)) {
-        void fetchGalacticAdvice(token, {
-          language: user.language,
-          durationMinutes: response.durationMinutes,
-          categoryId: sessionInput.categoryId,
-          currentStreak: response.payload.user.currentStreak,
-          todayTotalMinutes: response.todayTotalMinutes,
-          totalStardust: response.payload.user.totalStardust,
-        })
-          .then((galacticAdvice) => {
-            uiPatchCelebrationRef.current?.({ galacticAdvice });
-          })
-          .catch(() => undefined);
+  const finalizeSession = useCallback(
+    async (snapshot: SessionCompletionSnapshot) => {
+      if (finalizingRef.current) {
+        return;
       }
-      await trackEvent("session_completed", {
-        stardust: response.stardustEarned,
-      });
-    } catch (error) {
-      if (__DEV__) {
-        console.warn("[Astrocus session complete failed]", error);
-      }
+      finalizingRef.current = true;
 
-      const message = formatSessionSaveError(error);
-      const language = user.language;
-
-      if (isSchemaSessionError(error) || !isTransientNetworkError(error)) {
-        Alert.alert(t(language, "sessionSaveFailedTitle"), message);
+      if (!token || !user) {
+        finalizingRef.current = false;
+        completionSnapshotRef.current = null;
+        setSessionState(createGuestSessionState());
         return;
       }
 
-      setIsOnline(false);
-      const pendingSession: PendingSession = {
-        id: `${Date.now()}`,
-        categoryId: sessionInput.categoryId,
-        durationMinutes: sessionInput.durationMinutes,
-        startedAt: sessionInput.startedAt,
-        completedAt,
-      };
-      setPendingSessions((current) => {
-        const nextPendingSessions = [...current, pendingSession];
-        void asyncStorage.set(STORAGE_KEYS.pendingSessions, nextPendingSessions);
-        return nextPendingSessions;
-      });
+      const completedAt = new Date().toISOString();
+      const durationMinutes = snapshotFocusedMinutes(snapshot);
+      if (durationMinutes < 1) {
+        finalizingRef.current = false;
+        completionSnapshotRef.current = null;
+        setSessionState(createGuestSessionState());
+        return;
+      }
 
-      const estimate = estimateSessionCelebration(authSnapshot, {
-        durationMinutes: sessionInput.durationMinutes,
-        startedAt: sessionInput.startedAt,
+      const sessionInput = {
+        categoryId: snapshot.categoryId,
+        durationMinutes,
+        startedAt: snapshot.startedAt,
         completedAt,
-        pauseCount: sessionInput.pauseCount,
-      });
-      notifyQueuedForSync(estimate);
-    } finally {
-      setSessionState(createGuestSessionState());
-    }
-  }, [
-    applyAuthPayload,
-    buildAuthSnapshot,
-    notifyQueuedForSync,
-    refreshAnalytics,
-    sessionState.pauseCount,
-    sessionState.selectedCategoryId,
-    sessionState.selectedDurationMinutes,
-    sessionState.startedAt,
-    setIsOnline,
-    token,
-    uiPatchCelebrationRef,
-    uiSetCelebrationRef,
-    earnedBadgeIds,
-    unlockedStarIds,
-    user,
-  ]);
+        pauseCount: snapshot.pauseCount,
+      };
+      const authSnapshot = buildAuthSnapshot();
+      if (!authSnapshot) {
+        finalizingRef.current = false;
+        completionSnapshotRef.current = null;
+        setSessionState(createGuestSessionState());
+        return;
+      }
+
+      try {
+        const response = await api.completeSession(
+          token,
+          sessionInput,
+          authSnapshot,
+          unlockedStarIds,
+          earnedBadgeIds,
+        );
+        await applyAuthPayload(response.payload);
+        void refreshAnalytics();
+        uiSetCelebrationRef.current?.({
+          stardustEarned: response.stardustEarned,
+          streakCount: response.streakCount,
+          durationMinutes: response.durationMinutes,
+          todayTotalMinutes: response.todayTotalMinutes,
+          unlockedStarId: response.unlockedStarId,
+          newBadgeIds: response.newBadges.length > 0 ? response.newBadges : undefined,
+        });
+        if (!isDevDemoToken(token)) {
+          void fetchGalacticAdvice(token, {
+            language: user.language,
+            durationMinutes: response.durationMinutes,
+            categoryId: sessionInput.categoryId,
+            currentStreak: response.payload.user.currentStreak,
+            todayTotalMinutes: response.todayTotalMinutes,
+            totalStardust: response.payload.user.totalStardust,
+          })
+            .then((galacticAdvice) => {
+              uiPatchCelebrationRef.current?.({ galacticAdvice });
+            })
+            .catch(() => undefined);
+        }
+        await trackEvent("session_completed", {
+          stardust: response.stardustEarned,
+        });
+      } catch (error) {
+        if (__DEV__) {
+          console.warn("[Astrocus session complete failed]", error);
+        }
+
+        const message = formatSessionSaveError(error);
+        const language = user.language;
+
+        if (isSchemaSessionError(error) || !isTransientNetworkError(error)) {
+          Alert.alert(t(language, "sessionSaveFailedTitle"), message);
+          return;
+        }
+
+        setIsOnline(false);
+        const pendingSession: PendingSession = {
+          id: `${Date.now()}`,
+          categoryId: sessionInput.categoryId,
+          durationMinutes: sessionInput.durationMinutes,
+          startedAt: sessionInput.startedAt,
+          completedAt,
+        };
+        setPendingSessions((current) => {
+          const nextPendingSessions = [...current, pendingSession];
+          void asyncStorage.set(STORAGE_KEYS.pendingSessions, nextPendingSessions);
+          return nextPendingSessions;
+        });
+
+        const estimate = estimateSessionCelebration(authSnapshot, {
+          durationMinutes: sessionInput.durationMinutes,
+          startedAt: sessionInput.startedAt,
+          completedAt,
+          pauseCount: sessionInput.pauseCount,
+        });
+        notifyQueuedForSync(estimate);
+      } finally {
+        finalizingRef.current = false;
+        completionSnapshotRef.current = null;
+        setSessionState(createGuestSessionState());
+      }
+    },
+    [
+      applyAuthPayload,
+      buildAuthSnapshot,
+      notifyQueuedForSync,
+      refreshAnalytics,
+      setIsOnline,
+      token,
+      uiPatchCelebrationRef,
+      uiSetCelebrationRef,
+      earnedBadgeIds,
+      unlockedStarIds,
+      user,
+    ],
+  );
 
   useEffect(() => {
     if (sessionState.status !== "completed") {
       return;
     }
 
-    void finalizeSession();
+    const snapshot =
+      completionSnapshotRef.current ?? buildCompletionSnapshot(sessionState, Date.now());
+    if (!snapshot) {
+      setSessionState(createGuestSessionState());
+      return;
+    }
+
+    void finalizeSession(snapshot);
   }, [finalizeSession, sessionState.status]);
 
   useEffect(() => {
@@ -385,19 +399,25 @@ export const SessionProvider = ({
         backgroundedAtRef.current = null;
 
         if (elapsedSeconds >= BACKGROUND_TOLERANCE_SECONDS) {
-          setSessionState((current) => ({
-            ...current,
-            status: "failed",
-            remainingSeconds: 0,
-          }));
+          setSessionState((current) => failFocusSession(current));
           await trackEvent("session_abandoned", { reason: "background_timeout" });
           return;
         }
 
-        setSessionState((current) => ({
-          ...current,
-          remainingSeconds: Math.max(current.remainingSeconds - elapsedSeconds, 0),
-        }));
+        setSessionState((current) => {
+          if (current.status !== "running") {
+            return current;
+          }
+
+          const synced = syncFocusTimer(current, Date.now());
+          if (synced.remainingSeconds <= 0) {
+            const completed = completeFocusTimer(synced);
+            completionSnapshotRef.current = buildCompletionSnapshot(completed) ?? null;
+            return completed;
+          }
+
+          return synced;
+        });
       }
     };
 
@@ -406,14 +426,7 @@ export const SessionProvider = ({
   }, [sessionState.status]);
 
   const startSession = useCallback(async () => {
-    const startedAt = new Date().toISOString();
-    setSessionState((current) => ({
-      ...current,
-      status: "running",
-      remainingSeconds: current.selectedDurationMinutes * 60,
-      pauseCount: 0,
-      startedAt,
-    }));
+    setSessionState((current) => startFocusSession(current, Date.now()));
     await trackEvent("session_started", {
       duration: sessionState.selectedDurationMinutes,
       categoryId: sessionState.selectedCategoryId,
@@ -421,36 +434,19 @@ export const SessionProvider = ({
   }, [sessionState.selectedCategoryId, sessionState.selectedDurationMinutes]);
 
   const pauseSession = useCallback(() => {
-    setSessionState((current) => {
-      if (current.status !== "running" || current.pauseCount >= PAUSE_LIMIT) {
-        return current;
-      }
-
-      return {
-        ...current,
-        status: "paused",
-        pauseCount: current.pauseCount + 1,
-      };
-    });
+    setSessionState((current) => pauseFocusSession(current, Date.now()));
   }, []);
 
   const resumeSession = useCallback(() => {
-    setSessionState((current) => {
-      if (current.status !== "paused") {
-        return current;
-      }
-
-      return {
-        ...current,
-        status: "running",
-      };
-    });
+    setSessionState((current) => resumeFocusSession(current, Date.now()));
   }, []);
 
   const resetSession = useCallback(() => {
     void cancelScheduledNotification(scheduledNotificationRef.current);
     backgroundedAtRef.current = null;
     scheduledNotificationRef.current = null;
+    completionSnapshotRef.current = null;
+    finalizingRef.current = false;
     setSessionState(createGuestSessionState());
   }, []);
 
@@ -464,19 +460,27 @@ export const SessionProvider = ({
     backgroundedAtRef.current = null;
     scheduledNotificationRef.current = null;
 
-    if (!token || !sessionState.startedAt) {
+    if (!token || !sessionState.startedAt || sessionState.plannedDurationMinutes === null) {
       setSessionState(createGuestSessionState());
       return;
     }
 
     const cancelledAt = new Date().toISOString();
-    const elapsedMinutes =
-      (new Date(cancelledAt).getTime() - new Date(sessionState.startedAt).getTime()) / 60000;
+    const cancelSnapshot =
+      buildCompletionSnapshot(syncFocusTimer(sessionState, Date.now()), Date.now()) ?? null;
+    if (!cancelSnapshot) {
+      setSessionState(createGuestSessionState());
+      return;
+    }
+
+    const focusedMinutes = snapshotFocusedMinutes(cancelSnapshot);
+    const categoryId = cancelSnapshot.categoryId;
+    const startedAt = cancelSnapshot.startedAt;
+    const plannedDurationMinutes = cancelSnapshot.plannedDurationMinutes;
 
     setSessionState(createGuestSessionState());
 
-    // Only call the RPC if there's time worth reporting
-    if (elapsedMinutes >= 1) {
+    if (focusedMinutes >= 1) {
       try {
         const authSnapshot = buildAuthSnapshot();
         if (!authSnapshot) {
@@ -485,10 +489,11 @@ export const SessionProvider = ({
         const { result, payload } = await api.cancelSession(
           token,
           {
-            categoryId: sessionState.selectedCategoryId,
-            startedAt: sessionState.startedAt,
+            categoryId,
+            startedAt,
             cancelledAt,
-            plannedDurationMinutes: sessionState.selectedDurationMinutes,
+            plannedDurationMinutes,
+            focusedMinutes,
           },
           authSnapshot,
         );
@@ -513,9 +518,7 @@ export const SessionProvider = ({
     applyAuthPayload,
     buildAuthSnapshot,
     refreshAnalytics,
-    sessionState.selectedCategoryId,
-    sessionState.selectedDurationMinutes,
-    sessionState.startedAt,
+    sessionState,
     token,
     uiSetCelebrationRef,
   ]);
@@ -584,11 +587,16 @@ export const SessionProvider = ({
       analyticsSummary,
       refreshAnalytics,
       setSelectedDurationMinutes: (minutes: number) =>
-        setSessionState((current) => ({
-          ...current,
-          selectedDurationMinutes: minutes,
-          remainingSeconds: minutes * 60,
-        })),
+        setSessionState((current) => {
+          if (current.status !== "idle" && current.status !== "failed") {
+            return current;
+          }
+          return {
+            ...current,
+            selectedDurationMinutes: minutes,
+            remainingSeconds: minutes * 60,
+          };
+        }),
       setSelectedCategoryId: (categoryId: string) =>
         setSessionState((current) => ({
           ...current,

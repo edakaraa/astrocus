@@ -14,6 +14,7 @@ import {
 import { signInWithApple } from "../lib/appleAuth";
 import { getOAuthRedirectUri, signInWithGoogle } from "../lib/oauth";
 import { getDateKey } from "../context/session/dateKey";
+import { isFocusedDurationPlausible } from "../context/session/duration";
 import { createDailySummary } from "../context/session/stardust";
 import { t } from "./i18n";
 import type { Language } from "./types";
@@ -541,6 +542,12 @@ export const api = {
       };
     }
 
+    if (
+      !isFocusedDurationPlausible(input.durationMinutes, input.startedAt, input.completedAt)
+    ) {
+      throw new Error("duration_mismatch");
+    }
+
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const { data, error } = await supabase.rpc("complete_focus_session", {
       p_category_id: input.categoryId,
@@ -586,17 +593,11 @@ export const api = {
       });
     }
 
-    const actualElapsedSeconds = Math.max(
-      0,
-      Math.floor((new Date(input.completedAt).getTime() - new Date(input.startedAt).getTime()) / 1000),
-    );
-    const durationMinutes = Math.floor(actualElapsedSeconds / 60);
-
     return {
       payload,
       stardustEarned: result.stardust_earned,
       streakCount: result.streak_count,
-      durationMinutes,
+      durationMinutes: input.durationMinutes,
       todayTotalMinutes: todaySummary.totalMinutes,
       unlockedStarId,
       newBadges,
@@ -610,15 +611,14 @@ export const api = {
       startedAt: string;
       cancelledAt: string;
       plannedDurationMinutes: number;
+      focusedMinutes: number;
     },
     current: AuthPayload,
   ): Promise<{ result: CancelSessionResult; payload: AuthPayload }> {
     if (isDevDemoToken(token)) {
-      const elapsedMinutes =
-        (new Date(input.cancelledAt).getTime() - new Date(input.startedAt).getTime()) / 60000;
       const partial = simulatePartialCancelReward({
         plannedDurationMinutes: input.plannedDurationMinutes,
-        elapsedMinutes,
+        focusedMinutes: input.focusedMinutes,
       });
       if (!partial.saved) {
         return {
@@ -644,11 +644,18 @@ export const api = {
       };
     }
 
+    if (
+      !isFocusedDurationPlausible(input.focusedMinutes, input.startedAt, input.cancelledAt)
+    ) {
+      throw new Error("duration_mismatch");
+    }
+
     const { data, error } = await supabase.rpc("cancel_focus_session", {
       p_category_id: input.categoryId,
       p_started_at: input.startedAt,
       p_cancelled_at: input.cancelledAt,
       p_planned_duration_minutes: input.plannedDurationMinutes,
+      p_focused_minutes: input.focusedMinutes,
     });
 
     if (__DEV__) {
@@ -748,6 +755,16 @@ export const api = {
     let payload = current;
 
     for (const pending of sessions) {
+      if (
+        !isFocusedDurationPlausible(
+          pending.durationMinutes,
+          pending.startedAt,
+          pending.completedAt,
+        )
+      ) {
+        throw new Error("duration_mismatch");
+      }
+
       const { data, error } = await supabase.rpc("complete_focus_session", {
         p_category_id: pending.categoryId,
         p_duration_minutes: pending.durationMinutes,

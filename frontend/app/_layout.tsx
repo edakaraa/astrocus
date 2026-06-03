@@ -5,6 +5,7 @@ WebBrowser.maybeCompleteAuthSession();
 
 import React, { useEffect } from "react";
 import { Text, TextInput } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack, useRouter } from "expo-router";
 import * as Linking from "expo-linking";
 import { StatusBar } from "expo-status-bar";
@@ -98,22 +99,24 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider {...refs}>
-      <SessionProvider {...refs}>
-        <UIProvider {...refs}>
-          <NotificationProvider>
-            <OAuthColdStartProbe />
-            <CelebrationHost />
-            <StatusBar style="light" />
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: colors.background },
-              }}
-            />
-          </NotificationProvider>
-        </UIProvider>
-      </SessionProvider>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider {...refs}>
+        <SessionProvider {...refs}>
+          <UIProvider {...refs}>
+            <NotificationProvider>
+              <OAuthColdStartProbe />
+              <CelebrationHost />
+              <StatusBar style="light" />
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: colors.background },
+                }}
+              />
+            </NotificationProvider>
+          </UIProvider>
+        </SessionProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

@@ -1,0 +1,79 @@
+import type { TextStyle } from "react-native";
+
+const textPrimary = "#E8E4C0";
+const textSecondary = "#959BB5";
+const surface = "#3A3E6C";
+const accent = "#8387C3";
+const bg = "#0A1123";
+
+const theme = {
+  colors: {
+    bg,
+    surface,
+    accent,
+    textPrimary,
+    textSecondary,
+    muted: "#8A8CAC",
+    border: "rgba(131,135,195,0.25)",
+    overlay: "rgba(10,17,35,0.5)",
+    surfaceCard: "rgba(58, 62, 108, 0.6)",
+    starGradientMid: "#1a1f3a",
+    badgeDiscipline: "#FF8C42",
+    badgeLeo: "#FFD700",
+    badgeScorpio: "#FF6B6B",
+    badgePisces: "#87CEEB",
+  },
+  radii: {
+    sm: 12,
+    md: 16,
+    lg: 20,
+    xl: 24,
+  },
+  spacing: {
+    xs: 4,
+    sm: 8,
+    md: 12,
+    lg: 16,
+    xl: 20,
+    xxl: 28,
+  },
+  typography: {
+    hero: { fontSize: 28, fontWeight: "700" as const, color: textPrimary },
+    title: { fontSize: 20, fontWeight: "700" as const, color: textPrimary },
+    card: { fontSize: 16, fontWeight: "600" as const, color: textPrimary },
+    body: { fontSize: 14, fontWeight: "400" as const, color: textSecondary },
+    caption: { fontSize: 12, fontWeight: "400" as const, color: textSecondary },
+    micro: { fontSize: 11, fontWeight: "400" as const, color: textSecondary },
+  } satisfies Record<string, TextStyle>,
+  layout: {
+    avatarSize: 80,
+    avatarRingWidth: 2,
+    avatarGlowRadius: 12,
+    avatarGlowOpacity: 0.6,
+    settingsIconSize: 22,
+    topBarMinHeight: 40,
+    topBarActionSize: 40,
+    topBarSettingsOffsetTop: 6,
+    topBarBottomGap: 12,
+    lockIconSize: 16,
+    categoryDotSize: 10,
+    rewardToastBottom: 90,
+    goalSheetMinMinutes: 15,
+    goalSheetMaxMinutes: 240,
+    goalSheetStep: 5,
+    goalSheetDefaultMinutes: 60,
+    starCount: 80,
+    starCountNormal: 65,
+    starDelayMaxMs: 3000,
+    starSizeNormalMin: 1,
+    starSizeNormalMax: 2.5,
+    starSizeHeroMin: 3,
+    starSizeHeroMax: 5,
+    rewardToastDurationMs: 3000,
+    dailyGoalStardustReward: 50,
+  },
+} as const;
+
+export type ThemeTypographyVariant = keyof typeof theme.typography;
+
+export default theme;

@@ -25,11 +25,12 @@ import { MAX_FONT_SCALE, useResponsive } from "../shared/responsive";
 import { colors, fontFamilies, layout, radii, screenBlock, spacing, typography } from "../shared/theme";
 import { GalaxyBackground } from "../components/GalaxyBackground";
 import { preloadGalaxyScene } from "../components/galaxy/preloadGalaxyScene";
-import { StarfieldBackground } from "../components/StarfieldBackground";
+import { StarryBackground } from "../components/StarryBackground";
 import { ScreenContentColumn } from "../components/ScreenContentColumn";
 import { SurfaceCard } from "../components/SurfaceCard";
 import { CustomDurationSheet } from "../components/CustomDurationSheet";
-import { StardustPill } from "../components/StardustPill";
+import { TabScreenTopBar } from "../components/layout/TabScreenTopBar";
+import theme from "../theme";
 import { WeeklyReportCard } from "../components/WeeklyReportCard";
 import { WeeklyReportModal } from "../components/WeeklyReportModal";
 import { useWeeklyReport } from "../hooks/useWeeklyReport";
@@ -499,9 +500,8 @@ export const SessionScreen = () => {
           </View>
         </View>
       ) : (
-        <>
-      <StarfieldBackground key="session-idle-starfield" density={68} />
-
+        <StarryBackground>
+      <TabScreenTopBar stardustAmount={user?.totalStardust ?? 0} />
       <ScrollView
         contentContainerStyle={[
           styles.container,
@@ -509,17 +509,13 @@ export const SessionScreen = () => {
             alignItems: "center",
             flexGrow: 1,
             paddingBottom: spacing.md,
-            paddingTop: Math.max(spacing.xs, topInset),
+            paddingTop: theme.layout.topBarBottomGap,
           },
         ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         <ScreenContentColumn style={{ gap: idleGap }}>
-          <View style={styles.heroStardustRow}>
-            <StardustPill amount={user?.totalStardust ?? 0} />
-          </View>
-
           <SurfaceCard
             contentPadding={spacing.md}
             style={[screenBlock, styles.heroSurface, isShort ? styles.heroSurfaceCompact : null]}
@@ -765,7 +761,7 @@ export const SessionScreen = () => {
         report={weeklyReport}
         onClose={() => setWeeklyReportOpen(false)}
       />
-        </>
+        </StarryBackground>
       )}
     </View>
   );
@@ -855,14 +851,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-  },
-  heroStardustRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    minHeight: layout.touchTargetMin,
-    paddingBottom: spacing.xxs,
-    width: "100%",
   },
   heroSurface: {
     alignItems: "center",

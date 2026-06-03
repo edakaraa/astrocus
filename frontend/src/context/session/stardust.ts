@@ -31,11 +31,7 @@ export const estimateSessionCelebration = (
     pauseCount: number;
   },
 ) => {
-  const actualElapsedSeconds = Math.max(
-    0,
-    Math.floor((new Date(input.completedAt).getTime() - new Date(input.startedAt).getTime()) / 1000),
-  );
-  const durationMinutes = Math.max(1, Math.floor(actualElapsedSeconds / 60) || input.durationMinutes);
+  const durationMinutes = Math.max(0, Math.floor(input.durationMinutes));
 
   const sessionDate = getDateKey(input.completedAt);
   const yesterday = new Date(input.completedAt);

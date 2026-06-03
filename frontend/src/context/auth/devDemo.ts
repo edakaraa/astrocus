@@ -26,13 +26,13 @@ export const simulateDemoSessionReward = (input: {
 /** Demo / client-side preview of partial reward on early cancel. */
 export const simulatePartialCancelReward = (input: {
   plannedDurationMinutes: number;
-  elapsedMinutes: number;
+  focusedMinutes: number;
 }) => {
   const threshold = getPartialStardustThresholdMinutes(input.plannedDurationMinutes);
-  if (input.elapsedMinutes < threshold) {
-    return { saved: false as const, stardustEarned: 0, minutesFocused: Math.floor(input.elapsedMinutes) };
+  const minutesFocused = Math.max(0, Math.floor(input.focusedMinutes));
+  if (minutesFocused < threshold) {
+    return { saved: false as const, stardustEarned: 0, minutesFocused };
   }
-  const minutesFocused = Math.floor(input.elapsedMinutes);
   return {
     saved: true as const,
     stardustEarned: minutesFocused * STARDUST_PER_MINUTE,
@@ -61,11 +61,7 @@ export const appendDemoCompletedSession = (
   streakCount: number;
   stardustEarned: number;
 } => {
-  const actualElapsedSeconds = Math.max(
-    0,
-    Math.floor((new Date(input.completedAt).getTime() - new Date(input.startedAt).getTime()) / 1000),
-  );
-  const durationMinutes = Math.floor(actualElapsedSeconds / 60);
+  const durationMinutes = Math.max(0, Math.floor(input.durationMinutes));
 
   const existingSessions = base.sessions;
   const lastSession =
