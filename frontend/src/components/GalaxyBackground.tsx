@@ -20,8 +20,8 @@ import {
   vec,
 } from "@shopify/react-native-skia";
 
-import { buildGalaxyScene, buildMetrics } from "./galaxy/buildGalaxyScene";
-import { getGalaxyScene } from "./galaxy/galaxySceneCache";
+import { buildBackgroundStars, buildGalaxyScene, buildMetrics } from "./galaxy/buildGalaxyScene";
+import { getBackdropStars, getGalaxyScene } from "./galaxy/galaxySceneCache";
 import type { BackgroundStar } from "./galaxy/galaxySceneCache";
 
 const SHOOTING_STAR_INTERVAL_S = 6.5;
@@ -37,8 +37,12 @@ const clampDeltaSeconds = (ms: number | null | undefined) => {
   return Math.min(ms, 48) / 1000;
 };
 
+export const GALAXY_BACKDROP_COLOR = "#03040f";
+
 type GalaxyBackgroundProps = {
   centerYRatio?: number;
+  /** When false, only backdrop (fill + field stars); no spiral galaxy. */
+  showGalaxy?: boolean;
   /** When false, swing/twinkle pause (galaxy stays mounted for instant session reveal). */
   animate?: boolean;
 };
@@ -61,20 +65,33 @@ const CrossStar = ({ star }: { star: BackgroundStar }) => (
   </Group>
 );
 
-export const GalaxyBackground = ({ centerYRatio = 0.58, animate = true }: GalaxyBackgroundProps) => {
+export const GalaxyBackground = ({
+  centerYRatio = 0.58,
+  showGalaxy = true,
+  animate = true,
+}: GalaxyBackgroundProps) => {
   const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
   const CENTER_X = SCREEN_W / 2;
   const CENTER_Y = SCREEN_H * centerYRatio;
 
   const metrics = useMemo(() => buildMetrics(SCREEN_W, SCREEN_H), [SCREEN_W, SCREEN_H]);
 
+  const backdropStars = useMemo(
+    () => getBackdropStars(metrics, () => buildBackgroundStars(metrics)),
+    [metrics],
+  );
+
   const scene = useMemo(
     () =>
-      getGalaxyScene(metrics, CENTER_X, CENTER_Y, metrics.base, () =>
-        buildGalaxyScene(metrics, CENTER_X, CENTER_Y),
-      ),
-    [metrics, CENTER_X, CENTER_Y],
+      showGalaxy
+        ? getGalaxyScene(metrics, CENTER_X, CENTER_Y, metrics.base, () =>
+            buildGalaxyScene(metrics, CENTER_X, CENTER_Y),
+          )
+        : null,
+    [metrics, CENTER_X, CENTER_Y, showGalaxy],
   );
+
+  const fieldStars = showGalaxy && scene ? scene.stars : backdropStars;
 
   const pivotX = useSharedValue(CENTER_X);
   const pivotY = useSharedValue(CENTER_Y);
@@ -93,7 +110,7 @@ export const GalaxyBackground = ({ centerYRatio = 0.58, animate = true }: Galaxy
   }, [CENTER_X, CENTER_Y, pivotX, pivotY]);
 
   useEffect(() => {
-    if (!animate) {
+    if (!showGalaxy || !animate) {
       cancelAnimation(swingPhase);
       swingPhase.value = 0;
       return;
@@ -112,7 +129,7 @@ export const GalaxyBackground = ({ centerYRatio = 0.58, animate = true }: Galaxy
     return () => {
       cancelAnimation(swingPhase);
     };
-  }, [animate, swingPhase]);
+  }, [animate, showGalaxy, swingPhase]);
 
   useFrameCallback((frameInfo) => {
     "worklet";
@@ -191,10 +208,10 @@ export const GalaxyBackground = ({ centerYRatio = 0.58, animate = true }: Galaxy
       style={[styles.canvas, { width: SCREEN_W, height: SCREEN_H }]}
       pointerEvents="none"
     >
-      <Fill color="#03040f" />
+      <Fill color={GALAXY_BACKDROP_COLOR} />
 
       <Group opacity={starTwinkleOpacity}>
-        {scene.stars.map((s, i) =>
+        {fieldStars.map((s, i) =>
           s.isCross ? (
             <CrossStar key={`bg-star-${i}`} star={s} />
           ) : (
@@ -213,32 +230,34 @@ export const GalaxyBackground = ({ centerYRatio = 0.58, animate = true }: Galaxy
         <Circle cx={shootHeadX} cy={shootHeadY} r={1.4} color="rgba(255,248,230,0.95)" />
       </Group>
 
-      <Group matrix={galaxyMatrix}>
-        <Group>
-          {scene.filaments.map((f, i) => (
-            <Circle key={`fil-${i}`} cx={f.cx} cy={f.cy} r={f.r} color={f.color} />
+      {showGalaxy && scene ? (
+        <Group matrix={galaxyMatrix}>
+          <Group>
+            {scene.filaments.map((f, i) => (
+              <Circle key={`fil-${i}`} cx={f.cx} cy={f.cy} r={f.r} color={f.color} />
+            ))}
+          </Group>
+
+          <Group opacity={twinkleOpacity}>
+            {scene.arms.map((p, i) => (
+              <Circle key={`arm-${i}`} cx={p.cx} cy={p.cy} r={p.r} color={p.color} />
+            ))}
+          </Group>
+
+          {scene.coreLayers.map((layer, i) => (
+            <Circle
+              key={`core-${i}`}
+              cx={CENTER_X}
+              cy={CENTER_Y}
+              r={layer.r}
+              color={layer.color}
+              opacity={layer.opacity}
+            >
+              <Blur blur={layer.blur} />
+            </Circle>
           ))}
         </Group>
-
-        <Group opacity={twinkleOpacity}>
-          {scene.arms.map((p, i) => (
-            <Circle key={`arm-${i}`} cx={p.cx} cy={p.cy} r={p.r} color={p.color} />
-          ))}
-        </Group>
-
-        {scene.coreLayers.map((layer, i) => (
-          <Circle
-            key={`core-${i}`}
-            cx={CENTER_X}
-            cy={CENTER_Y}
-            r={layer.r}
-            color={layer.color}
-            opacity={layer.opacity}
-          >
-            <Blur blur={layer.blur} />
-          </Circle>
-        ))}
-      </Group>
+      ) : null}
     </Canvas>
   );
 };
@@ -250,5 +269,9 @@ const styles = StyleSheet.create({
   },
 });
 
-export { preloadGalaxyScene } from "./galaxy/preloadGalaxyScene";
+export {
+  preloadCosmicBackdrop,
+  preloadGalaxyScene,
+  scheduleGalaxyScenePreload,
+} from "./galaxy/preloadGalaxyScene";
 export default GalaxyBackground;

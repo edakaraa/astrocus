@@ -9,7 +9,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { AppState, AppStateStatus, Alert } from "react-native";
+import { AppState, AppStateStatus } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
 import {
   PRESET_AVATARS,
@@ -26,8 +26,15 @@ import { asyncStorage } from "../shared/storage";
 import { t } from "../shared/i18n";
 import { trackEvent } from "../shared/analytics";
 import { cancelScheduledNotification, scheduleBackgroundWarning } from "../shared/notifications";
-import { AnalyticsSummary, AuthPayload, PendingSession, SessionRecord } from "../shared/types";
+import {
+  AnalyticsSummary,
+  AuthPayload,
+  DailyGoalProgress,
+  PendingSession,
+  SessionRecord,
+} from "../shared/types";
 import { useAuth } from "./AuthContext";
+import { toastTone, useAppNotifier } from "./NotificationContext";
 import { isDevDemoToken } from "./auth/devDemo";
 import type { AstrocusInfraRefs } from "./AuthContext";
 import {
@@ -58,6 +65,7 @@ export type SessionContextValue = {
   categories: typeof CATEGORIES;
   avatars: typeof PRESET_AVATARS;
   dailySummary: ReturnType<typeof createDailySummary>;
+  dailyGoalToday: DailyGoalProgress | null;
   analyticsSummary: AnalyticsSummary | null;
   refreshAnalytics: () => Promise<void>;
   setSelectedDurationMinutes: (minutes: number) => void;
@@ -91,6 +99,7 @@ export const SessionProvider = ({
   uiPatchCelebrationRef,
 }: SessionProviderProps) => {
   const { token, user, isReady, applyAuthPayload, setIsOnline, apiUrl, constellationProgress } = useAuth();
+  const { showAlert } = useAppNotifier();
   const prevTokenRef = useRef<string | null>(null);
   const sessionBootstrapPrimedRef = useRef(false);
 
@@ -100,6 +109,7 @@ export const SessionProvider = ({
   const [pendingSessions, setPendingSessions] = useState<PendingSession[]>([]);
   const [sessionState, setSessionState] = useState<SessionState>(createGuestSessionState());
   const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummary | null>(null);
+  const [dailyGoalToday, setDailyGoalToday] = useState<DailyGoalProgress | null>(null);
   const backgroundedAtRef = useRef<string | null>(null);
   const scheduledNotificationRef = useRef<string | null>(null);
   const completionSnapshotRef = useRef<SessionCompletionSnapshot | null>(null);
@@ -132,6 +142,7 @@ export const SessionProvider = ({
       setSessions(nextSessions);
       setUnlockedStarIds(nextUnlocked);
       setEarnedBadgeIds(Array.isArray(payload.earnedBadgeIds) ? payload.earnedBadgeIds : []);
+      setDailyGoalToday(payload.dailyGoalToday ?? null);
     };
 
     sessionSetPendingRef.current = (pending: PendingSession[]) => {
@@ -155,6 +166,7 @@ export const SessionProvider = ({
     if (prev && !token) {
       sessionBootstrapPrimedRef.current = false;
       setSessions([]);
+      setDailyGoalToday(null);
       setUnlockedStarIds([STARS[0].id]);
       setPendingSessions([]);
       setSessionState(createGuestSessionState());
@@ -316,7 +328,12 @@ export const SessionProvider = ({
         const language = user.language;
 
         if (isSchemaSessionError(error) || !isTransientNetworkError(error)) {
-          Alert.alert(t(language, "sessionSaveFailedTitle"), message);
+          void showAlert({
+            title: t(language, "sessionSaveFailedTitle"),
+            message,
+            confirmLabel: t(language, "ok"),
+            icon: toastTone.error.icon,
+          });
           return;
         }
 
@@ -355,6 +372,7 @@ export const SessionProvider = ({
       setIsOnline,
       token,
       uiPatchCelebrationRef,
+      showAlert,
       uiSetCelebrationRef,
       earnedBadgeIds,
       unlockedStarIds,
@@ -545,13 +563,15 @@ export const SessionProvider = ({
         console.warn("[Astrocus sync offline queue failed]", error);
       }
       if (isSchemaSessionError(error)) {
-        Alert.alert(
-          t(authSnapshot.user.language, "sessionSaveFailedTitle"),
-          formatSessionSaveError(error),
-        );
+        void showAlert({
+          title: t(authSnapshot.user.language, "sessionSaveFailedTitle"),
+          message: formatSessionSaveError(error),
+          confirmLabel: t(authSnapshot.user.language, "ok"),
+          icon: toastTone.error.icon,
+        });
       }
     }
-  }, [applyAuthPayload, buildAuthSnapshot, pendingSessions, refreshAnalytics, setIsOnline, token]);
+  }, [applyAuthPayload, buildAuthSnapshot, pendingSessions, refreshAnalytics, setIsOnline, showAlert, token]);
 
   useEffect(() => {
     if (!token || pendingSessions.length === 0) {
@@ -571,7 +591,10 @@ export const SessionProvider = ({
     return unsubscribe;
   }, [pendingSessions.length, setIsOnline, syncOfflineQueue, token]);
 
-  const dailySummary = useMemo(() => createDailySummary(sessions, user), [sessions, user]);
+  const dailySummary = useMemo(
+    () => createDailySummary(sessions, user, dailyGoalToday),
+    [sessions, user, dailyGoalToday],
+  );
 
   const value = useMemo<SessionContextValue>(
     () => ({
@@ -584,6 +607,7 @@ export const SessionProvider = ({
       categories: CATEGORIES,
       avatars: PRESET_AVATARS,
       dailySummary,
+      dailyGoalToday,
       analyticsSummary,
       refreshAnalytics,
       setSelectedDurationMinutes: (minutes: number) =>
@@ -613,6 +637,7 @@ export const SessionProvider = ({
     [
       analyticsSummary,
       dailySummary,
+      dailyGoalToday,
       cancelSession,
       pauseSession,
       pendingSessions,

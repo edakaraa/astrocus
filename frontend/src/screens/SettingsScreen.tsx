@@ -1,18 +1,22 @@
 import React from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { SettingsScreenTopBar } from "../components/layout/TabScreenTopBar";
-import { useAppContext } from "../context/AppContext";
+import { SubScreenScaffold } from "../components/layout/SubScreenScaffold";
+import { SubScreenTopBar } from "../components/layout/TabScreenTopBar";
+import { toastTone, useAppContext } from "../context/AppContext";
 import { PRESET_AVATARS, resolveAvatarId } from "../shared/constants";
 import { t, type TranslationKey } from "../shared/i18n";
 import { formatNumber } from "../shared/formatLocale";
-import { StarryBackground } from "../components/StarryBackground";
 import { ScreenContentColumn } from "../components/ScreenContentColumn";
 import { UserAvatar } from "../components/UserAvatar";
-import { GradientButton } from "../components/GradientButton";
 import { Card } from "../components/ui/Card";
 import { AppText } from "../components/ui/AppText";
+import { LanguageToggle } from "../components/ui/LanguageToggle";
+import { SettingsDivider } from "../components/settings/SettingsDivider";
+import { SettingsRow } from "../components/settings/SettingsRow";
+import { SettingsNavLink } from "../components/settings/SettingsNavLink";
+import { OfflineSyncButton } from "../components/settings/OfflineSyncButton";
 import theme from "../theme";
 
 export const SettingsScreen = () => {
@@ -27,71 +31,64 @@ export const SettingsScreen = () => {
     pendingSessions,
     syncOfflineSessions,
     refreshAnalytics,
+    showAlert,
+    showToast,
   } = useAppContext();
 
   if (!user) {
     return null;
   }
 
+  const pendingCount = pendingSessions.length;
+  const hasPending = pendingCount > 0;
+
   const handleSync = async () => {
+    if (!hasPending) {
+      return;
+    }
     try {
       await syncOfflineSessions();
       void refreshAnalytics();
-      Alert.alert(t(language, "appName"), t(language, "syncSuccess"));
+      showToast({
+        title: t(language, "toastSuccess"),
+        subtitle: t(language, "syncSuccess"),
+        ...toastTone.success,
+      });
     } catch (error) {
-      Alert.alert(
-        t(language, "appName"),
-        error instanceof Error ? error.message : t(language, "syncFailed"),
-      );
+      void showAlert({
+        title: t(language, "toastErrorGeneric"),
+        message: error instanceof Error ? error.message : t(language, "syncFailed"),
+        confirmLabel: t(language, "ok"),
+        icon: toastTone.error.icon,
+      });
     }
   };
 
   return (
-    <StarryBackground>
-      <SettingsScreenTopBar
-        title={t(language, "settingsScreenTitle")}
-        stardustAmount={user.totalStardust}
-        backAccessibilityLabel={t(language, "back")}
-        onBack={() => router.back()}
-      />
+    <SubScreenScaffold>
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
           {
-            paddingTop: theme.spacing.sm,
             paddingBottom: Math.max(insets.bottom, theme.spacing.xl),
           },
         ]}
         showsVerticalScrollIndicator={false}
       >
+        <SubScreenTopBar
+          title={t(language, "settingsScreenTitle")}
+          backAccessibilityLabel={t(language, "back")}
+          onBack={() => router.back()}
+        />
         <ScreenContentColumn style={styles.column}>
           <Card style={styles.section}>
-            <View style={styles.settingRow}>
-              <View>
-                <AppText variant="card">{t(language, "language")}</AppText>
-                <AppText variant="caption">{t(language, "appLanguageSubtitle")}</AppText>
-              </View>
-              <View style={styles.languageSelector}>
-                {(["tr", "en"] as const).map((item) => (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`${t(language, "selectLanguageA11y")} ${item.toUpperCase()}`}
-                    key={item}
-                    style={[styles.languageChip, language === item ? styles.languageChipActive : null]}
-                    onPress={() => setLanguage(item)}
-                  >
-                    <AppText
-                      variant="micro"
-                      color={language === item ? theme.colors.bg : theme.colors.textSecondary}
-                    >
-                      {item.toUpperCase()}
-                    </AppText>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
+            <SettingsRow
+              label={t(language, "language")}
+              caption={t(language, "appLanguageSubtitle")}
+              control={<LanguageToggle language={language} onSelect={setLanguage} />}
+            />
 
-            <View style={styles.divider} />
+            <SettingsDivider />
 
             <View style={styles.block}>
               <AppText variant="card">{t(language, "avatar")}</AppText>
@@ -118,53 +115,54 @@ export const SettingsScreen = () => {
               </ScrollView>
             </View>
 
-            <View style={styles.divider} />
+            <SettingsDivider />
 
-            <View style={styles.settingRow}>
-              <View style={styles.flex}>
+            <View style={styles.offlineBlock}>
+              <View style={styles.offlineLabels}>
                 <AppText variant="card">{t(language, "offlineSessions")}</AppText>
                 <AppText variant="caption">
-                  {`${formatNumber(language, pendingSessions.length)} ${t(language, "pendingRecords")}`}
+                  <AppText variant="numericCompact">{formatNumber(language, pendingCount)}</AppText>
+                  {` ${t(language, "pendingRecords")}`}
                 </AppText>
               </View>
-              <GradientButton
+              <OfflineSyncButton
                 label={t(language, "syncNow")}
-                onPress={() => void handleSync()}
-                variant="soft"
-                style={styles.syncBtn}
                 accessibilityLabel={t(language, "syncOffline")}
+                disabled={!hasPending}
+                onPress={() => void handleSync()}
               />
             </View>
 
-            <View style={styles.divider} />
+            <SettingsDivider />
 
-            <View style={styles.legal}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t(language, "privacyPolicy")}
-                onPress={() => router.push("/legal/privacy-policy")}
-              >
-                <AppText variant="body" color={theme.colors.accent}>
-                  {t(language, "privacyPolicy")}
-                </AppText>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t(language, "openSourceCredits")}
-                onPress={() => router.push("/legal/acknowledgments")}
-              >
-                <AppText variant="caption">{t(language, "openSourceCredits")}</AppText>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t(language, "deleteAccount")}
-                onPress={() => router.push("/legal/delete-account")}
-              >
-                <AppText variant="body" color={theme.colors.badgeScorpio}>
-                  {t(language, "deleteAccount")}
-                </AppText>
-              </Pressable>
+            <View style={styles.legalSection}>
+              <AppText variant="caption" color={theme.colors.muted}>
+                {t(language, "settingsLegalSection")}
+              </AppText>
+              <View style={styles.legalLinks}>
+                <SettingsNavLink
+                  label={t(language, "privacyPolicy")}
+                  accessibilityLabel={t(language, "privacyPolicy")}
+                  onPress={() => router.push("/legal/privacy-policy")}
+                />
+                <SettingsNavLink
+                  label={t(language, "openSourceCredits")}
+                  accessibilityLabel={t(language, "openSourceCredits")}
+                  onPress={() => router.push("/legal/acknowledgments")}
+                  isLast
+                />
+              </View>
             </View>
+
+            <SettingsDivider />
+
+            <SettingsNavLink
+              label={t(language, "deleteAccount")}
+              accessibilityLabel={t(language, "deleteAccount")}
+              onPress={() => router.push("/legal/delete-account")}
+              variant="destructive"
+              isLast
+            />
           </Card>
 
           <Pressable
@@ -176,7 +174,7 @@ export const SettingsScreen = () => {
           </Pressable>
         </ScreenContentColumn>
       </ScrollView>
-    </StarryBackground>
+    </SubScreenScaffold>
   );
 };
 
@@ -186,41 +184,13 @@ const styles = StyleSheet.create({
   },
   column: {
     gap: theme.spacing.lg,
+    marginTop: theme.spacing.sm,
   },
   section: {
     gap: theme.spacing.lg,
   },
-  settingRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: theme.spacing.md,
-    justifyContent: "space-between",
-  },
-  flex: {
-    flex: 1,
-  },
   block: {
     gap: theme.spacing.sm,
-  },
-  divider: {
-    backgroundColor: theme.colors.border,
-    height: 1,
-  },
-  languageSelector: {
-    backgroundColor: theme.colors.overlay,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radii.lg,
-    borderWidth: 1,
-    flexDirection: "row",
-    padding: theme.spacing.xs,
-  },
-  languageChip: {
-    borderRadius: theme.radii.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-  },
-  languageChipActive: {
-    backgroundColor: theme.colors.accent,
   },
   avatarScroll: {
     gap: theme.spacing.sm,
@@ -243,11 +213,22 @@ const styles = StyleSheet.create({
   avatarImage: {
     borderWidth: 0,
   },
-  syncBtn: {
-    minWidth: 78,
-  },
-  legal: {
+  offlineBlock: {
     gap: theme.spacing.md,
+  },
+  offlineLabels: {
+    gap: theme.spacing.xs,
+  },
+  legalSection: {
+    gap: theme.spacing.sm,
+  },
+  legalLinks: {
+    backgroundColor: theme.colors.overlay,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radii.md,
+    borderWidth: 1,
+    overflow: "hidden",
+    paddingHorizontal: theme.spacing.md,
   },
   signOut: {
     alignItems: "center",

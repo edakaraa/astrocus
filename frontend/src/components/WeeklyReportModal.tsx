@@ -1,12 +1,16 @@
 import React from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { BlurView } from "expo-blur";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/AppContext";
 import { formatDuration, formatNumber } from "../shared/formatLocale";
 import { t } from "../shared/i18n";
 import type { WeeklyReport } from "../shared/types";
-import { colors, radii, spacing, typography } from "../shared/theme";
+import { useModalLayout } from "../shared/responsive";
+import { colors, radii, spacing } from "../shared/theme";
 import { GradientButton } from "./GradientButton";
+import { AppText } from "./ui/AppText";
+import theme from "../theme";
 
 type WeeklyReportModalProps = {
   visible: boolean;
@@ -16,6 +20,7 @@ type WeeklyReportModalProps = {
 
 export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({ visible, report, onClose }) => {
   const { language } = useAppContext();
+  const modal = useModalLayout();
 
   if (!report) {
     return null;
@@ -27,97 +32,150 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({ visible, r
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <View style={styles.card}>
-          <View style={styles.header}>
-            <MaterialCommunityIcons name="chart-timeline-variant" size={22} color={colors.primary} />
-            <View style={styles.headerText}>
-              <Text style={styles.title}>{t(language, "weeklyReportTitle")}</Text>
-              <Text style={styles.subtitle}>{weekLabel}</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t(language, "weeklyReportClose")}
+        onPress={onClose}
+        style={[styles.backdrop, { paddingHorizontal: modal.horizontalPad }]}
+      >
+        <Pressable
+          accessibilityRole="none"
+          onPress={() => {}}
+          style={[styles.cardWrap, { maxWidth: modal.cardMaxWidth, width: modal.cardWidth }]}
+        >
+          <BlurView intensity={42} tint="dark" style={styles.blur}>
+            <View style={styles.glassTint} />
+            <View style={styles.content}>
+              <View style={styles.header}>
+                <View style={styles.headerIcon}>
+                  <MaterialCommunityIcons name="chart-timeline-variant" size={22} color={theme.colors.accent} />
+                </View>
+                <View style={styles.headerText}>
+                  <AppText variant="card">{t(language, "weeklyReportTitle")}</AppText>
+                  <AppText variant="caption" color={theme.colors.textSecondary}>
+                    {weekLabel}
+                  </AppText>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t(language, "weeklyReportClose")}
+                  onPress={onClose}
+                  hitSlop={12}
+                  style={styles.closeBtn}
+                >
+                  <MaterialCommunityIcons name="close" size={22} color={theme.colors.muted} />
+                </Pressable>
+              </View>
+
+              <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+                <AppText variant="body" color={theme.colors.textPrimary} style={styles.body}>
+                  {body}
+                </AppText>
+
+                <View style={styles.statsGrid}>
+                  <View style={styles.statCell}>
+                    <AppText variant="numeric" color={theme.colors.accent}>
+                      {formatDuration(language, stats.total_minutes)}
+                    </AppText>
+                    <AppText variant="caption" color={theme.colors.textSecondary}>
+                      {t(language, "weeklyReportMinutes")}
+                    </AppText>
+                  </View>
+                  <View style={styles.statCell}>
+                    <AppText variant="numeric" color={theme.colors.accent}>
+                      {formatNumber(language, stats.completed_sessions)}
+                    </AppText>
+                    <AppText variant="caption" color={theme.colors.textSecondary}>
+                      {t(language, "weeklyReportSessions")}
+                    </AppText>
+                  </View>
+                  <View style={styles.statCell}>
+                    <AppText variant="numeric" color={theme.colors.accent}>
+                      {formatNumber(language, stats.goal_met_days)}
+                    </AppText>
+                    <AppText variant="caption" color={theme.colors.textSecondary}>
+                      {t(language, "weeklyReportGoalDays")}
+                    </AppText>
+                  </View>
+                  <View style={styles.statCell}>
+                    <AppText variant="numeric" color={theme.colors.accent}>
+                      {formatNumber(language, stats.current_streak)}
+                    </AppText>
+                    <AppText variant="caption" color={theme.colors.textSecondary}>
+                      {t(language, "weeklyReportStreak")}
+                    </AppText>
+                  </View>
+                </View>
+
+                {report.fallbackUsed ? (
+                  <AppText variant="caption" color={theme.colors.muted} style={styles.fallbackNote}>
+                    {t(language, "weeklyReportFallbackNote")}
+                  </AppText>
+                ) : null}
+              </ScrollView>
+
+              <GradientButton label={t(language, "weeklyReportClose")} onPress={onClose} fullWidth />
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t(language, "weeklyReportClose")}
-              onPress={onClose}
-              hitSlop={12}
-            >
-              <MaterialCommunityIcons name="close" size={22} color={colors.textMuted} />
-            </Pressable>
-          </View>
-
-          <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-            <Text style={styles.body}>{body}</Text>
-
-            <View style={styles.statsGrid}>
-              <View style={styles.statCell}>
-                <Text style={styles.statValue}>{formatDuration(language, stats.total_minutes)}</Text>
-                <Text style={styles.statLabel}>{t(language, "weeklyReportMinutes")}</Text>
-              </View>
-              <View style={styles.statCell}>
-                <Text style={styles.statValue}>{formatNumber(language, stats.completed_sessions)}</Text>
-                <Text style={styles.statLabel}>{t(language, "weeklyReportSessions")}</Text>
-              </View>
-              <View style={styles.statCell}>
-                <Text style={styles.statValue}>{formatNumber(language, stats.goal_met_days)}</Text>
-                <Text style={styles.statLabel}>{t(language, "weeklyReportGoalDays")}</Text>
-              </View>
-              <View style={styles.statCell}>
-                <Text style={styles.statValue}>{formatNumber(language, stats.current_streak)}</Text>
-                <Text style={styles.statLabel}>{t(language, "weeklyReportStreak")}</Text>
-              </View>
-            </View>
-
-            {report.fallbackUsed ? (
-              <Text style={styles.fallbackNote}>{t(language, "weeklyReportFallbackNote")}</Text>
-            ) : null}
-          </ScrollView>
-
-          <GradientButton label={t(language, "weeklyReportClose")} onPress={onClose} />
-        </View>
-      </View>
+          </BlurView>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
   backdrop: {
+    backgroundColor: "rgba(5, 8, 18, 0.62)",
     flex: 1,
-    backgroundColor: "rgba(6, 8, 20, 0.72)",
     justifyContent: "center",
-    padding: spacing.lg,
   },
-  card: {
-    backgroundColor: colors.surfaceElevated,
+  cardWrap: {
+    alignSelf: "center",
+    borderColor: colors.borderStrong,
     borderRadius: radii.xl,
     borderWidth: 1,
-    borderColor: colors.borderStrong,
-    padding: spacing.lg,
     maxHeight: "85%",
+    overflow: "hidden",
+  },
+  blur: {
+    borderRadius: radii.xl,
+    overflow: "hidden",
+  },
+  glassTint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(10, 17, 35, 0.55)",
+  },
+  content: {
     gap: spacing.md,
+    padding: spacing.lg,
   },
   header: {
-    flexDirection: "row",
     alignItems: "flex-start",
+    flexDirection: "row",
     gap: spacing.sm,
+  },
+  headerIcon: {
+    alignItems: "center",
+    backgroundColor: "rgba(131,135,195,0.18)",
+    borderRadius: 18,
+    height: 36,
+    justifyContent: "center",
+    width: 36,
   },
   headerText: {
     flex: 1,
     gap: 2,
   },
-  title: {
-    ...typography.h3,
-    color: colors.text,
-  },
-  subtitle: {
-    ...typography.caption,
-    color: colors.textMuted,
+  closeBtn: {
+    alignItems: "center",
+    height: 36,
+    justifyContent: "center",
+    width: 36,
   },
   scroll: {
     maxHeight: 360,
   },
   body: {
-    ...typography.body,
-    color: colors.text,
     lineHeight: 24,
     marginBottom: spacing.md,
   },
@@ -128,25 +186,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   statCell: {
-    width: "47%",
-    backgroundColor: colors.surface,
+    backgroundColor: theme.colors.overlay,
+    borderColor: theme.colors.border,
     borderRadius: radii.md,
-    padding: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.border,
-  },
-  statValue: {
-    ...typography.h3,
-    color: colors.primary,
-  },
-  statLabel: {
-    ...typography.caption,
-    color: colors.textMuted,
-    marginTop: 2,
+    gap: 2,
+    padding: spacing.sm,
+    width: "47%",
   },
   fallbackNote: {
-    ...typography.caption,
-    color: colors.textFaint,
     fontStyle: "italic",
   },
 });

@@ -80,6 +80,7 @@ export const useAppContext = () => {
     categories: session.categories,
     avatars: session.avatars,
     dailySummary: session.dailySummary,
+    dailyGoalToday: session.dailyGoalToday,
     analyticsSummary: session.analyticsSummary,
     refreshAnalytics: session.refreshAnalytics,
     setSelectedDurationMinutes: session.setSelectedDurationMinutes,

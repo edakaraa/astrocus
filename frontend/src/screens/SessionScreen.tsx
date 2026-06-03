@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useNavigation } from "expo-router";
 import Svg, { Circle, Line } from "react-native-svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/AppContext";
@@ -20,17 +20,20 @@ import {
 import { fetchGalacticAdvice } from "../services/galacticAdvice";
 import { t, type TranslationKey } from "../shared/i18n";
 import type { Language, SessionRecord } from "../shared/types";
-import { formatDuration, getWeekDayLabels } from "../shared/formatLocale";
+import { formatDuration } from "../shared/formatLocale";
+import { getMondayWeekFocusMinutes } from "../shared/weekFocus";
 import { MAX_FONT_SCALE, useResponsive } from "../shared/responsive";
-import { colors, fontFamilies, layout, radii, screenBlock, spacing, typography } from "../shared/theme";
-import { GalaxyBackground } from "../components/GalaxyBackground";
-import { preloadGalaxyScene } from "../components/galaxy/preloadGalaxyScene";
-import { StarryBackground } from "../components/StarryBackground";
+import { colors, fontFamilies, getTabBarMetrics, layout, radii, screenBlock, spacing, typography } from "../shared/theme";
+import { GalaxyBackground, GALAXY_BACKDROP_COLOR } from "../components/GalaxyBackground";
+import { scheduleGalaxyScenePreload } from "../components/galaxy/preloadGalaxyScene";
 import { ScreenContentColumn } from "../components/ScreenContentColumn";
 import { SurfaceCard } from "../components/SurfaceCard";
 import { CustomDurationSheet } from "../components/CustomDurationSheet";
-import { TabScreenTopBar } from "../components/layout/TabScreenTopBar";
-import theme from "../theme";
+import { TabScreenScaffold } from "../components/layout/TabScreenScaffold";
+import { FocusSectionCard } from "../components/session/FocusSectionCard";
+import { WeekDayStars } from "../components/session/WeekDayStars";
+import { AppText } from "../components/ui/AppText";
+import { PillChip } from "../components/ui/PillChip";
 import { WeeklyReportCard } from "../components/WeeklyReportCard";
 import { WeeklyReportModal } from "../components/WeeklyReportModal";
 import { useWeeklyReport } from "../hooks/useWeeklyReport";
@@ -66,35 +69,6 @@ const FOCUS_CATEGORY_LABEL: Record<(typeof FOCUS_CATEGORY_IDS)[number], Translat
 };
 
 const COSMIC_QUOTE_KEYS = ["cosmicQuote1", "cosmicQuote2", "cosmicQuote3"] as const satisfies readonly TranslationKey[];
-
-const getWeeklyFocusMinutes = (
-  analyticsWeek: number[] | undefined,
-  language: Language,
-  sessions: SessionRecord[],
-) => {
-  if (analyticsWeek?.length === 7) {
-    return analyticsWeek;
-  }
-  const today = new Date();
-  const firstDay = new Date(today);
-  const day = today.getDay() === 0 ? 6 : today.getDay() - 1;
-  firstDay.setDate(today.getDate() - day);
-  const labels = getWeekDayLabels(language);
-  return labels.map((_, index) => {
-    const date = new Date(firstDay);
-    date.setDate(firstDay.getDate() + index);
-    const key = date.toLocaleDateString("en-CA");
-    return sessions
-      .filter((session) => new Date(session.completedAt).toLocaleDateString("en-CA") === key)
-      .reduce((sum, session) => sum + session.durationMinutes, 0);
-  });
-};
-
-const getWeekStarRating = (weekMinutes: number, weekGoalMinutes: number) => {
-  const ratio = weekMinutes / Math.max(weekGoalMinutes, 1);
-  const filled = Math.min(5, Math.max(0, Math.ceil(ratio * 5)));
-  return `${"★".repeat(filled)}${"☆".repeat(5 - filled)}`;
-};
 
 function AnimatedStar({ size }: { size: number }) {
   const pulse = useRef(new Animated.Value(0)).current;
@@ -184,7 +158,9 @@ const formatSeconds = (seconds: number) => {
 };
 
 export const SessionScreen = () => {
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { bottomOffset, height: tabBarHeight } = getTabBarMetrics(insets.bottom);
   const {
     contentPadding,
     edgePadding,
@@ -247,22 +223,44 @@ export const SessionScreen = () => {
     sessionState.status === "paused" ||
     sessionState.status === "completed";
 
+  const tabBarStyle = useMemo(
+    () => ({
+      position: "absolute" as const,
+      left: spacing.md,
+      right: spacing.md,
+      bottom: bottomOffset,
+      backgroundColor: "rgba(6, 7, 22, 0.94)",
+      borderColor: "rgba(149, 155, 181, 0.12)",
+      borderTopWidth: 1,
+      borderWidth: 1,
+      borderRadius: 26,
+      height: tabBarHeight,
+      paddingTop: 0,
+      paddingBottom: 0,
+    }),
+    [bottomOffset, tabBarHeight],
+  );
+
   useLayoutEffect(() => {
-    preloadGalaxyScene(0.5);
+    navigation.setOptions({
+      tabBarStyle: isSessionActive ? { display: "none" } : tabBarStyle,
+    });
+    return () => {
+      navigation.setOptions({ tabBarStyle });
+    };
+  }, [isSessionActive, navigation, tabBarStyle]);
+
+  useLayoutEffect(() => {
+    scheduleGalaxyScenePreload(0.5);
   }, []);
 
-  const dailyGoalMinutes = user?.dailyGoalMinutes ?? 90;
   const selectedCategoryLabel = t(language, `category_${selectedCategory.id}` as never);
 
   const weeklyMinutes = useMemo(
-    () => getWeeklyFocusMinutes(analyticsSummary?.weekFocusMinutes, language, sessions),
-    [analyticsSummary?.weekFocusMinutes, language, sessions],
+    () => getMondayWeekFocusMinutes(sessions, analyticsSummary?.weekFocusMinutes),
+    [analyticsSummary?.weekFocusMinutes, sessions],
   );
   const weekTotalMinutes = useMemo(() => weeklyMinutes.reduce((sum, m) => sum + m, 0), [weeklyMinutes]);
-  const weekStarRating = useMemo(
-    () => getWeekStarRating(weekTotalMinutes, dailyGoalMinutes * 7),
-    [dailyGoalMinutes, weekTotalMinutes],
-  );
 
   const fallbackCosmicQuote = useMemo(() => {
     const dayIndex = new Date().getDate() % COSMIC_QUOTE_KEYS.length;
@@ -403,12 +401,11 @@ export const SessionScreen = () => {
 
   return (
     <View style={[styles.sessionShell, isSessionActive && styles.fullScreen]}>
-      <View
-        style={[styles.galaxyHost, !isSessionActive && styles.galaxyHostHidden]}
-        pointerEvents="none"
-      >
-        <GalaxyBackground centerYRatio={0.5} animate={isSessionActive} />
-      </View>
+      {isSessionActive ? (
+        <View style={styles.galaxyHost} pointerEvents="none">
+          <GalaxyBackground centerYRatio={0.5} animate />
+        </View>
+      ) : null}
 
       {isSessionActive ? (
         <View style={styles.activeContentLayer}>
@@ -427,7 +424,7 @@ export const SessionScreen = () => {
               styles.activeLayout,
               {
                 paddingHorizontal: contentPadding,
-                paddingBottom: tabBarClearance,
+                paddingBottom: Math.max(insets.bottom, spacing.md),
               },
             ]}
           >
@@ -442,28 +439,28 @@ export const SessionScreen = () => {
               ]}
             >
               <View style={styles.activeTimerBlock}>
-                <Text
+                <AppText
+                  variant="sessionDisplay"
                   style={[
-                    typography.sessionDisplay,
                     styles.activeCategoryLabel,
                     { fontSize: sessionTitleSize, lineHeight: sessionTitleLineHeight },
                   ]}
                   numberOfLines={1}
                 >
                   {categoryLabelUpper}
-                </Text>
-                <Text
+                </AppText>
+                <AppText
+                  variant="sessionDisplay"
                   style={[
-                    typography.sessionDisplay,
                     styles.activeTime,
                     { fontSize: timerFontSizeActive, lineHeight: Math.round(timerFontSizeActive * 1.08) },
                   ]}
                 >
                   {formatSeconds(sessionState.remainingSeconds)}
-                </Text>
-                <Text style={[typography.caption, styles.activeSubtitle]}>
+                </AppText>
+                <AppText variant="caption" style={styles.activeSubtitle}>
                   {t(language, "focusActiveHint")}
-                </Text>
+                </AppText>
               </View>
             </View>
 
@@ -484,7 +481,7 @@ export const SessionScreen = () => {
                   onPress={handlePrimaryTimerAction}
                   style={styles.primaryWideButton}
                 >
-                  <Text style={typography.focusCta}>{primaryLabel}</Text>
+                  <AppText variant="focusCta">{primaryLabel}</AppText>
                 </Pressable>
 
                 <Pressable
@@ -493,29 +490,51 @@ export const SessionScreen = () => {
                   onPress={openEndSessionConfirm}
                   hitSlop={layout.hitSlop}
                 >
-                  <Text style={styles.ghostAction}>{t(language, "endSession")}</Text>
+                  <AppText variant="sessionGhostAction" style={styles.ghostAction}>
+                    {t(language, "endSession")}
+                  </AppText>
                 </Pressable>
               </View>
             </View>
           </View>
         </View>
       ) : (
-        <StarryBackground>
-      <TabScreenTopBar stardustAmount={user?.totalStardust ?? 0} />
-      <ScrollView
-        contentContainerStyle={[
-          styles.container,
-          {
-            alignItems: "center",
-            flexGrow: 1,
-            paddingBottom: spacing.md,
-            paddingTop: theme.layout.topBarBottomGap,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <ScreenContentColumn style={{ gap: idleGap }}>
+        <TabScreenScaffold
+          stardustAmount={user?.totalStardust ?? 0}
+          paddingBottom={spacing.md}
+          scrollContentStyle={{ alignItems: "center" }}
+          columnStyle={{ gap: idleGap }}
+          footer={
+            <ScreenContentColumn style={[styles.idleFooter, { paddingBottom: tabBarClearance }]}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t(language, "startSession")}
+                onPress={handleStartSession}
+                style={styles.startFocusButton}
+              >
+                <AppText variant="focusCta" maxFontSizeMultiplier={MAX_FONT_SCALE}>
+                  {t(language, "startFocusCta")}
+                </AppText>
+              </Pressable>
+            </ScreenContentColumn>
+          }
+          overlay={
+            <>
+              <CustomDurationSheet
+                visible={customDurationOpen}
+                language={language}
+                selectedMinutes={sessionState.selectedDurationMinutes}
+                onSelect={setSelectedDurationMinutes}
+                onClose={() => setCustomDurationOpen(false)}
+              />
+              <WeeklyReportModal
+                visible={weeklyReportOpen}
+                report={weeklyReport}
+                onClose={() => setWeeklyReportOpen(false)}
+              />
+            </>
+          }
+        >
           <SurfaceCard
             contentPadding={spacing.md}
             style={[screenBlock, styles.heroSurface, isShort ? styles.heroSurfaceCompact : null]}
@@ -523,37 +542,37 @@ export const SessionScreen = () => {
           <View style={styles.heroStarWrap}>
             <AnimatedStar size={heroStarSize} />
           </View>
-          <Text
+          <AppText
+            variant="sessionDisplay"
             style={[styles.heroWelcome, { fontSize: heroTitleSize, lineHeight: Math.round(heroTitleSize * 1.14) }]}
             numberOfLines={2}
             maxFontSizeMultiplier={MAX_FONT_SCALE}
           >
             {`${t(language, "welcomeUser")}, ${user?.username ?? t(language, "explorerName")}`}
-          </Text>
-          <Text
-            style={[styles.heroSubtitle, { fontSize: heroSubtitleSize }]}
+          </AppText>
+          <AppText
+            variant="sessionHeroSubtitle"
+            style={{ fontSize: heroSubtitleSize }}
             numberOfLines={3}
             maxFontSizeMultiplier={MAX_FONT_SCALE}
           >
             {heroSubtitle}
-          </Text>
+          </AppText>
           <View style={styles.heroStatBlock}>
-            <Text style={[styles.heroStatNumber, { fontSize: heroNumberSize }]} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+            <AppText
+              variant="sessionHeroStatNumber"
+              style={{ fontSize: heroNumberSize }}
+              maxFontSizeMultiplier={MAX_FONT_SCALE}
+            >
               {formatDuration(language, dailySummary.totalMinutes)}
-            </Text>
-            <Text style={styles.heroStatLabel} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+            </AppText>
+            <AppText variant="sessionHeroStatLabel" maxFontSizeMultiplier={MAX_FONT_SCALE}>
               {t(language, "todayFocusLabel")}
-            </Text>
+            </AppText>
           </View>
         </SurfaceCard>
 
-        <SurfaceCard contentPadding={spacing.md} style={[screenBlock, styles.sectionCard]}>
-          <Text
-            style={[typography.focusSectionLabel, { fontSize: sectionLabelSize }]}
-            maxFontSizeMultiplier={MAX_FONT_SCALE}
-          >
-            {t(language, "quickStartTitle")}
-          </Text>
+        <FocusSectionCard title={t(language, "quickStartTitle")} sectionLabelSize={sectionLabelSize}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -575,135 +594,99 @@ export const SessionScreen = () => {
                     pressed ? styles.presetTilePressed : null,
                   ]}
                 >
-                  <Text style={styles.presetEmoji}>{item.emoji}</Text>
-                  <Text
-                    style={[styles.presetTitle, { fontSize: presetTitleSize }]}
+                  <AppText variant="sessionPresetEmoji">{item.emoji}</AppText>
+                  <AppText
+                    variant="sessionPresetTitle"
+                    style={{ fontSize: presetTitleSize }}
                     numberOfLines={1}
                     maxFontSizeMultiplier={MAX_FONT_SCALE}
                   >
                     {t(language, item.titleKey)}
-                  </Text>
-                  <Text
-                    style={[styles.presetDuration, { fontSize: presetDurationSize }]}
+                  </AppText>
+                  <AppText
+                    variant="sessionPresetDuration"
+                    style={{ fontSize: presetDurationSize }}
                     numberOfLines={1}
                     maxFontSizeMultiplier={MAX_FONT_SCALE}
                   >
                     {formatDuration(language, item.minutes)}
-                  </Text>
+                  </AppText>
                 </Pressable>
               );
             })}
           </ScrollView>
-        </SurfaceCard>
+        </FocusSectionCard>
 
-        <SurfaceCard contentPadding={spacing.md} style={[screenBlock, styles.sectionCard]}>
-          <Text
-            style={[typography.focusSectionLabel, { fontSize: sectionLabelSize }]}
-            maxFontSizeMultiplier={MAX_FONT_SCALE}
-          >
-            {t(language, "durationTitle")}
-          </Text>
+        <FocusSectionCard title={t(language, "durationTitle")} sectionLabelSize={sectionLabelSize}>
           <View style={styles.durationRow}>
             {DURATION_OPTIONS.map((minutes) => {
               const active = sessionState.selectedDurationMinutes === minutes;
               return (
-                <Pressable
+                <PillChip
                   key={minutes}
-                  accessibilityRole="button"
+                  variant="duration"
+                  flex
+                  label={formatDuration(language, minutes)}
+                  active={active}
                   accessibilityLabel={`${minutes} ${t(language, "selectSessionMinutesA11y")}`}
                   onPress={() => setSelectedDurationMinutes(minutes)}
-                  style={[styles.durationPill, active ? styles.durationPillActive : null]}
-                >
-                  <Text
-                    style={[styles.durationPillText, active ? styles.durationPillTextActive : null]}
-                    maxFontSizeMultiplier={MAX_FONT_SCALE}
-                  >
-                    {formatDuration(language, minutes)}
-                  </Text>
-                </Pressable>
+                />
               );
             })}
-            <Pressable
-              accessibilityRole="button"
+            <PillChip
+              variant="duration"
+              flex
+              label={
+                isCustomDuration
+                  ? formatDuration(language, sessionState.selectedDurationMinutes)
+                  : t(language, "customDuration")
+              }
+              active={isCustomDuration}
               accessibilityLabel={t(language, "customDuration")}
               onPress={() => setCustomDurationOpen(true)}
-              style={[styles.durationPill, styles.durationPillCustom, isCustomDuration ? styles.durationPillActive : null]}
-            >
-              <Text
-                style={[styles.durationPillText, isCustomDuration ? styles.durationPillTextActive : null]}
-                numberOfLines={1}
-                maxFontSizeMultiplier={MAX_FONT_SCALE}
-              >
-                {isCustomDuration
-                  ? formatDuration(language, sessionState.selectedDurationMinutes)
-                  : t(language, "customDuration")}
-              </Text>
-            </Pressable>
+            />
           </View>
-        </SurfaceCard>
+        </FocusSectionCard>
 
-        <SurfaceCard contentPadding={spacing.md} style={[screenBlock, styles.sectionCard]}>
-          <Text
-            style={[typography.focusSectionLabel, { fontSize: sectionLabelSize }]}
-            maxFontSizeMultiplier={MAX_FONT_SCALE}
-          >
-            {t(language, "activityTitle")}
-          </Text>
+        <FocusSectionCard title={t(language, "activityTitle")} sectionLabelSize={sectionLabelSize}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroller}>
             {focusCategories.map((category) => {
               const active = sessionState.selectedCategoryId === category.id;
               const labelKey = FOCUS_CATEGORY_LABEL[category.id as (typeof FOCUS_CATEGORY_IDS)[number]] ?? (`category_${category.id}` as TranslationKey);
               return (
-                <Pressable
+                <PillChip
                   key={category.id}
-                  accessibilityRole="button"
+                  variant="activity"
+                  label={`${category.emoji} ${t(language, labelKey)}`}
+                  active={active}
                   accessibilityLabel={`${t(language, labelKey)} ${t(language, "selectCategoryA11y")}`}
                   onPress={() => setSelectedCategoryId(category.id)}
-                  style={[styles.activityChip, active ? styles.activityChipActive : null]}
-                >
-                  <Text style={styles.activityChipText} numberOfLines={1} maxFontSizeMultiplier={MAX_FONT_SCALE}>
-                    {`${category.emoji} ${t(language, labelKey)}`}
-                  </Text>
-                </Pressable>
+                />
               );
             })}
           </ScrollView>
-        </SurfaceCard>
+        </FocusSectionCard>
 
-        <SurfaceCard contentPadding={spacing.md} style={[screenBlock, styles.sectionCard]}>
-          <Text
-            style={[typography.focusSectionLabel, { fontSize: sectionLabelSize }]}
-            maxFontSizeMultiplier={MAX_FONT_SCALE}
-          >
-            ✨ {t(language, "cosmicMessageTitle")}
-          </Text>
-          <Text style={styles.cosmicQuote} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+        <FocusSectionCard title={`✨ ${t(language, "cosmicMessageTitle")}`} sectionLabelSize={sectionLabelSize}>
+          <AppText variant="sessionCosmicQuote" maxFontSizeMultiplier={MAX_FONT_SCALE}>
             "{cosmicMessage ?? fallbackCosmicQuote}"
-          </Text>
-          <Text style={styles.cosmicAttribution} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+          </AppText>
+          <AppText variant="sessionCosmicAttribution" maxFontSizeMultiplier={MAX_FONT_SCALE}>
             {t(language, "cosmicMessageAttribution")}
-          </Text>
-        </SurfaceCard>
+          </AppText>
+        </FocusSectionCard>
 
-        <SurfaceCard contentPadding={spacing.md} style={[screenBlock, styles.sectionCard]}>
-          <Text
-            style={[typography.focusSectionLabel, { fontSize: sectionLabelSize }]}
-            maxFontSizeMultiplier={MAX_FONT_SCALE}
-          >
-            {t(language, "thisWeekTitle")}
-          </Text>
+        <FocusSectionCard title={t(language, "thisWeekTitle")} sectionLabelSize={sectionLabelSize}>
           <View style={styles.weekStatBlock}>
-            <Text style={styles.weekStars} maxFontSizeMultiplier={MAX_FONT_SCALE}>
-              {weekStarRating}
-            </Text>
-            <Text style={styles.weekLabel} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+            <WeekDayStars minutesByDay={weeklyMinutes} language={language} />
+            <AppText variant="sessionWeekLabel" maxFontSizeMultiplier={MAX_FONT_SCALE}>
               {t(language, "totalFocusWeek")}
-            </Text>
-            <Text style={styles.weekTotal} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+            </AppText>
+            <AppText variant="sessionWeekTotal" maxFontSizeMultiplier={MAX_FONT_SCALE}>
               {formatDuration(language, weekTotalMinutes)}
-            </Text>
+            </AppText>
           </View>
-        </SurfaceCard>
+        </FocusSectionCard>
 
         <WeeklyReportCard
           language={language}
@@ -716,52 +699,21 @@ export const SessionScreen = () => {
 
         {sessionState.status === "failed" ? (
           <SurfaceCard style={[screenBlock, styles.failedCard]} borderVariant="strong">
-            <Text style={styles.failedTitle}>{t(language, "failedSessionTitle")}</Text>
-            <Text style={styles.failedText}>
+            <AppText variant="sessionFailedTitle">{t(language, "failedSessionTitle")}</AppText>
+            <AppText variant="sessionFailedText">
               {t(language, "failedSessionBackground").replace("{seconds}", String(BACKGROUND_TOLERANCE_SECONDS))}
-            </Text>
+            </AppText>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t(language, "reset")}
               onPress={handleDismissFailedSession}
               style={styles.softButton}
             >
-              <Text style={styles.softButtonText}>{t(language, "prepareAgain")}</Text>
+              <AppText variant="sessionSoftButtonText">{t(language, "prepareAgain")}</AppText>
             </Pressable>
           </SurfaceCard>
         ) : null}
-        </ScreenContentColumn>
-      </ScrollView>
-
-      <ScreenContentColumn
-        style={[styles.idleFooter, { paddingBottom: tabBarClearance }]}
-      >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t(language, "startSession")}
-          onPress={handleStartSession}
-          style={styles.startFocusButton}
-        >
-          <Text style={typography.focusCta} maxFontSizeMultiplier={MAX_FONT_SCALE}>
-            {t(language, "startFocusCta")}
-          </Text>
-        </Pressable>
-      </ScreenContentColumn>
-
-      <CustomDurationSheet
-        visible={customDurationOpen}
-        language={language}
-        selectedMinutes={sessionState.selectedDurationMinutes}
-        onSelect={setSelectedDurationMinutes}
-        onClose={() => setCustomDurationOpen(false)}
-      />
-
-      <WeeklyReportModal
-        visible={weeklyReportOpen}
-        report={weeklyReport}
-        onClose={() => setWeeklyReportOpen(false)}
-      />
-        </StarryBackground>
+        </TabScreenScaffold>
       )}
     </View>
   );
@@ -769,15 +721,12 @@ export const SessionScreen = () => {
 
 const styles = StyleSheet.create({
   sessionShell: {
-    backgroundColor: colors.background,
+    backgroundColor: GALAXY_BACKDROP_COLOR,
     flex: 1,
   },
   galaxyHost: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 0,
-  },
-  galaxyHostHidden: {
-    opacity: 0,
   },
   fullScreen: {
     overflow: "hidden",
@@ -843,10 +792,6 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   ghostAction: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: 12,
-    fontWeight: "700",
     marginTop: spacing.sm,
   },
   container: {
@@ -865,36 +810,11 @@ const styles = StyleSheet.create({
     gap: spacing.xxs,
   },
   heroWelcome: {
-    ...typography.sessionDisplay,
-    textAlign: "center",
-  },
-  heroSubtitle: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.bodyRegular,
-    lineHeight: 18,
     textAlign: "center",
   },
   heroStatBlock: {
     alignItems: "center",
     marginTop: spacing.xs,
-  },
-  heroStatNumber: {
-    color: colors.warmOffWhite,
-    fontFamily: fontFamilies.mono,
-    fontWeight: "800",
-    letterSpacing: -1,
-  },
-  heroStatLabel: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 0.6,
-    marginTop: 4,
-    textTransform: "uppercase",
-  },
-  sectionCard: {
-    gap: spacing.sm,
   },
   presetScroller: {
     flexGrow: 1,
@@ -922,115 +842,18 @@ const styles = StyleSheet.create({
   presetTilePressed: {
     opacity: 0.92,
   },
-  presetEmoji: {
-    fontSize: 20,
-    lineHeight: 24,
-  },
-  presetTitle: {
-    color: colors.text,
-    fontFamily: fontFamilies.displayBold,
-    textAlign: "center",
-  },
-  presetDuration: {
-    color: colors.cadetGrey,
-    fontFamily: fontFamilies.monoRegular,
-    textAlign: "center",
-  },
   durationRow: {
     flexDirection: "row",
     gap: spacing.sm,
-  },
-  durationPill: {
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderColor: colors.border,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    flex: 1,
-    justifyContent: "center",
-    minHeight: layout.touchTargetMin,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.sm,
-  },
-  durationPillCustom: {
-    flex: 1,
-  },
-  durationPillActive: {
-    backgroundColor: colors.primary,
-    borderColor: "rgba(232,230,200,0.28)",
-  },
-  durationPillText: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: 13,
-    fontWeight: "800",
-  },
-  durationPillTextActive: {
-    color: colors.warmOffWhite,
   },
   categoryScroller: {
     gap: spacing.sm,
     paddingRight: spacing.xs,
   },
-  activityChip: {
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderColor: colors.border,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    minHeight: layout.touchTargetMin,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  activityChipActive: {
-    backgroundColor: "rgba(131,135,195,0.22)",
-    borderColor: "rgba(232,230,200,0.28)",
-  },
-  activityChipText: {
-    color: colors.text,
-    fontFamily: fontFamilies.body,
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  cosmicQuote: {
-    color: colors.text,
-    fontFamily: fontFamilies.bodyRegular,
-    fontSize: 15,
-    fontStyle: "italic",
-    lineHeight: 22,
-    textAlign: "center",
-  },
-  cosmicAttribution: {
-    alignSelf: "center",
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: 11,
-    fontWeight: "700",
-    textAlign: "center",
-  },
   weekStatBlock: {
     alignItems: "center",
-    gap: spacing.xxs,
-  },
-  weekStars: {
-    color: colors.warning,
-    fontFamily: fontFamilies.mono,
-    fontSize: 14,
-    letterSpacing: 2,
-  },
-  weekLabel: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: 11,
-    fontWeight: "700",
-    textAlign: "center",
-    textTransform: "uppercase",
-  },
-  weekTotal: {
-    color: colors.warmOffWhite,
-    fontFamily: fontFamilies.mono,
-    fontSize: 22,
-    fontWeight: "800",
-    textAlign: "center",
+    gap: spacing.sm,
+    width: "100%",
   },
   idleFooter: {
     backgroundColor: "transparent",
@@ -1054,16 +877,6 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,107,157,0.22)",
     gap: spacing.sm,
   },
-  failedTitle: {
-    color: colors.danger,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 16,
-    fontWeight: "800",
-  },
-  failedText: {
-    color: colors.textMuted,
-    fontSize: 12,
-  },
   softButton: {
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.05)",
@@ -1071,9 +884,5 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1,
     paddingVertical: 12,
-  },
-  softButtonText: {
-    color: colors.text,
-    fontWeight: "800",
   },
 });

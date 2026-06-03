@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Redirect } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useAppContext } from "../../src/context/AppContext";
+import { toastTone, useAppContext } from "../../src/context/AppContext";
 import { constellationLabel } from "../../src/services/constellationCatalog";
 import { loadSkyCatalog } from "../../src/services/skyCatalog";
 import { t } from "../../src/shared/i18n";
@@ -12,7 +12,7 @@ import { GradientButton } from "../../src/components/GradientButton";
 import { StarfieldBackground } from "../../src/components/StarfieldBackground";
 
 export default function StarPickRoute() {
-  const { user, completeOnboarding, language, setLanguage } = useAppContext();
+  const { user, completeOnboarding, language, setLanguage, showAlert } = useAppContext();
   const [constellations, setConstellations] = useState<Constellation[]>([]);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -61,10 +61,12 @@ export default function StarPickRoute() {
     try {
       await completeOnboarding(selectedId);
     } catch (error) {
-      Alert.alert(
-        t(language, "appName"),
-        error instanceof Error ? error.message : t(language, "saveFailed"),
-      );
+      void showAlert({
+        title: t(language, "toastErrorGeneric"),
+        message: error instanceof Error ? error.message : t(language, "saveFailed"),
+        confirmLabel: t(language, "ok"),
+        icon: toastTone.error.icon,
+      });
     } finally {
       setLoading(false);
     }

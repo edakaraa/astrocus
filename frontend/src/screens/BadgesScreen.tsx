@@ -5,8 +5,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppContext } from "../context/AppContext";
 import { BADGES, getBadgeLabel } from "../shared/constants";
 import { t } from "../shared/i18n";
-import { StarryBackground } from "../components/StarryBackground";
-import { SettingsScreenTopBar } from "../components/layout/TabScreenTopBar";
+import { SubScreenScaffold } from "../components/layout/SubScreenScaffold";
+import { SubScreenTopBar } from "../components/layout/TabScreenTopBar";
 import { BadgeItem } from "../components/badges/BadgeItem";
 import theme from "../theme";
 
@@ -36,24 +36,27 @@ export const BadgesScreen = () => {
     return null;
   }
 
+  const listHeader = (
+    <SubScreenTopBar
+      title={t(language, "badgesScreenTitle")}
+      stardustAmount={user.totalStardust}
+      backAccessibilityLabel={t(language, "back")}
+      onBack={() => router.back()}
+      rightMeta={`${unlockedCount}/${BADGES.length}`}
+    />
+  );
+
   return (
-    <StarryBackground>
-      <SettingsScreenTopBar
-        title={t(language, "badgesScreenTitle")}
-        stardustAmount={user.totalStardust}
-        backAccessibilityLabel={t(language, "back")}
-        onBack={() => router.back()}
-        rightMeta={`${unlockedCount}/${BADGES.length}`}
-      />
+    <SubScreenScaffold>
       <FlatList
         data={data}
         keyExtractor={(item) => item.id}
         numColumns={2}
+        ListHeaderComponent={listHeader}
         columnWrapperStyle={styles.columnWrap}
         contentContainerStyle={[
           styles.list,
           {
-            paddingTop: theme.spacing.md,
             paddingBottom: Math.max(insets.bottom, theme.spacing.xl),
           },
         ]}
@@ -69,7 +72,7 @@ export const BadgesScreen = () => {
           </View>
         )}
       />
-    </StarryBackground>
+    </SubScreenScaffold>
   );
 };
 
@@ -77,6 +80,7 @@ const styles = StyleSheet.create({
   list: {
     gap: theme.spacing.md,
     paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.md,
   },
   columnWrap: {
     gap: theme.spacing.md,

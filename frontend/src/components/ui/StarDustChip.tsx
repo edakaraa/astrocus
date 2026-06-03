@@ -14,8 +14,8 @@ export const StarDustChip: React.FC<StarDustChipProps> = ({ amount }) => {
 
   return (
     <View style={styles.chip}>
-      <AppText variant="card" color={theme.colors.textPrimary}>
-        {`✦ ${formatNumber(language, amount)} ✦`}
+      <AppText variant="numeric" color={theme.colors.textPrimary}>
+        {`✦ ${formatNumber(language, amount)}`}
       </AppText>
     </View>
   );

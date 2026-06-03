@@ -49,6 +49,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   return {
     ...config,
     scheme: config.scheme ?? "astrocus",
+    // Expo Go "remote update" çoğu zaman Metro bundle indirme hatasıdır; OTA kapalı tut.
+    updates: {
+      enabled: false,
+      fallbackToCacheTimeout: 0,
+      checkAutomatically: "NEVER",
+    },
     plugins,
     android: {
       ...config.android,

@@ -12,7 +12,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
-import { colors, fontFamilies, layout, radii, spacing } from "../shared/theme";
+import { colors, fontFamilies, layout, numericTypography, radii, spacing } from "../shared/theme";
+import { PillChip } from "./ui/PillChip";
 import { t } from "../shared/i18n";
 import type { Language } from "../shared/types";
 
@@ -70,20 +71,18 @@ export const CustomDurationSheet = ({
                 {SHEET_OPTIONS.map((minutes) => {
                   const active = selectedMinutes === minutes;
                   return (
-                    <Pressable
+                    <PillChip
                       key={minutes}
-                      accessibilityRole="button"
+                      variant="duration"
+                      gridCell
+                      label={language === "tr" ? `${minutes} dk` : `${minutes} min`}
+                      active={active}
                       accessibilityLabel={`${minutes} ${t(language, "selectSessionMinutesA11y")}`}
                       onPress={() => {
                         onSelect(minutes);
                         onClose();
                       }}
-                      style={[styles.optionChip, active ? styles.optionChipActive : null]}
-                    >
-                      <Text style={[styles.optionText, active ? styles.optionTextActive : null]}>
-                        {language === "tr" ? `${minutes} dk` : `${minutes} min`}
-                      </Text>
-                    </Pressable>
+                    />
                   );
                 })}
               </View>
@@ -157,30 +156,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     justifyContent: "center",
   },
-  optionChip: {
-    alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderColor: colors.border,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    minHeight: layout.touchTargetMin,
-    minWidth: "30%",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  optionChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: "rgba(232,230,200,0.28)",
-  },
-  optionText: {
-    color: colors.textMuted,
-    fontFamily: fontFamilies.body,
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  optionTextActive: {
-    color: colors.warmOffWhite,
-  },
   customLabel: {
     color: colors.textFaint,
     fontFamily: fontFamilies.body,
@@ -196,13 +171,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   customInput: {
+    ...numericTypography,
     backgroundColor: "rgba(255,255,255,0.06)",
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
     color: colors.text,
     flex: 1,
-    fontFamily: fontFamilies.monoRegular,
     fontSize: 16,
     minHeight: layout.touchTargetMin,
     paddingHorizontal: spacing.md,

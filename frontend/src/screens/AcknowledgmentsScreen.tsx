@@ -1,11 +1,11 @@
 import React from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { View } from "react-native";
 import { useRouter } from "expo-router";
 import { useAppContext } from "../context/AppContext";
 import { AvatarAttribution } from "../components/AvatarAttribution";
-import { GradientButton } from "../components/GradientButton";
-import { StarfieldBackground } from "../components/StarfieldBackground";
-import { colors, spacing, typography } from "../shared/theme";
+import { LegalDocumentLayout, legalDocumentStyles } from "../components/layout/LegalDocumentLayout";
+import { AppText } from "../components/ui/AppText";
+import theme from "../theme";
 import { t } from "../shared/i18n";
 
 export const AcknowledgmentsScreen = () => {
@@ -13,48 +13,21 @@ export const AcknowledgmentsScreen = () => {
   const { language } = useAppContext();
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <StarfieldBackground density={28} />
-      <Text style={styles.title}>{t(language, "openSourceCredits")}</Text>
-      <Text style={styles.intro}>{t(language, "openSourceCreditsIntro")}</Text>
+    <LegalDocumentLayout
+      title={t(language, "openSourceCredits")}
+      backAccessibilityLabel={t(language, "back")}
+      onBack={() => router.back()}
+    >
+      <AppText variant="body" color={theme.colors.textSecondary} style={legalDocumentStyles.intro}>
+        {t(language, "openSourceCreditsIntro")}
+      </AppText>
 
-      <View style={styles.block}>
-        <Text style={styles.heading}>{t(language, "creditsAvatarsTitle")}</Text>
+      <View style={legalDocumentStyles.blockSpacious}>
+        <AppText variant="card" color={theme.colors.accent}>
+          {t(language, "creditsAvatarsTitle")}
+        </AppText>
         <AvatarAttribution />
       </View>
-
-      <GradientButton
-        label={t(language, "back")}
-        onPress={() => router.back()}
-        accessibilityLabel={t(language, "goBack")}
-      />
-    </ScrollView>
+    </LegalDocumentLayout>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.background,
-    flexGrow: 1,
-    padding: spacing.lg,
-    paddingBottom: spacing.xl * 2,
-  },
-  title: {
-    ...typography.title,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  intro: {
-    ...typography.body,
-    color: colors.textMuted,
-    marginBottom: spacing.lg,
-  },
-  block: {
-    marginBottom: spacing.lg,
-  },
-  heading: {
-    ...typography.h3,
-    color: colors.primary,
-    marginBottom: spacing.sm,
-  },
-});

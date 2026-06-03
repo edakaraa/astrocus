@@ -8,10 +8,18 @@ import {
   type UserConstellationDbRow,
 } from "../services/profileMapper";
 import {
+  mapDailyGoalClaim,
+  mapDailyGoalHistory,
+  mapDailyGoalProgress,
+  type DailyGoalClaimResult,
+} from "../services/dailyGoalMapper";
+import { getDeviceTimeZone } from "./timezone";
+import {
   EmailConfirmationRequiredError,
   mapSupabaseAuthError,
 } from "../lib/authErrors";
 import { signInWithApple } from "../lib/appleAuth";
+import { getAuthEmailRedirectUri } from "../lib/authRedirect";
 import { getOAuthRedirectUri, signInWithGoogle } from "../lib/oauth";
 import { getDateKey } from "../context/session/dateKey";
 import { isFocusedDurationPlausible } from "../context/session/duration";
@@ -31,6 +39,8 @@ import { getApiUrl } from "./config";
 import {
   AuthPayload,
   CancelSessionResult,
+  DailyGoalHistoryDay,
+  DailyGoalProgress,
   PendingSession,
   SessionRecord,
   UnlockStarResult,
@@ -38,7 +48,7 @@ import {
 } from "./types";
 
 const MIGRATION_HINT =
-  "Supabase şeması güncel değil. SQL Editor'da backend/supabase/migrations/011 ve 012 dosyalarını uygulayın.";
+  "Supabase şeması güncel değil. SQL Editor'da backend/supabase/migrations/011, 012 ve 016 dosyalarını uygulayın.";
 
 export const isTransientNetworkError = (error: unknown): boolean => {
   const msg = error instanceof Error ? error.message : String(error);
@@ -133,21 +143,24 @@ const normalizeBadgeList = (raw: unknown): string[] =>
   Array.isArray(raw) ? raw.filter((item): item is string => typeof item === "string") : [];
 
 const fetchUserData = async (userId: string, accessToken: string): Promise<AuthPayload> => {
-  const [profileRes, sessionsRes, starsRes, badgesRes, constellationsRes] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", userId).single(),
-    supabase
-      .from("sessions")
-      .select("*")
-      .eq("user_id", userId)
-      .order("completed_at", { ascending: false })
-      .limit(200),
-    supabase.from("user_stars").select("star_id").eq("user_id", userId).order("unlocked_at", { ascending: true }),
-    supabase.from("user_badges").select("badge_id").eq("user_id", userId),
-    supabase
-      .from("user_constellations")
-      .select("*")
-      .eq("user_id", userId),
-  ]);
+  const timezone = getDeviceTimeZone();
+  const [profileRes, sessionsRes, starsRes, badgesRes, constellationsRes, dailyGoalRes] =
+    await Promise.all([
+      supabase.from("profiles").select("*").eq("id", userId).single(),
+      supabase
+        .from("sessions")
+        .select("*")
+        .eq("user_id", userId)
+        .order("completed_at", { ascending: false })
+        .limit(200),
+      supabase.from("user_stars").select("star_id").eq("user_id", userId).order("unlocked_at", { ascending: true }),
+      supabase.from("user_badges").select("badge_id").eq("user_id", userId),
+      supabase
+        .from("user_constellations")
+        .select("*")
+        .eq("user_id", userId),
+      supabase.rpc("get_daily_goal_progress", { p_timezone: timezone }),
+    ]);
 
   if (profileRes.error || !profileRes.data) {
     throw new Error(profileRes.error?.message ?? "Profile not found");
@@ -171,6 +184,11 @@ const fetchUserData = async (userId: string, accessToken: string): Promise<AuthP
       ? (constellationsRes.data as UserConstellationDbRow[])
       : [];
 
+  const dailyGoalToday =
+    dailyGoalRes.error || dailyGoalRes.data == null
+      ? null
+      : mapDailyGoalProgress(dailyGoalRes.data);
+
   return buildAuthPayload(
     accessToken,
     profileRes.data as ProfileRow,
@@ -178,6 +196,7 @@ const fetchUserData = async (userId: string, accessToken: string): Promise<AuthP
     fromDb,
     earnedBadgeIds,
     constellationRows,
+    dailyGoalToday,
   );
 };
 
@@ -326,6 +345,7 @@ export const api = {
       email,
       password: input.password,
       options: {
+        emailRedirectTo: getAuthEmailRedirectUri("verify-success"),
         data: {
           username: input.username.trim(),
           galaxy_name: input.galaxyName?.trim() || "Astrocus",
@@ -422,7 +442,7 @@ export const api = {
 
   async resetPassword(email: string): Promise<void> {
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: "astrocus://auth/reset",
+      redirectTo: getAuthEmailRedirectUri("reset-password"),
     });
     if (error) {
       throw new Error(error.message);
@@ -795,6 +815,62 @@ export const api = {
     }
 
     return payload;
+  },
+
+  async fetchDailyGoalProgress(timezone = getDeviceTimeZone()): Promise<DailyGoalProgress> {
+    const { data, error } = await supabase.rpc("get_daily_goal_progress", { p_timezone: timezone });
+    if (error) {
+      throw new Error(error.message);
+    }
+    const mapped = mapDailyGoalProgress(data);
+    if (!mapped) {
+      throw new Error("Invalid daily goal progress response");
+    }
+    return mapped;
+  },
+
+  async confirmDailyGoal(goalMinutes: number, timezone = getDeviceTimeZone()): Promise<void> {
+    const { error } = await supabase.rpc("upsert_daily_goal", {
+      p_goal_minutes: goalMinutes,
+      p_timezone: timezone,
+    });
+    if (error) {
+      if (/upsert_daily_goal|schema cache/i.test(error.message)) {
+        throw new Error(`${MIGRATION_HINT} (${error.message})`);
+      }
+      throw new Error(error.message);
+    }
+  },
+
+  async claimDailyGoalReward(
+    timezone = getDeviceTimeZone(),
+    bonusAmount = 50,
+  ): Promise<DailyGoalClaimResult> {
+    const { data, error } = await supabase.rpc("claim_daily_goal_reward", {
+      p_timezone: timezone,
+      p_bonus_amount: bonusAmount,
+    });
+    if (error) {
+      if (/claim_daily_goal_reward|schema cache/i.test(error.message)) {
+        throw new Error(`${MIGRATION_HINT} (${error.message})`);
+      }
+      throw new Error(error.message);
+    }
+    return mapDailyGoalClaim(data);
+  },
+
+  async fetchDailyGoalHistory(
+    days = 30,
+    timezone = getDeviceTimeZone(),
+  ): Promise<DailyGoalHistoryDay[]> {
+    const { data, error } = await supabase.rpc("list_daily_goal_history", {
+      p_days: days,
+      p_timezone: timezone,
+    });
+    if (error) {
+      throw new Error(error.message);
+    }
+    return mapDailyGoalHistory(data);
   },
 
   async signOut(): Promise<void> {

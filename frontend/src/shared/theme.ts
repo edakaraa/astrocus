@@ -3,6 +3,11 @@
  * New screens should import `theme` from `../theme` directly.
  */
 import appTheme from "../theme";
+import {
+  fontFamilies as canonicalFontFamilies,
+  numericTypography as canonicalNumericTypography,
+  typographyTokens,
+} from "../theme/typography";
 
 export const colors = {
   cadetGrey: appTheme.colors.textSecondary,
@@ -82,96 +87,13 @@ export const motion = {
   durationNormal: 280,
 } as const;
 
-export const fontFamilies = {
-  display: "Outfit_800ExtraBold",
-  displayBold: "Outfit_700Bold",
-  body: "DMSans_500Medium",
-  bodyRegular: "DMSans_400Regular",
-  mono: "SpaceMono_700Bold",
-  monoRegular: "SpaceMono_400Regular",
-} as const;
+export const fontFamilies = canonicalFontFamilies;
 
-const titleStyle = {
-  fontSize: 30,
-  lineHeight: 36,
-  fontWeight: "800" as const,
-  letterSpacing: -0.4,
-  fontFamily: fontFamilies.display,
-};
+/** Same face as the session countdown — for StyleSheet numeric labels. */
+export const numericTypography = canonicalNumericTypography;
 
-export const typography = {
-  title: titleStyle,
-  h1: titleStyle,
-  h2: {
-    fontSize: 22,
-    lineHeight: 28,
-    fontWeight: "800" as const,
-    letterSpacing: -0.2,
-    fontFamily: fontFamilies.display,
-  },
-  h3: {
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: "700" as const,
-    fontFamily: fontFamilies.displayBold,
-  },
-  body: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: "500" as const,
-    fontFamily: fontFamilies.body,
-  },
-  bodyLarge: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: "400" as const,
-    fontFamily: fontFamilies.bodyRegular,
-  },
-  caption: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: "500" as const,
-    fontFamily: fontFamilies.body,
-  },
-  label: {
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: "800" as const,
-    letterSpacing: 0.8,
-    textTransform: "uppercase" as const,
-    fontFamily: fontFamilies.body,
-  },
-  /** Outfit ExtraBold — session category, timer, hero welcome. */
-  sessionDisplay: {
-    fontFamily: fontFamilies.display,
-    letterSpacing: -0.3,
-    color: colors.text,
-  },
-  /** Uppercase section headings on the Focus tab (Odak). */
-  focusSectionLabel: {
-    fontSize: 10,
-    lineHeight: 13,
-    fontWeight: "800" as const,
-    letterSpacing: 0.8,
-    textTransform: "uppercase" as const,
-    fontFamily: fontFamilies.body,
-    color: colors.textFaint,
-  },
-  /** Primary CTA on the Focus tab — e.g. “Start focus”. */
-  focusCta: {
-    fontSize: 15,
-    lineHeight: 18,
-    fontFamily: fontFamilies.displayBold,
-    color: colors.warmOffWhite,
-    textAlign: "center" as const,
-  },
-  mono: {
-    fontSize: 40,
-    fontWeight: "700" as const,
-    letterSpacing: -0.3,
-    fontFamily: fontFamilies.mono,
-  },
-};
+/** @deprecated Prefer AppText + theme.typography — kept for FocusSectionCard and legacy imports. */
+export const typography = typographyTokens;
 
 export const shadows = {
   glow: {

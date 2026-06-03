@@ -11,6 +11,12 @@ import { STORAGE_KEYS } from "../shared/constants";
 import { requireSupabaseConfig } from "./supabaseConfig";
 import { OAuthError } from "./authErrors";
 import { getMetroLanHost, isExpoTunnelHost } from "../shared/config";
+import {
+  clearOAuthReturnUrl,
+  isOAuthReturnUrl,
+  peekOAuthReturnUrl,
+  stashOAuthReturnUrl,
+} from "./oauthLinking";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -32,6 +38,16 @@ const replaceLoopbackWithLan = (uri: string): string => {
   return uri.replace(/\b127\.0\.0\.1\b/g, lan).replace(/\blocalhost\b/gi, lan);
 };
 
+/** Expo Go: Metro'nun o an kullandığı exp:// tabanını kullan (tunnel/LAN ile uyumlu). */
+const getExpoGoRedirectUri = (): string => {
+  const linkingUri = Constants.linkingUri?.trim();
+  if (linkingUri?.startsWith("exp://")) {
+    const base = linkingUri.replace(/\/--\/.*$/, "").replace(/\/$/, "");
+    return replaceLoopbackWithLan(`${base}/--/${CALLBACK_PATH}`);
+  }
+  return replaceLoopbackWithLan(makeRedirectUri({ path: CALLBACK_PATH }));
+};
+
 export const getOAuthRedirectUri = (): string => {
   const fromEnv = process.env.EXPO_PUBLIC_OAUTH_REDIRECT_URI?.trim();
   if (fromEnv?.includes("://")) {
@@ -39,8 +55,7 @@ export const getOAuthRedirectUri = (): string => {
   }
 
   if (isExpoGo()) {
-    const uri = Linking.createURL(CALLBACK_PATH);
-    return replaceLoopbackWithLan(uri);
+    return getExpoGoRedirectUri();
   }
 
   return makeRedirectUri({
@@ -50,11 +65,11 @@ export const getOAuthRedirectUri = (): string => {
   });
 };
 
-const isOAuthReturnUrl = (url: string | null | undefined): boolean => {
-  if (!url) {
-    return false;
+const metroReachabilityHint = (): string => {
+  if (isExpoTunnelHost()) {
+    return "Metro tüneli: npx expo start --tunnel -c ile başlat; Expo Go'yu kapatıp QR ile yeniden bağlan.";
   }
-  return url.includes("auth/callback") || url.includes("code=") || url.includes("access_token=");
+  return "Aynı Wi-Fi + npx expo start --lan -c; Windows'ta Node.js için özel ağ ve 8081 portu açık olsun. Gerekirse --tunnel dene.";
 };
 
 /**
@@ -65,11 +80,16 @@ const waitForOAuthReturnUrl = (): { promise: Promise<string>; cancel: () => void
   let settled = false;
   let subscription: { remove: () => void } | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let stashPoll: ReturnType<typeof setInterval> | null = null;
 
   const cleanup = () => {
     if (timer) {
       clearTimeout(timer);
       timer = null;
+    }
+    if (stashPoll) {
+      clearInterval(stashPoll);
+      stashPoll = null;
     }
     subscription?.remove();
     subscription = null;
@@ -94,8 +114,13 @@ const waitForOAuthReturnUrl = (): { promise: Promise<string>; cancel: () => void
     };
 
     subscription = Linking.addEventListener("url", (event) => {
+      void stashOAuthReturnUrl(event.url);
       finish(event.url);
     });
+
+    stashPoll = setInterval(() => {
+      void peekOAuthReturnUrl().then((url) => finish(url));
+    }, 350);
 
     timer = setTimeout(() => {
       if (settled) {
@@ -103,10 +128,20 @@ const waitForOAuthReturnUrl = (): { promise: Promise<string>; cancel: () => void
       }
       settled = true;
       cleanup();
-      reject(new OAuthError("Google girisinin zaman asimi doldu.", "connection"));
+      reject(
+        new OAuthError(
+          `Google oturumu tamamlanamadi (Metro baglantisi veya redirect). ${metroReachabilityHint()}`,
+          "connection",
+        ),
+      );
     }, OAUTH_WAIT_MS);
 
-    void Linking.getInitialURL().then(finish);
+    void Linking.getInitialURL().then((url) => {
+      if (url) {
+        void stashOAuthReturnUrl(url);
+      }
+      finish(url);
+    });
   });
 
   return { promise, cancel };
@@ -216,6 +251,7 @@ export const signInWithGoogle = async (): Promise<Session> => {
   }
 
   const linkingWait = waitForOAuthReturnUrl();
+  await clearOAuthReturnUrl();
   await AsyncStorage.setItem(STORAGE_KEYS.oauthPending, redirectTo);
 
   try {
@@ -249,6 +285,7 @@ export const signInWithGoogle = async (): Promise<Session> => {
 
   if (result.type === "success" && result.url) {
     linkingWait.cancel();
+    await stashOAuthReturnUrl(result.url);
     await AsyncStorage.removeItem(STORAGE_KEYS.oauthPending);
     return completeOAuthFromUrl(result.url);
   }
@@ -266,12 +303,17 @@ export const signInWithGoogle = async (): Promise<Session> => {
     await AsyncStorage.removeItem(STORAGE_KEYS.oauthPending);
     return completeOAuthFromUrl(url);
   } catch (error) {
+    const stashed = await peekOAuthReturnUrl();
+    if (stashed) {
+      await AsyncStorage.removeItem(STORAGE_KEYS.oauthPending);
+      return completeOAuthFromUrl(stashed);
+    }
     await AsyncStorage.removeItem(STORAGE_KEYS.oauthPending);
     if (error instanceof OAuthError) {
       throw error;
     }
     throw new OAuthError(
-      `Google oturumu gelmedi. Supabase > Authentication > Redirect URLs'e su adresi ekle: ${redirectTo}`,
+      `Google oturumu gelmedi. Supabase > Redirect URLs: ${redirectTo}. ${metroReachabilityHint()}`,
       "config",
     );
   }

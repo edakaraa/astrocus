@@ -1,83 +1,75 @@
 import React, { useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { View } from "react-native";
 import { useRouter } from "expo-router";
-import { useAppContext } from "../context/AppContext";
-import { colors, spacing, typography } from "../shared/theme";
+import { toastTone, useAppContext } from "../context/AppContext";
 import { t } from "../shared/i18n";
 import { GradientButton } from "../components/GradientButton";
-import { StarfieldBackground } from "../components/StarfieldBackground";
+import { LegalDocumentLayout, legalDocumentStyles } from "../components/layout/LegalDocumentLayout";
+import { AppText } from "../components/ui/AppText";
+import theme from "../theme";
 
 export const DeleteAccountScreen = () => {
   const router = useRouter();
-  const { deleteAccount, language } = useAppContext();
+  const { deleteAccount, language, showAlert, showConfirm } = useAppContext();
   const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = () => {
-    Alert.alert(t(language, "deleteAccountConfirm"), t(language, "deleteAccountMessage"), [
-      { text: t(language, "cancel"), style: "cancel" },
-      {
-        text: t(language, "deleteAction"),
-        style: "destructive",
-        onPress: () => {
-          void (async () => {
-            setIsDeleting(true);
-            try {
-              await deleteAccount();
-              router.replace("/(auth)");
-            } catch (error) {
-              Alert.alert(
-                t(language, "appName"),
-                error instanceof Error ? error.message : t(language, "deleteFailed"),
-              );
-            } finally {
-              setIsDeleting(false);
-            }
-          })();
-        },
-      },
-    ]);
+    void showConfirm({
+      title: t(language, "deleteAccountConfirm"),
+      message: t(language, "deleteAccountMessage"),
+      cancelLabel: t(language, "cancel"),
+      confirmLabel: t(language, "deleteAction"),
+      destructive: true,
+    }).then((confirmed) => {
+      if (!confirmed) {
+        return;
+      }
+      void (async () => {
+        setIsDeleting(true);
+        try {
+          await deleteAccount();
+          router.replace("/(auth)");
+        } catch (error) {
+          void showAlert({
+            title: t(language, "toastErrorGeneric"),
+            message: error instanceof Error ? error.message : t(language, "deleteFailed"),
+            confirmLabel: t(language, "ok"),
+            icon: toastTone.error.icon,
+          });
+        } finally {
+          setIsDeleting(false);
+        }
+      })();
+    });
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <StarfieldBackground density={24} />
-      <Text style={styles.title}>{t(language, "deleteAccountTitle")}</Text>
-      <Text style={styles.body}>{t(language, "deleteAccountBody")}</Text>
-      <GradientButton
-        label={t(language, "permanentlyDelete")}
-        onPress={handleDelete}
-        disabled={isDeleting}
-        accessibilityLabel={t(language, "deleteAccount")}
-      />
-      <View style={styles.spacer} />
-      <GradientButton
-        label={t(language, "cancelAction")}
-        onPress={() => router.back()}
-        variant="soft"
-        accessibilityLabel={t(language, "cancel")}
-      />
-    </ScrollView>
+    <LegalDocumentLayout
+      title={t(language, "deleteAccountTitle")}
+      titleColor={theme.colors.badgeScorpio}
+      backAccessibilityLabel={t(language, "back")}
+      onBack={() => router.back()}
+      footer={
+        <>
+          <GradientButton
+            label={t(language, "permanentlyDelete")}
+            onPress={handleDelete}
+            disabled={isDeleting}
+            accessibilityLabel={t(language, "deleteAccount")}
+          />
+          <GradientButton
+            label={t(language, "cancelAction")}
+            onPress={() => router.back()}
+            variant="soft"
+            accessibilityLabel={t(language, "cancel")}
+          />
+        </>
+      }
+    >
+      <AppText variant="body" color={theme.colors.textSecondary}>
+        {t(language, "deleteAccountBody")}
+      </AppText>
+      <View style={legalDocumentStyles.spacer} />
+    </LegalDocumentLayout>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.background,
-    flexGrow: 1,
-    padding: spacing.lg,
-    paddingBottom: spacing.xl * 2,
-  },
-  title: {
-    ...typography.title,
-    color: colors.danger,
-    marginBottom: spacing.md,
-  },
-  body: {
-    ...typography.body,
-    color: colors.textMuted,
-    marginBottom: spacing.xl,
-  },
-  spacer: {
-    height: spacing.md,
-  },
-});

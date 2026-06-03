@@ -1,5 +1,6 @@
 import type { GalaxyMetrics } from "./galaxyTypes";
 import type { BackgroundStar, CoreLayer, GalaxyScene, ScreenDot } from "./galaxySceneCache";
+import { getBackdropStars } from "./galaxySceneCache";
 
 const ARMS = 3;
 const ARM_PARTICLES_PER_ARM = 380;
@@ -53,6 +54,33 @@ export const buildMetrics = (screenW: number, screenH: number): GalaxyMetrics =>
     screenW,
     screenH,
   };
+};
+
+/** Field stars for tab/backdrop screens (same distribution as full galaxy scene). */
+export const buildBackgroundStars = (metrics: GalaxyMetrics): BackgroundStar[] => {
+  const { screenW, screenH, sizeScale } = metrics;
+
+  return Array.from({ length: STAR_COUNT }, () => {
+    const tier = Math.random();
+    const r = (tier < 0.6 ? 0.4 : tier < 0.9 ? 0.7 : 1.05) * sizeScale;
+    const colorRoll = Math.random();
+    const alpha = rand(0.2, 0.9);
+    let color: string;
+    if (colorRoll < 0.7) {
+      color = `rgba(200,210,255,${alpha.toFixed(3)})`;
+    } else if (colorRoll < 0.9) {
+      color = `rgba(255,240,200,${alpha.toFixed(3)})`;
+    } else {
+      color = `rgba(180,200,255,${alpha.toFixed(3)})`;
+    }
+    return {
+      cx: Math.random() * screenW,
+      cy: Math.random() * screenH,
+      r,
+      color,
+      isCross: Math.random() < 0.18,
+    };
+  });
 };
 
 export const buildLiteStars = (metrics: GalaxyMetrics, count = 160): BackgroundStar[] => {
@@ -140,27 +168,7 @@ export const buildGalaxyScene = (
     }
   }
 
-  const stars: BackgroundStar[] = Array.from({ length: STAR_COUNT }, () => {
-    const tier = Math.random();
-    const r = (tier < 0.6 ? 0.4 : tier < 0.9 ? 0.7 : 1.05) * sizeScale;
-    const colorRoll = Math.random();
-    const alpha = rand(0.2, 0.9);
-    let color: string;
-    if (colorRoll < 0.7) {
-      color = `rgba(200,210,255,${alpha.toFixed(3)})`;
-    } else if (colorRoll < 0.9) {
-      color = `rgba(255,240,200,${alpha.toFixed(3)})`;
-    } else {
-      color = `rgba(180,200,255,${alpha.toFixed(3)})`;
-    }
-    return {
-      cx: Math.random() * metrics.screenW,
-      cy: Math.random() * metrics.screenH,
-      r,
-      color,
-      isCross: Math.random() < 0.18,
-    };
-  });
+  const stars = getBackdropStars(metrics, () => buildBackgroundStars(metrics));
 
   const base = metrics.base;
   const coreLayers: CoreLayer[] = [

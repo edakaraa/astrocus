@@ -1,5 +1,5 @@
 import React from "react";
-import { Text, type TextProps } from "react-native";
+import { Text, type TextProps, type TextStyle } from "react-native";
 import theme, { type ThemeTypographyVariant } from "../../theme";
 
 type AppTextProps = TextProps & {
@@ -13,8 +13,12 @@ export const AppText: React.FC<AppTextProps> = ({
   style,
   children,
   ...rest
-}) => (
-  <Text style={[theme.typography[variant], color ? { color } : null, style]} {...rest}>
-    {children}
-  </Text>
-);
+}) => {
+  const tokenStyle = theme.typography[variant] as TextStyle;
+
+  return (
+    <Text style={[tokenStyle, color ? { color } : null, style]} {...rest}>
+      {children}
+    </Text>
+  );
+};

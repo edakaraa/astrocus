@@ -8,9 +8,6 @@ import { StarDustChip } from "../ui/StarDustChip";
 
 type TabScreenTopBarProps = {
   stardustAmount: number;
-  showSettings?: boolean;
-  onSettingsPress?: () => void;
-  settingsAccessibilityLabel?: string;
 };
 
 export const getTabScreenTopBarOffset = (topInset: number) =>
@@ -42,12 +39,7 @@ const TopBarActionButton = ({
   </Pressable>
 );
 
-export const TabScreenTopBar: React.FC<TabScreenTopBarProps> = ({
-  stardustAmount,
-  showSettings = false,
-  onSettingsPress,
-  settingsAccessibilityLabel,
-}) => {
+export const TabScreenTopBar: React.FC<TabScreenTopBarProps> = ({ stardustAmount }) => {
   const { topInset, edgePadding, maxContentWidth } = useResponsive();
 
   return (
@@ -62,41 +54,35 @@ export const TabScreenTopBar: React.FC<TabScreenTopBarProps> = ({
     >
       <View style={[styles.inner, { maxWidth: maxContentWidth }]}>
         <View style={styles.row}>
+          <View style={styles.actionPlaceholder} />
           <StarDustChip amount={stardustAmount} />
-          {showSettings && onSettingsPress ? (
-            <View style={styles.settingsSlot}>
-              <TopBarActionButton
-                icon="cog-outline"
-                accessibilityLabel={settingsAccessibilityLabel ?? "Settings"}
-                onPress={onSettingsPress}
-              />
-            </View>
-          ) : (
-            <View style={styles.actionPlaceholder} />
-          )}
         </View>
       </View>
     </View>
   );
 };
 
-type SettingsScreenTopBarProps = {
+type SubScreenTopBarProps = {
   title: string;
   onBack: () => void;
   backAccessibilityLabel: string;
-  stardustAmount: number;
+  /** When set, shows the stardust chip row above the nav bar (e.g. badges). */
+  stardustAmount?: number;
   rightMeta?: string;
+  titleColor?: string;
 };
 
-/** Ayarlar / rozetler — tab ekranlarıyla aynı yıldız tozu hizası + geri + başlık. */
-export const SettingsScreenTopBar: React.FC<SettingsScreenTopBarProps> = ({
+/** Alt ekranlar: geri + başlık; isteğe bağlı yıldız tozu satırı. */
+export const SubScreenTopBar: React.FC<SubScreenTopBarProps> = ({
   title,
   onBack,
   backAccessibilityLabel,
   stardustAmount,
   rightMeta,
+  titleColor,
 }) => {
   const { topInset, edgePadding, maxContentWidth } = useResponsive();
+  const showStardust = stardustAmount !== undefined;
 
   return (
     <View
@@ -110,17 +96,19 @@ export const SettingsScreenTopBar: React.FC<SettingsScreenTopBarProps> = ({
       ]}
     >
       <View style={[styles.inner, { maxWidth: maxContentWidth }]}>
-        <View style={styles.row}>
-          <StarDustChip amount={stardustAmount} />
-          <View style={styles.actionPlaceholder} />
-        </View>
-        <View style={styles.navRow}>
+        {showStardust ? (
+          <View style={styles.row}>
+            <View style={styles.actionPlaceholder} />
+            <StarDustChip amount={stardustAmount} />
+          </View>
+        ) : null}
+        <View style={[styles.navRow, !showStardust ? styles.navRowFlush : null]}>
           <TopBarActionButton
             icon="arrow-left"
             accessibilityLabel={backAccessibilityLabel}
             onPress={onBack}
           />
-          <AppText variant="title" style={styles.screenTitle}>
+          <AppText variant="title" color={titleColor} style={styles.screenTitle}>
             {title}
           </AppText>
           {rightMeta ? (
@@ -135,6 +123,9 @@ export const SettingsScreenTopBar: React.FC<SettingsScreenTopBarProps> = ({
     </View>
   );
 };
+
+/** @deprecated Use SubScreenTopBar */
+export const SettingsScreenTopBar = SubScreenTopBar;
 
 const styles = StyleSheet.create({
   wrap: {
@@ -153,9 +144,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     minHeight: theme.layout.topBarMinHeight,
     width: "100%",
-  },
-  settingsSlot: {
-    marginTop: theme.layout.topBarSettingsOffsetTop,
   },
   actionBtn: {
     alignItems: "center",
@@ -181,6 +169,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: theme.spacing.sm,
     width: "100%",
+  },
+  navRowFlush: {
+    marginTop: 0,
   },
   screenTitle: {
     flex: 1,

@@ -1,9 +1,23 @@
 import { CATEGORIES } from "../../shared/constants";
-import { AuthPayload, SessionRecord, User } from "../../shared/types";
+import { AuthPayload, DailyGoalProgress, SessionRecord, User } from "../../shared/types";
 import { simulateDemoSessionReward } from "../auth/devDemo";
 import { getDateKey, isSameLocalCalendarDay } from "./dateKey";
 
-export const createDailySummary = (sessions: SessionRecord[], user: User | null) => {
+const resolveTodayGoalMinutes = (
+  user: User | null,
+  dailyGoalToday?: DailyGoalProgress | null,
+): number => {
+  if (dailyGoalToday && dailyGoalToday.goalMinutes > 0) {
+    return dailyGoalToday.goalMinutes;
+  }
+  return user?.dailyGoalMinutes ?? 0;
+};
+
+export const createDailySummary = (
+  sessions: SessionRecord[],
+  user: User | null,
+  dailyGoalToday?: DailyGoalProgress | null,
+) => {
   const todaySessions = sessions.filter((session) => isSameLocalCalendarDay(session.completedAt));
   const totalMinutes = todaySessions.reduce((sum, session) => sum + session.durationMinutes, 0);
   const categoryBreakdown = CATEGORIES.map((category) => ({
@@ -13,10 +27,12 @@ export const createDailySummary = (sessions: SessionRecord[], user: User | null)
       .reduce((sum, session) => sum + session.durationMinutes, 0),
   })).filter((item) => item.minutes > 0);
 
+  const goalMinutes = resolveTodayGoalMinutes(user, dailyGoalToday);
+
   return {
     totalMinutes,
     completedSessions: todaySessions.length,
-    goalProgress: user ? Math.min(totalMinutes / user.dailyGoalMinutes, 1) : 0,
+    goalProgress: goalMinutes > 0 ? Math.min(totalMinutes / goalMinutes, 1) : 0,
     categoryBreakdown,
   };
 };

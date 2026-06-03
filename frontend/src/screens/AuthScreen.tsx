@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   Animated,
   Easing,
   KeyboardAvoidingView,
@@ -21,9 +20,8 @@ import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useAppContext } from "../context/AppContext";
+import { toastTone, useAppContext } from "../context/AppContext";
 import { GradientButton } from "../components/GradientButton";
-import { AstroAlertModal } from "../components/AstroAlertModal";
 import { colors, fontFamilies, layout, spacing, typography } from "../shared/theme";
 import { isEmailConfirmationRequiredError } from "../lib/authErrors";
 import { oauthUserMessage } from "../lib/authErrors";
@@ -311,6 +309,7 @@ export const AuthScreen = () => {
     continueWithGoogle,
     continueWithApple,
     resetPassword,
+    showAlert,
     language,
   } = useAppContext();
   const { width, height } = useWindowDimensions();
@@ -325,7 +324,6 @@ export const AuthScreen = () => {
   const [fullName, setFullName] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [astroAlert, setAstroAlert] = useState<{ title: string; message: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isAppleLoading, setIsAppleLoading] = useState(false);
@@ -338,11 +336,19 @@ export const AuthScreen = () => {
     void isAppleSignInAvailable().then(setAppleAvailable);
   }, []);
 
-  const showAstroAlert = useCallback((title: string, message: string) => {
-    setAstroAlert({ title, message });
-  }, []);
-
   const isLogin = authMode === "login";
+
+  const presentAuthAlert = useCallback(
+    (title: string, message: string, icon?: keyof typeof MaterialCommunityIcons.glyphMap) => {
+      void showAlert({
+        title,
+        message,
+        confirmLabel: t(language, "ok"),
+        icon: icon ?? toastTone.error.icon,
+      });
+    },
+    [language, showAlert],
+  );
 
   const handleSubmit = async () => {
     if (isSubmitting) {
@@ -352,7 +358,7 @@ export const AuthScreen = () => {
     try {
       if (isLogin) {
         if (!email.trim() || !password.trim()) {
-          Alert.alert(t(language, "appName"), t(language, "fieldsRequired"));
+          presentAuthAlert(t(language, "appName"), t(language, "fieldsRequired"));
           return;
         }
         setIsSubmitting(true);
@@ -361,17 +367,17 @@ export const AuthScreen = () => {
       }
 
       if (!fullName.trim() || !username.trim() || !email.trim() || !password.trim()) {
-        Alert.alert(t(language, "appName"), t(language, "registerFieldsRequired"));
+        presentAuthAlert(t(language, "appName"), t(language, "registerFieldsRequired"));
         return;
       }
 
       if (password.length < 8) {
-        Alert.alert(t(language, "appName"), t(language, "weakPassword"));
+        presentAuthAlert(t(language, "appName"), t(language, "weakPassword"));
         return;
       }
 
       if (!acceptedTerms) {
-        Alert.alert(t(language, "appName"), t(language, "termsRequired"));
+        presentAuthAlert(t(language, "appName"), t(language, "termsRequired"));
         return;
       }
 
@@ -387,12 +393,15 @@ export const AuthScreen = () => {
       );
     } catch (error) {
       if (isEmailConfirmationRequiredError(error)) {
-        Alert.alert(t(language, "appName"), `${error.email} ${error.message}`, [
-          { text: t(language, "goToLogin"), onPress: () => setAuthMode("login") },
-        ]);
+        void showAlert({
+          title: t(language, "emailConfirmationTitle"),
+          message: t(language, "emailConfirmationMessage").replace("{email}", error.email),
+          confirmLabel: t(language, "goToLogin"),
+          icon: "email-check-outline",
+        }).then(() => setAuthMode("login"));
         return;
       }
-      Alert.alert(
+      presentAuthAlert(
         t(language, "appName"),
         error instanceof Error ? error.message : t(language, "errorGeneric"),
       );
@@ -410,7 +419,7 @@ export const AuthScreen = () => {
       await continueWithGoogle();
     } catch (error) {
       const { title, message } = oauthUserMessage(error, language, "google");
-      showAstroAlert(title, message);
+      presentAuthAlert(title, message);
     } finally {
       setIsGoogleLoading(false);
     }
@@ -425,7 +434,7 @@ export const AuthScreen = () => {
       await continueWithApple();
     } catch (error) {
       const { title, message } = oauthUserMessage(error, language, "apple");
-      showAstroAlert(title, message);
+      presentAuthAlert(title, message);
     } finally {
       setIsAppleLoading(false);
     }
@@ -503,17 +512,24 @@ export const AuthScreen = () => {
             accessibilityLabel={t(language, "forgotPassword")}
             onPress={async () => {
               if (!email.trim()) {
-                Alert.alert(t(language, "appName"), t(language, "enterEmailFirst"));
+                presentAuthAlert(t(language, "appName"), t(language, "enterEmailFirst"));
                 return;
               }
               try {
                 await resetPassword(email);
-                Alert.alert(t(language, "appName"), t(language, "passwordResetSent"));
+                void showAlert({
+                  title: t(language, "passwordResetSentTitle"),
+                  message: t(language, "passwordResetSentMessage"),
+                  confirmLabel: t(language, "ok"),
+                  icon: "email-fast-outline",
+                });
               } catch (error) {
-                Alert.alert(
-                  t(language, "appName"),
-                  error instanceof Error ? error.message : t(language, "requestFailed"),
-                );
+                void showAlert({
+                  title: t(language, "appName"),
+                  message: error instanceof Error ? error.message : t(language, "requestFailed"),
+                  confirmLabel: t(language, "ok"),
+                  icon: "alert-circle-outline",
+                });
               }
             }}
             style={styles.forgot}
@@ -698,13 +714,6 @@ export const AuthScreen = () => {
           </BlurView>
         </View>
 
-        <AstroAlertModal
-          visible={astroAlert !== null}
-          title={astroAlert?.title ?? t(language, "appName")}
-          message={astroAlert?.message ?? ""}
-          confirmLabel={t(language, "ok")}
-          onClose={() => setAstroAlert(null)}
-        />
       </View>
     </KeyboardAvoidingView>
   );

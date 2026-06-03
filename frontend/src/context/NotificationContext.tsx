@@ -19,6 +19,7 @@ export type AppAlertOptions = {
   title: string;
   message: string;
   confirmLabel?: string;
+  icon?: keyof typeof MaterialCommunityIcons.glyphMap;
 };
 
 export type AppConfirmOptions = {
@@ -34,6 +35,8 @@ export type AppToastOptions = {
   subtitle?: string;
   icon?: ToastIcon;
   iconColor?: string;
+  iconBackground?: string;
+  placement?: "top" | "bottom";
   durationMs?: number;
 };
 
@@ -73,6 +76,7 @@ const AppNotifierHost = ({
       title={alert?.title ?? ""}
       message={alert?.message ?? ""}
       confirmLabel={alert?.confirmLabel}
+      icon={alert?.icon}
       onClose={onAlertClose}
     />
     <AstroConfirmModal
@@ -91,6 +95,8 @@ const AppNotifierHost = ({
       subtitle={toast?.subtitle}
       icon={toast?.icon}
       iconColor={toast?.iconColor}
+      iconBackground={toast?.iconBackground}
+      placement={toast?.placement}
       durationMs={toast?.durationMs}
       onHide={onToastHide}
     />
@@ -175,10 +181,34 @@ export const useAppNotifier = (): NotificationContextValue => {
 
 /** Preset toast tones for consistent feedback across screens. */
 export const toastTone = {
-  info: { icon: "information-outline" as const, iconColor: colors.primary },
-  success: { icon: "check-circle-outline" as const, iconColor: colors.success },
-  warning: { icon: "alert-circle-outline" as const, iconColor: colors.warning },
-  error: { icon: "close-circle-outline" as const, iconColor: colors.danger },
-  star: { icon: "star-four-points" as const, iconColor: colors.primary },
-  trophy: { icon: "trophy-variant" as const, iconColor: colors.warning },
+  info: {
+    icon: "information-outline" as const,
+    iconColor: colors.primary,
+    iconBackground: "rgba(131,135,195,0.18)",
+  },
+  success: {
+    icon: "check-circle-outline" as const,
+    iconColor: colors.success,
+    iconBackground: "rgba(185,240,215,0.14)",
+  },
+  warning: {
+    icon: "alert-circle-outline" as const,
+    iconColor: colors.warning,
+    iconBackground: "rgba(255,209,102,0.14)",
+  },
+  error: {
+    icon: "close-circle-outline" as const,
+    iconColor: colors.danger,
+    iconBackground: "rgba(255,107,107,0.14)",
+  },
+  star: {
+    icon: "star-four-points" as const,
+    iconColor: colors.primary,
+    iconBackground: "rgba(131,135,195,0.18)",
+  },
+  trophy: {
+    icon: "trophy-variant" as const,
+    iconColor: colors.warning,
+    iconBackground: "rgba(255,209,102,0.14)",
+  },
 };

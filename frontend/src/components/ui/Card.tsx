@@ -1,35 +1,7 @@
-import React, { type PropsWithChildren } from "react";
-import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
-import theme from "../../theme";
+import React, { type ComponentProps } from "react";
+import { AppCard } from "./AppCard";
 
-type CardProps = PropsWithChildren<{
-  radius?: number;
-  padding?: number;
-  style?: StyleProp<ViewStyle>;
-}>;
+export type CardProps = Omit<ComponentProps<typeof AppCard>, "variant" | "contentPadding" | "borderVariant">;
 
-export const Card: React.FC<CardProps> = ({
-  children,
-  radius = theme.radii.lg,
-  padding = theme.spacing.xl,
-  style,
-}) => (
-  <View
-    style={[
-      styles.card,
-      { borderRadius: radius, padding },
-      style,
-    ]}
-  >
-    {children}
-  </View>
-);
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: theme.colors.surfaceCard,
-    borderColor: theme.colors.border,
-    borderWidth: 1,
-    width: "100%",
-  },
-});
+/** @see AppCard — `variant="card"` */
+export const Card: React.FC<CardProps> = (props) => <AppCard variant="card" {...props} />;

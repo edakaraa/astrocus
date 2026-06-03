@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useLayoutEffect, useRef } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { Redirect, Tabs } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -6,11 +6,28 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, getTabBarMetrics, spacing } from "../../src/shared/theme";
 import { useAppContext } from "../../src/context/AppContext";
 import { t } from "../../src/shared/i18n";
+import {
+  preloadCosmicBackdrop,
+  scheduleGalaxyScenePreload,
+} from "../../src/components/galaxy/preloadGalaxyScene";
 
 export default function TabsLayout() {
   const { language, isReady, user } = useAppContext();
   const insets = useSafeAreaInsets();
   const { bottomOffset, height: tabBarHeight } = getTabBarMetrics(insets.bottom);
+  const warmedBackdrop = useRef(false);
+
+  if (user?.onboardingCompleted && !warmedBackdrop.current) {
+    warmedBackdrop.current = true;
+    preloadCosmicBackdrop(0.5);
+  }
+
+  useLayoutEffect(() => {
+    if (!user?.onboardingCompleted) {
+      return;
+    }
+    scheduleGalaxyScenePreload(0.5);
+  }, [user?.onboardingCompleted]);
 
   if (!isReady) {
     return (

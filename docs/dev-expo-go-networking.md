@@ -1,5 +1,20 @@
 # Expo Go: Google OAuth + yerel API birlikte
 
+## Mavi “indiriliyor” / `Failed to download remote update`
+
+Bu mesaj çoğu zaman **EAS OTA değil** — Expo Go, Google’dan dönerken uygulamayı yeniden açıp **Metro’dan (8081) JS bundle** indirmeye çalışır; telefon PC’ye ulaşamazsa mavi ekran + bu hata görünür.
+
+**Kontrol listesi (Windows):**
+
+1. Wi‑Fi profili **Özel (Private)** olsun (Genel/Public cihazlar birbirini görmez).
+2. **Güvenlik duvarı:** “Node.js JavaScript Runtime” için Özel + Genel işaretli (`wf.msc` → Gelen kurallar).
+3. Metro’yu OAuth ile **aynı modda** başlat:
+   - LAN: `npm run start:lan` → Supabase’e logdaki `exp://192.168.x.x:8081/--/auth/callback` ekle.
+   - Tunnel: `npm run start:tunnel` → Supabase’e logdaki `exp://…exp.direct…/--/auth/callback` ekle (LAN redirect ile karıştırma).
+4. OAuth sonrası mavi ekran gelse bile kod artık dönüş URL’sini saklar; bundle yüklenince `/auth/callback` oturumu tamamlamayı dener.
+
+---
+
 ## Sorun (iki mod, ikisi birden yok)
 
 | Mod | Metro | Google OAuth | `POST /account/delete` → Express |

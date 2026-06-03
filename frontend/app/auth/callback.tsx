@@ -3,15 +3,27 @@ import { ActivityIndicator, View } from "react-native";
 import { useRouter } from "expo-router";
 import * as Linking from "expo-linking";
 import { completeOAuthFromUrl } from "../../src/lib/oauth";
+import {
+  clearOAuthReturnUrl,
+  isOAuthReturnUrl,
+  peekOAuthReturnUrl,
+  stashOAuthReturnUrl,
+} from "../../src/lib/oauthLinking";
 import { loadAuthPayloadFromSession } from "../../src/shared/api";
 import { useAppContext } from "../../src/context/AppContext";
 import { colors } from "../../src/shared/theme";
 
-const isOAuthReturnUrl = (url: string | null | undefined): boolean => {
-  if (!url) {
-    return false;
+const resolveOAuthReturnUrl = async (): Promise<string | null> => {
+  const stashed = await peekOAuthReturnUrl();
+  if (stashed) {
+    return stashed;
   }
-  return url.includes("auth/callback") || url.includes("code=") || url.includes("access_token=");
+  const initial = await Linking.getInitialURL();
+  if (isOAuthReturnUrl(initial)) {
+    await stashOAuthReturnUrl(initial!);
+    return initial;
+  }
+  return null;
 };
 
 /**
@@ -38,6 +50,7 @@ export default function AuthCallbackScreen() {
         const session = await completeOAuthFromUrl(url);
         const payload = await loadAuthPayloadFromSession(session);
         await applyAuthPayload(payload);
+        await clearOAuthReturnUrl();
         if (__DEV__) {
           console.info("[Astrocus OAuth] callback success user =", payload.user.email);
         }
@@ -45,6 +58,7 @@ export default function AuthCallbackScreen() {
           payload.user.onboardingCompleted ? "/(tabs)/session" : "/(onboarding)/star-pick",
         );
       } catch (error) {
+        await clearOAuthReturnUrl();
         if (__DEV__) {
           console.warn(
             "[Astrocus OAuth] callback failed:",
@@ -55,10 +69,14 @@ export default function AuthCallbackScreen() {
       }
     };
 
-    void Linking.getInitialURL().then((url) => finish(url));
+    void resolveOAuthReturnUrl().then((url) => finish(url));
     const subscription = Linking.addEventListener("url", (event) => {
+      void stashOAuthReturnUrl(event.url);
       void finish(event.url);
     });
+    const stashPoll = setInterval(() => {
+      void peekOAuthReturnUrl().then((url) => finish(url));
+    }, 400);
     const fallbackTimer = setTimeout(() => {
       if (!handledRef.current) {
         router.replace("/(auth)");
@@ -67,6 +85,7 @@ export default function AuthCallbackScreen() {
 
     return () => {
       subscription.remove();
+      clearInterval(stashPoll);
       clearTimeout(fallbackTimer);
     };
   }, [applyAuthPayload, router]);

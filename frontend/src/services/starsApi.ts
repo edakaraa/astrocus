@@ -1,3 +1,4 @@
+// Şu an kullanılmıyor — backend stars.routes ile HTTP unlock'a dönülürse aktifleştirilecek.
 import type { UnlockStarResult } from "../shared/types";
 
 type UnlockStarRpc = {

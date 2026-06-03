@@ -7,6 +7,15 @@ export type AnalyticsSummary = {
   totalStardust: number;
 };
 
+export type DailyGoalHistoryDay = {
+  goalDate: string;
+  goalMinutes: number;
+  focusedMinutes: number;
+  completedSessions: number;
+  goalMet: boolean;
+  rewardClaimed: boolean;
+};
+
 export type UnlockStarResult = {
   starId: string;
   cost: number;

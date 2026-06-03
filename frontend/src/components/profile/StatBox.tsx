@@ -10,7 +10,7 @@ type StatBoxProps = {
 
 export const StatBox: React.FC<StatBoxProps> = ({ value, label }) => (
   <View style={styles.box}>
-    <AppText variant="hero" style={styles.value}>
+    <AppText variant="numeric" style={styles.value}>
       {value}
     </AppText>
     <AppText variant="micro" style={styles.label}>

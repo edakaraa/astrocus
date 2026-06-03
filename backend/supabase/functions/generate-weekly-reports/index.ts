@@ -197,6 +197,7 @@ export const buildWeeklyStats = (
   allSessions: SessionRow[],
   priorMaxWeekMinutes: number,
   refDate: Date,
+  goalsByDay: Map<string, number> = new Map(),
 ): WeeklyStats => {
   const total_minutes = weekSessions.reduce((sum, s) => sum + s.duration_minutes, 0);
   const total_sessions = weekSessions.length;
@@ -226,7 +227,8 @@ export const buildWeeklyStats = (
     const day = new Date(weekStart);
     day.setUTCDate(day.getUTCDate() + i);
     const key = toDateKeyUtc(day);
-    if ((byDay.get(key) ?? 0) >= daily_goal_minutes) {
+    const dayGoal = goalsByDay.get(key);
+    if (dayGoal != null && (byDay.get(key) ?? 0) >= dayGoal) {
       goal_met_days += 1;
     }
   }
@@ -552,6 +554,25 @@ Deno.serve(async (req) => {
       const allSessions = (sessions ?? []) as SessionRow[];
       const weekSessions = allSessions.filter((s) => sessionInWeek(s, weekStart, weekEnd));
 
+      const weekEndStr = toDateKeyUtc(weekEnd);
+      const { data: goalRows, error: goalsError } = await admin
+        .from("daily_goal_entries")
+        .select("goal_date, goal_minutes")
+        .eq("user_id", profile.id)
+        .gte("goal_date", weekStartStr)
+        .lte("goal_date", weekEndStr);
+
+      if (goalsError) throw goalsError;
+
+      const goalsByDay = new Map<string, number>();
+      for (const row of goalRows ?? []) {
+        const goalDate = String((row as { goal_date: string }).goal_date);
+        const goalMinutes = Number((row as { goal_minutes: number }).goal_minutes);
+        if (goalDate && goalMinutes > 0) {
+          goalsByDay.set(goalDate, goalMinutes);
+        }
+      }
+
       const priorMax = await maxWeekMinutesBefore(admin, profile.id, weekStartStr);
 
       const stats = buildWeeklyStats(
@@ -562,6 +583,7 @@ Deno.serve(async (req) => {
         allSessions,
         priorMax,
         refDate,
+        goalsByDay,
       );
 
       const { text, fallback } = await generateReportText(stats);

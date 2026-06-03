@@ -1,111 +1,145 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { useAppContext } from "../../context/AppContext";
+import { Slider } from "@miblanchard/react-native-slider";
+import { toastTone, useAppContext } from "../../context/AppContext";
+import { roundDailyGoalMinutes } from "../../lib/dailyGoalStorage";
 import { t } from "../../shared/i18n";
 import theme from "../../theme";
 import { AppText } from "../ui/AppText";
 import { Card } from "../ui/Card";
 import { ProgressBar } from "../ui/ProgressBar";
-import { RewardToast } from "../ui/RewardToast";
 
 type DailyGoalCardProps = {
+  /** Confirmed goal for today; 0 means show inline picker. */
   goalMinutes: number;
+  /** Slider default when picking (usually yesterday's choice or profile default). */
+  pickerDefaultMinutes: number;
   elapsedMinutes: number;
   sessionCount: number;
-  onSetGoal: () => void;
+  onConfirmGoal: (minutes: number) => void;
   onGoalReached?: () => void;
 };
 
 export const DailyGoalCard: React.FC<DailyGoalCardProps> = ({
   goalMinutes,
+  pickerDefaultMinutes,
   elapsedMinutes,
   sessionCount,
-  onSetGoal,
+  onConfirmGoal,
   onGoalReached,
 }) => {
-  const { language } = useAppContext();
-  const [showReward, setShowReward] = useState(false);
+  const { language, showToast } = useAppContext();
   const rewardedRef = useRef(false);
+  const [draftMinutes, setDraftMinutes] = useState(pickerDefaultMinutes);
 
-  const hasGoal = goalMinutes > 0;
-  const pct = hasGoal ? Math.round(Math.min(elapsedMinutes / goalMinutes, 1) * 100) : 0;
-  const progress = hasGoal ? Math.min(elapsedMinutes / goalMinutes, 1) : 0;
-  const goalReached = hasGoal && elapsedMinutes >= goalMinutes;
+  const hasGoalToday = goalMinutes > 0;
+  const pct = hasGoalToday ? Math.round(Math.min(elapsedMinutes / goalMinutes, 1) * 100) : 0;
+  const progress = hasGoalToday ? Math.min(elapsedMinutes / goalMinutes, 1) : 0;
+  const goalReached = hasGoalToday && elapsedMinutes >= goalMinutes;
+
+  useEffect(() => {
+    if (!hasGoalToday) {
+      setDraftMinutes(pickerDefaultMinutes);
+      rewardedRef.current = false;
+    }
+  }, [hasGoalToday, pickerDefaultMinutes]);
 
   useEffect(() => {
     if (!goalReached || rewardedRef.current) {
       return;
     }
     rewardedRef.current = true;
-    setShowReward(true);
+    showToast({
+      title: t(language, "dailyGoalRewardToast"),
+      ...toastTone.trophy,
+      placement: "bottom",
+    });
     onGoalReached?.();
-  }, [goalReached, onGoalReached]);
+  }, [goalReached, language, onGoalReached, showToast]);
 
-  useEffect(() => {
-    if (!hasGoal) {
-      rewardedRef.current = false;
-      setShowReward(false);
-    }
-  }, [hasGoal]);
+  const handleConfirm = () => {
+    onConfirmGoal(roundDailyGoalMinutes(draftMinutes));
+  };
 
   return (
-    <>
-      <Card>
-        {!hasGoal ? (
-          <View style={styles.noGoal}>
-            <AppText variant="body">{t(language, "dailyGoalSetPrompt")}</AppText>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t(language, "dailyGoalSetButton")}
-              onPress={onSetGoal}
-              style={({ pressed }) => [styles.setButton, pressed ? styles.pressed : null]}
-            >
-              <AppText variant="card" color={theme.colors.bg}>
-                {t(language, "dailyGoalSetButton")}
-              </AppText>
-            </Pressable>
-          </View>
-        ) : (
-          <View style={styles.goalBody}>
-            <View style={styles.topRow}>
-              <AppText variant="hero">
-                {`${elapsedMinutes} ${t(language, "minuteUnit")}`}
-              </AppText>
-              <AppText variant="card" color={theme.colors.accent}>{`%${pct}`}</AppText>
-            </View>
+    <Card>
+      <AppText variant="focusSectionLabel" style={styles.cardLabel}>
+        {t(language, "dailyGoal")}
+      </AppText>
+
+      {!hasGoalToday ? (
+        <View style={styles.pickerBody}>
+          <AppText variant="body">{t(language, "dailyGoalSetPrompt")}</AppText>
+          <AppText variant="caption" color={theme.colors.textSecondary}>
+            {t(language, "dailyGoalSheetQuestion")}
+          </AppText>
+          <AppText variant="numericHero" style={styles.pickerValue}>
+            {`${draftMinutes} ${t(language, "minuteUnit")}`}
+          </AppText>
+          <Slider
+            value={draftMinutes}
+            onValueChange={(v: number | number[]) => setDraftMinutes(Array.isArray(v) ? v[0] : v)}
+            minimumValue={theme.layout.goalSheetMinMinutes}
+            maximumValue={theme.layout.goalSheetMaxMinutes}
+            step={theme.layout.goalSheetStep}
+            minimumTrackTintColor={theme.colors.accent}
+            maximumTrackTintColor={theme.colors.surface}
+            thumbTintColor={theme.colors.textPrimary}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t(language, "dailyGoalSetButton")}
+            onPress={handleConfirm}
+            style={({ pressed }) => [styles.setButton, pressed ? styles.pressed : null]}
+          >
+            <AppText variant="card" color={theme.colors.bg}>
+              {t(language, "dailyGoalSetButton")}
+            </AppText>
+          </Pressable>
+        </View>
+      ) : (
+        <View style={styles.goalBody}>
+          <View style={styles.topRow}>
             {goalReached ? (
               <View style={styles.reachedRow}>
                 <AppText variant="card">✦</AppText>
                 <AppText variant="card">{t(language, "dailyGoalReached")}</AppText>
               </View>
             ) : (
-              <ProgressBar progress={progress} />
+              <AppText variant="numericHero" style={styles.elapsed}>
+                {`${elapsedMinutes} ${t(language, "minuteUnit")}`}
+              </AppText>
             )}
-            <AppText variant="caption" style={styles.caption}>
-              {t(language, "dailyGoalProgressCaption")
-                .replace("{goal}", String(goalMinutes))
-                .replace("{sessions}", String(sessionCount))}
-            </AppText>
+            <AppText variant="numeric" color={theme.colors.accent}>{`%${pct}`}</AppText>
           </View>
-        )}
-      </Card>
-      <RewardToast
-        visible={showReward}
-        message={t(language, "dailyGoalRewardToast")}
-        icon="✦"
-      />
-    </>
+          {!goalReached ? <ProgressBar progress={progress} /> : null}
+          <AppText variant="caption" style={styles.caption}>
+            <AppText variant="numericCompact">{goalMinutes}</AppText>
+            {language === "tr" ? " dk günlük hedef · " : " min daily goal · "}
+            <AppText variant="numericCompact">{sessionCount}</AppText>
+            {language === "tr" ? " seans bugün" : " sessions today"}
+          </AppText>
+        </View>
+      )}
+    </Card>
   );
 };
 
 const styles = StyleSheet.create({
-  noGoal: {
-    gap: theme.spacing.lg,
+  cardLabel: {
+    marginBottom: theme.spacing.sm,
+  },
+  pickerBody: {
+    gap: theme.spacing.md,
+  },
+  pickerValue: {
+    textAlign: "center",
   },
   setButton: {
     alignItems: "center",
     backgroundColor: theme.colors.accent,
     borderRadius: theme.radii.sm,
+    marginTop: theme.spacing.xs,
     paddingVertical: theme.spacing.md,
   },
   pressed: {
@@ -119,12 +153,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
   },
+  elapsed: {
+    flex: 1,
+    fontSize: 22,
+    lineHeight: 28,
+  },
   reachedRow: {
     alignItems: "center",
+    flex: 1,
     flexDirection: "row",
     gap: theme.spacing.sm,
-    justifyContent: "center",
-    paddingVertical: theme.spacing.sm,
   },
   caption: {
     marginTop: theme.spacing.xs,

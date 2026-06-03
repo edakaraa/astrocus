@@ -1,6 +1,7 @@
 import React from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { BlurView } from "expo-blur";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useModalLayout } from "../shared/responsive";
 import { colors, fontFamilies, radii, spacing, typography } from "../shared/theme";
 import { GradientButton } from "./GradientButton";
@@ -10,6 +11,7 @@ export type AstroAlertModalProps = {
   title: string;
   message: string;
   confirmLabel?: string;
+  icon?: keyof typeof MaterialCommunityIcons.glyphMap;
   onClose: () => void;
 };
 
@@ -18,6 +20,7 @@ export const AstroAlertModal = ({
   title,
   message,
   confirmLabel = "OK",
+  icon,
   onClose,
 }: AstroAlertModalProps) => {
   const modal = useModalLayout();
@@ -43,8 +46,13 @@ export const AstroAlertModal = ({
             <View style={styles.glassTint} />
             {modal.isSheet ? <View style={styles.sheetHandle} accessibilityElementsHidden /> : null}
             <View style={styles.content}>
-              <Text style={styles.title}>{title}</Text>
-              <Text style={styles.message}>{message}</Text>
+              {icon ? (
+                <View style={styles.iconWrap}>
+                  <MaterialCommunityIcons color={colors.warmOffWhite} name={icon} size={28} />
+                </View>
+              ) : null}
+              <Text style={[styles.title, icon ? styles.titleCentered : null]}>{title}</Text>
+              <Text style={[styles.message, icon ? styles.messageCentered : null]}>{message}</Text>
               <GradientButton label={confirmLabel} onPress={onClose} style={styles.button} fullWidth={modal.isSheet} />
             </View>
           </BlurView>
@@ -96,14 +104,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
   },
+  iconWrap: {
+    alignItems: "center",
+    alignSelf: "center",
+    backgroundColor: "rgba(232,228,192,0.12)",
+    borderRadius: 28,
+    height: 56,
+    justifyContent: "center",
+    marginBottom: spacing.sm,
+    width: 56,
+  },
   title: {
     ...typography.h3,
-    color: colors.text,
+    color: colors.warmOffWhite,
+    fontFamily: fontFamilies.displayBold,
+  },
+  titleCentered: {
+    textAlign: "center",
   },
   message: {
     ...typography.body,
     color: colors.textMuted,
     marginTop: spacing.sm,
+  },
+  messageCentered: {
+    textAlign: "center",
   },
   button: {
     marginTop: spacing.lg,

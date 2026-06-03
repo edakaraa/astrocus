@@ -1,4 +1,4 @@
-import type { TextStyle } from "react-native";
+import { typographyTokens, type TypographyVariant } from "./typography";
 
 const textPrimary = "#E8E4C0";
 const textSecondary = "#959BB5";
@@ -37,14 +37,7 @@ const theme = {
     xl: 20,
     xxl: 28,
   },
-  typography: {
-    hero: { fontSize: 28, fontWeight: "700" as const, color: textPrimary },
-    title: { fontSize: 20, fontWeight: "700" as const, color: textPrimary },
-    card: { fontSize: 16, fontWeight: "600" as const, color: textPrimary },
-    body: { fontSize: 14, fontWeight: "400" as const, color: textSecondary },
-    caption: { fontSize: 12, fontWeight: "400" as const, color: textSecondary },
-    micro: { fontSize: 11, fontWeight: "400" as const, color: textSecondary },
-  } satisfies Record<string, TextStyle>,
+  typography: typographyTokens,
   layout: {
     avatarSize: 80,
     avatarRingWidth: 2,
@@ -74,6 +67,7 @@ const theme = {
   },
 } as const;
 
-export type ThemeTypographyVariant = keyof typeof theme.typography;
+export type ThemeTypographyVariant = TypographyVariant;
 
+export { typographyTokens, fontFamilies, numericTypography } from "./typography";
 export default theme;

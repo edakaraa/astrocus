@@ -14,7 +14,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/AppContext";
 import { formatDuration, formatNumber } from "../shared/formatLocale";
 import { t } from "../shared/i18n";
-import { colors, fontFamilies, motion, radii, shadows, spacing, typography } from "../shared/theme";
+import { colors, motion, numericTypography, radii, shadows, spacing, typography } from "../shared/theme";
 import theme from "../theme";
 import { GradientButton } from "./GradientButton";
 
@@ -593,10 +593,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   rewardValue: {
+    ...numericTypography,
     color: theme.colors.textPrimary,
-    fontFamily: fontFamilies.mono,
     fontSize: 46,
-    fontWeight: "700",
     letterSpacing: -1.2,
   },
   rewardSpark: {
@@ -604,10 +603,9 @@ const styles = StyleSheet.create({
     fontSize: 34,
   },
   rewardMuted: {
+    ...numericTypography,
     color: theme.colors.muted,
-    fontFamily: fontFamilies.mono,
     fontSize: 36,
-    fontWeight: "700",
   },
   rewardLabel: {
     ...typography.caption,
@@ -671,10 +669,9 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   statVal: {
+    ...numericTypography,
     color: theme.colors.textPrimary,
-    fontFamily: fontFamilies.displayBold,
     fontSize: 14,
-    fontWeight: "700",
     textAlign: "center",
   },
   statLabel: {

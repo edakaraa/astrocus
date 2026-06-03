@@ -7,7 +7,7 @@ import { AppText } from "../ui/AppText";
 type ProfileNavRowProps = {
   icon: keyof typeof MaterialCommunityIcons.glyphMap;
   label: string;
-  meta: string;
+  meta?: string;
   onPress: () => void;
   accessibilityLabel: string;
   isLast?: boolean;
@@ -33,7 +33,7 @@ export const ProfileNavRow: React.FC<ProfileNavRowProps> = ({
     <AppText variant="card" style={styles.label}>
       {label}
     </AppText>
-    <AppText variant="caption">{meta}</AppText>
+    {meta ? <AppText variant="caption">{meta}</AppText> : null}
     <MaterialCommunityIcons name="chevron-right" size={20} color={theme.colors.muted} />
   </Pressable>
 );

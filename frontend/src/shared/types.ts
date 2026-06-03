@@ -159,6 +159,19 @@ export type DailySummary = {
   categoryBreakdown: Array<{ categoryId: string; minutes: number }>;
 };
 
+/** Today's daily goal + live focus totals (from `get_daily_goal_progress`). */
+export type DailyGoalProgress = {
+  goalDate: string;
+  goalMinutes: number;
+  focusedMinutes: number;
+  completedSessions: number;
+  goalMet: boolean;
+  rewardClaimed: boolean;
+};
+
+/** One day in `list_daily_goal_history` — for charts and insights. */
+export type DailyGoalHistoryDay = DailyGoalProgress;
+
 export type WeeklyReportUserType = "inactive" | "new" | "low" | "medium" | "high";
 
 export type WeeklyReportStats = {
@@ -223,6 +236,8 @@ export type AuthPayload = {
   earnedBadgeIds: string[];
   /** User's constellation progress rows */
   constellationProgress: UserConstellationRow[];
+  /** Today’s confirmed goal and progress (null if RPC unavailable). */
+  dailyGoalToday?: DailyGoalProgress | null;
 };
 
 export type TimerStatus = "idle" | "running" | "paused" | "completed" | "failed";

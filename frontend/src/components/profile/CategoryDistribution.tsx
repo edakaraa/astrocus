@@ -38,7 +38,7 @@ export const CategoryDistribution: React.FC<CategoryDistributionProps> = ({ cate
               <View style={[styles.dot, { backgroundColor: row.color }]} />
               <AppText variant="body">{row.name}</AppText>
             </View>
-            <AppText variant="caption">
+            <AppText variant="numericCompact" color={theme.colors.textSecondary}>
               {`${formatDuration(language, row.minutes)} (${row.percentage}%)`}
             </AppText>
           </View>

@@ -1,5 +1,5 @@
 import { STARS } from "../shared/constants";
-import { AuthPayload, SessionRecord, User, UserConstellationRow } from "../shared/types";
+import { AuthPayload, DailyGoalProgress, SessionRecord, User, UserConstellationRow } from "../shared/types";
 
 export type ProfileRow = {
   id: string;
@@ -93,6 +93,7 @@ export const buildAuthPayload = (
   unlockedStarIdsFromDb: string[] | null,
   earnedBadgeIds: string[],
   constellationProgressRows: UserConstellationDbRow[],
+  dailyGoalToday: DailyGoalProgress | null = null,
 ): AuthPayload => {
   const user = mapProfileToUser(profile);
   const unlockedStarIds =
@@ -107,6 +108,7 @@ export const buildAuthPayload = (
     unlockedStarIds,
     earnedBadgeIds,
     constellationProgress: constellationProgressRows.map(mapConstellationProgressRow),
+    dailyGoalToday,
   };
 };
 

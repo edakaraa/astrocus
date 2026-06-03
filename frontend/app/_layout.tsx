@@ -2,6 +2,7 @@ import * as WebBrowser from "expo-web-browser";
 
 // OAuth dönüşü — provider yüklenmeden önce (Expo Go Android cold start)
 WebBrowser.maybeCompleteAuthSession();
+import "../src/lib/oauthLinking";
 
 import React, { useEffect } from "react";
 import { Text, TextInput } from "react-native";
@@ -52,24 +53,80 @@ import { CelebrationHost } from "../src/components/CelebrationHost";
 import { loadSkyCatalog } from "../src/services/skyCatalog";
 import { colors } from "../src/shared/theme";
 
-const isOAuthReturnUrl = (url: string | null | undefined): boolean =>
-  Boolean(url && (url.includes("auth/callback") || url.includes("code=") || url.includes("access_token=")));
+import { isOAuthReturnUrl, peekOAuthReturnUrl } from "../src/lib/oauthLinking";
+import { useDeepLink } from "../src/hooks/useDeepLink";
+import { loadAuthPayloadFromSession } from "../src/shared/api";
+import { useAppContext } from "../src/context/AppContext";
 
 /** Cold start: exp://…/auth/callback ile acilinca Metro'da gorunur. */
 const OAuthColdStartProbe = () => {
   const router = useRouter();
 
   useEffect(() => {
-    void Linking.getInitialURL().then((url) => {
-      if (!url) return;
+    const probe = async () => {
+      const stashed = await peekOAuthReturnUrl();
+      const initial = await Linking.getInitialURL();
+      const url = stashed ?? initial;
+      if (!url) {
+        return;
+      }
       if (__DEV__) {
-        console.info("[Astrocus OAuth] app launch initialURL =", url.slice(0, 160));
+        console.info("[Astrocus OAuth] app launch url =", url.slice(0, 160));
       }
       if (isOAuthReturnUrl(url)) {
         router.replace("/auth/callback");
       }
-    });
+    };
+    void probe();
   }, [router]);
+
+  return null;
+};
+
+/** Supabase e-posta linkleri: doğrulama ve şifre sıfırlama. */
+const AuthEmailDeepLinkHandler = () => {
+  const router = useRouter();
+  const { applyAuthPayload } = useAppContext();
+  const { type, handled, error, session } = useDeepLink();
+  const navigatedRef = React.useRef(false);
+
+  useEffect(() => {
+    if (!handled || navigatedRef.current) {
+      return;
+    }
+
+    if (error) {
+      if (__DEV__) {
+        console.warn("[Astrocus DeepLink] navigation skipped:", error);
+      }
+      navigatedRef.current = true;
+      router.replace("/(auth)");
+      return;
+    }
+
+    const finish = async () => {
+      navigatedRef.current = true;
+
+      if (type === "signup" && session) {
+        try {
+          const payload = await loadAuthPayloadFromSession(session);
+          await applyAuthPayload(payload);
+        } catch (loadError) {
+          if (__DEV__) {
+            console.warn("[Astrocus DeepLink] payload load failed:", loadError);
+          }
+        }
+        router.replace("/verify-success");
+        return;
+      }
+
+      if (type === "recovery") {
+        router.replace("/reset-password");
+      }
+    };
+
+    void finish();
+  }, [applyAuthPayload, error, handled, router, session, type]);
 
   return null;
 };
@@ -101,10 +158,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider {...refs}>
-        <SessionProvider {...refs}>
-          <UIProvider {...refs}>
-            <NotificationProvider>
+        <NotificationProvider>
+          <SessionProvider {...refs}>
+            <UIProvider {...refs}>
               <OAuthColdStartProbe />
+              <AuthEmailDeepLinkHandler />
               <CelebrationHost />
               <StatusBar style="light" />
               <Stack
@@ -113,9 +171,9 @@ export default function RootLayout() {
                   contentStyle: { backgroundColor: colors.background },
                 }}
               />
-            </NotificationProvider>
-          </UIProvider>
-        </SessionProvider>
+            </UIProvider>
+          </SessionProvider>
+        </NotificationProvider>
       </AuthProvider>
     </GestureHandlerRootView>
   );

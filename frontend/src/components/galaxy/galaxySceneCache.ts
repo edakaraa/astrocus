@@ -29,8 +29,35 @@ export type GalaxyScene = {
   coreLayers: CoreLayer[];
 };
 
-let cachedKey = "";
+const sceneKeyFor = (metrics: GalaxyMetrics) => `${metrics.screenW}x${metrics.screenH}`;
+
+let cachedSceneKey = "";
 let cachedScene: GalaxyScene | null = null;
+
+let cachedBackdropKey = "";
+let cachedBackdropStars: BackgroundStar[] | null = null;
+
+export const getBackdropStars = (
+  metrics: GalaxyMetrics,
+  build: () => BackgroundStar[],
+): BackgroundStar[] => {
+  const key = sceneKeyFor(metrics);
+  if (cachedBackdropKey === key && cachedBackdropStars) {
+    return cachedBackdropStars;
+  }
+  const stars = build();
+  cachedBackdropStars = stars;
+  cachedBackdropKey = key;
+  return stars;
+};
+
+export const peekBackdropStars = (metrics: GalaxyMetrics): BackgroundStar[] | null => {
+  const key = sceneKeyFor(metrics);
+  if (cachedBackdropKey === key && cachedBackdropStars) {
+    return cachedBackdropStars;
+  }
+  return null;
+};
 
 export const getGalaxyScene = (
   metrics: GalaxyMetrics,
@@ -39,12 +66,15 @@ export const getGalaxyScene = (
   base: number,
   build: () => GalaxyScene,
 ): GalaxyScene => {
-  const key = `${metrics.screenW}x${metrics.screenH}`;
-  if (cachedKey === key && cachedScene) {
+  const key = sceneKeyFor(metrics);
+  if (cachedSceneKey === key && cachedScene) {
     return cachedScene;
   }
-  cachedScene = build();
-  cachedKey = key;
+  const scene = build();
+  cachedScene = scene;
+  cachedSceneKey = key;
+  cachedBackdropStars = scene.stars;
+  cachedBackdropKey = key;
   return cachedScene;
 };
 

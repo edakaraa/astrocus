@@ -1,22 +1,90 @@
 import React from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import type { Language, WeeklyReport, WeeklyReportStats } from "../shared/types";
 import { t } from "../shared/i18n";
-import type { Language, WeeklyReportStats } from "../shared/types";
 import { formatDuration, formatNumber } from "../shared/formatLocale";
-import { colors, fontFamilies, radii, screenBlock, spacing, typography } from "../shared/theme";
-import { SurfaceCard } from "./SurfaceCard";
+import { colors, radii, screenBlock, spacing } from "../shared/theme";
+import { Card } from "./ui/Card";
+import { AppText } from "./ui/AppText";
+import { IconTitleRow } from "./ui/IconTitleRow";
+import { GradientButton } from "./GradientButton";
+import { AppCard } from "./ui/AppCard";
+import theme from "../theme";
 
-type WeeklyReportCardProps = {
+export type WeeklyReportCardMode = "session" | "profile";
+
+type WeeklyReportCardBaseProps = {
   language: Language;
+  loading: boolean;
   reportText: string | null;
+};
+
+type WeeklyReportCardSessionProps = WeeklyReportCardBaseProps & {
+  mode?: "session";
   weekLabel: string | null;
   stats?: WeeklyReportStats;
-  loading: boolean;
   onPress?: () => void;
 };
 
-export const WeeklyReportCard: React.FC<WeeklyReportCardProps> = ({
+type WeeklyReportCardProfileProps = WeeklyReportCardBaseProps & {
+  mode: "profile";
+  report: WeeklyReport | null;
+  onOpen: () => void;
+};
+
+export type WeeklyReportCardProps = WeeklyReportCardSessionProps | WeeklyReportCardProfileProps;
+
+const ReportHeader = ({
+  language,
+  weekLabel,
+}: {
+  language: Language;
+  weekLabel?: string | null;
+}) => (
+  <IconTitleRow icon="chart-timeline-variant" iconColor={theme.colors.accent} textColumnStyle={styles.headerTextGap}>
+    <AppText variant={weekLabel ? "weeklyReportTitle" : "card"}>
+      {t(language, "weeklyReportTitle")}
+    </AppText>
+    {weekLabel ? (
+      <AppText variant="caption">{weekLabel}</AppText>
+    ) : (
+      <AppText variant="caption">{t(language, "weeklyReportSubtitle")}</AppText>
+    )}
+  </IconTitleRow>
+);
+
+const ProfileWeeklyReportCard: React.FC<WeeklyReportCardProfileProps> = ({
+  language,
+  loading,
+  report,
+  reportText,
+  onOpen,
+}) => (
+  <Card style={styles.profileCard}>
+    <ReportHeader language={language} />
+    {loading ? (
+      <AppText variant="body">…</AppText>
+    ) : report && reportText ? (
+      <>
+        <AppText variant="body" numberOfLines={3}>
+          {reportText}
+        </AppText>
+        <GradientButton
+          label={t(language, "weeklyReportOpen")}
+          onPress={onOpen}
+          variant="soft"
+          accessibilityLabel={t(language, "weeklyReportOpen")}
+        />
+      </>
+    ) : (
+      <AppText variant="body" style={styles.italic}>
+        {t(language, "weeklyReportEmpty")}
+      </AppText>
+    )}
+  </Card>
+);
+
+const SessionWeeklyReportCard: React.FC<WeeklyReportCardSessionProps> = ({
   language,
   reportText,
   weekLabel,
@@ -30,37 +98,42 @@ export const WeeklyReportCard: React.FC<WeeklyReportCardProps> = ({
 
   const content = (
     <>
-      <View style={styles.header}>
-        <MaterialCommunityIcons name="chart-timeline-variant" size={20} color={colors.primary} />
-        <View style={styles.headerText}>
-          <Text style={styles.title}>{t(language, "weeklyReportTitle")}</Text>
-          {weekLabel ? <Text style={styles.weekLabel}>{weekLabel}</Text> : null}
-        </View>
-      </View>
-
+      <ReportHeader language={language} weekLabel={weekLabel} />
       {loading ? (
         <ActivityIndicator color={colors.primary} style={styles.loader} />
       ) : (
         <>
-          <Text style={styles.body} numberOfLines={4}>
+          <AppText variant="weeklyReportBody" numberOfLines={4}>
             {reportText}
-          </Text>
+          </AppText>
           {stats ? (
             <View style={styles.statsRow}>
-              <Text style={styles.statChip}>
-                {formatDuration(language, stats.total_minutes)}
-              </Text>
-              <Text style={styles.statChip}>
-                {`${formatNumber(language, stats.completed_sessions)} ${t(language, "weeklyReportSessions")}`}
-              </Text>
+              <View style={styles.statChip}>
+                <AppText variant="weeklyReportStatChip">
+                  {formatDuration(language, stats.total_minutes)}
+                </AppText>
+              </View>
+              <View style={styles.statChip}>
+                <AppText variant="weeklyReportStatChip">
+                  {`${formatNumber(language, stats.completed_sessions)} ${t(language, "weeklyReportSessions")}`}
+                </AppText>
+              </View>
             </View>
           ) : null}
           {onPress ? (
-            <Text style={styles.cta}>{t(language, "weeklyReportOpen")}</Text>
+            <AppText variant="weeklyReportCta" style={styles.cta}>
+              {t(language, "weeklyReportOpen")}
+            </AppText>
           ) : null}
         </>
       )}
     </>
+  );
+
+  const card = (
+    <AppCard variant="surface" contentPadding={spacing.md} borderVariant="strong" style={[screenBlock, styles.sessionCard]}>
+      {content}
+    </AppCard>
   );
 
   if (onPress && !loading) {
@@ -70,52 +143,36 @@ export const WeeklyReportCard: React.FC<WeeklyReportCardProps> = ({
         accessibilityLabel={t(language, "weeklyReportOpen")}
         onPress={onPress}
       >
-        <SurfaceCard contentPadding={spacing.md} style={[screenBlock, styles.card]} borderVariant="strong">
-          {content}
-        </SurfaceCard>
+        {card}
       </Pressable>
     );
   }
 
-  return (
-    <SurfaceCard contentPadding={spacing.md} style={[screenBlock, styles.card]} borderVariant="strong">
-      {content}
-    </SurfaceCard>
-  );
+  return card;
+};
+
+export const WeeklyReportCard: React.FC<WeeklyReportCardProps> = (props) => {
+  if (props.mode === "profile") {
+    return <ProfileWeeklyReportCard {...props} />;
+  }
+  return <SessionWeeklyReportCard {...props} />;
 };
 
 const styles = StyleSheet.create({
-  card: {
+  profileCard: {
+    gap: theme.spacing.md,
+  },
+  sessionCard: {
     gap: spacing.sm,
   },
-  header: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  headerText: {
-    flex: 1,
+  headerTextGap: {
     gap: 2,
   },
-  title: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-  },
-  weekLabel: {
-    ...typography.caption,
-    color: colors.textMuted,
+  italic: {
+    fontStyle: "italic",
   },
   loader: {
     marginVertical: spacing.sm,
-  },
-  body: {
-    ...typography.body,
-    color: colors.text,
-    lineHeight: 22,
   },
   statsRow: {
     flexDirection: "row",
@@ -123,21 +180,15 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   statChip: {
-    ...typography.caption,
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: radii.sm,
     borderWidth: 1,
-    color: colors.textMuted,
     overflow: "hidden",
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
   },
   cta: {
-    color: colors.primary,
-    fontFamily: fontFamilies.body,
-    fontSize: 12,
-    fontWeight: "700",
     marginTop: 2,
   },
 });

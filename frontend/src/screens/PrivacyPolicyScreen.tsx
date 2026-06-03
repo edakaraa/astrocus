@@ -1,12 +1,12 @@
 import React from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { View } from "react-native";
 import { useRouter } from "expo-router";
 import { useAppContext } from "../context/AppContext";
 import { getPrivacyPolicyBlocks } from "../features/legal/privacyPolicyContent";
-import { colors, spacing, typography } from "../shared/theme";
 import { t } from "../shared/i18n";
-import { GradientButton } from "../components/GradientButton";
-import { StarfieldBackground } from "../components/StarfieldBackground";
+import { AppText } from "../components/ui/AppText";
+import { LegalDocumentLayout, legalDocumentStyles } from "../components/layout/LegalDocumentLayout";
+import theme from "../theme";
 
 export const PrivacyPolicyScreen = () => {
   const router = useRouter();
@@ -14,46 +14,21 @@ export const PrivacyPolicyScreen = () => {
   const blocks = getPrivacyPolicyBlocks(language);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <StarfieldBackground density={28} />
-      <Text style={styles.title}>{t(language, "privacyPolicy")}</Text>
+    <LegalDocumentLayout
+      title={t(language, "privacyPolicy")}
+      backAccessibilityLabel={t(language, "back")}
+      onBack={() => router.back()}
+    >
       {blocks.map((block) => (
-        <View key={block.title} style={styles.block}>
-          <Text style={styles.heading}>{block.title}</Text>
-          <Text style={styles.body}>{block.body}</Text>
+        <View key={block.title} style={legalDocumentStyles.block}>
+          <AppText variant="card" color={theme.colors.accent}>
+            {block.title}
+          </AppText>
+          <AppText variant="body" color={theme.colors.textSecondary}>
+            {block.body}
+          </AppText>
         </View>
       ))}
-      <GradientButton
-        label={t(language, "back")}
-        onPress={() => router.back()}
-        accessibilityLabel={t(language, "goBack")}
-      />
-    </ScrollView>
+    </LegalDocumentLayout>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.background,
-    flexGrow: 1,
-    padding: spacing.lg,
-    paddingBottom: spacing.xl * 2,
-  },
-  title: {
-    ...typography.title,
-    color: colors.text,
-    marginBottom: spacing.lg,
-  },
-  block: {
-    marginBottom: spacing.md,
-  },
-  heading: {
-    ...typography.h3,
-    color: colors.primary,
-    marginBottom: spacing.xs,
-  },
-  body: {
-    ...typography.body,
-    color: colors.textMuted,
-  },
-});
