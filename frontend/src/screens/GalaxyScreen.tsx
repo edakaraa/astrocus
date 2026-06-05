@@ -14,6 +14,7 @@ import {
   galaxyCardStyles,
 } from "../components/galaxy";
 import { AppText } from "../components/ui/AppText";
+import { StarDustChip } from "../components/ui/StarDustChip";
 import {
   buildConstellationProgressList,
   groupConstellationsForSky,
@@ -25,6 +26,7 @@ import { formatNumber } from "../shared/formatLocale";
 import { t } from "../shared/i18n";
 import type { ConstellationProgress, StarWithProgress } from "../shared/types";
 import theme from "../theme";
+import { useResponsive } from "../shared/responsive";
 
 export const GalaxyScreen = () => {
   const { user, unlockedStarIds, constellationProgress, unlockStar, language, showToast } = useAppContext();
@@ -43,6 +45,7 @@ export const GalaxyScreen = () => {
   }, []);
 
   const skyCatalog = getSkyCatalogOrNull();
+  const { screenTopPadding } = useResponsive();
   const totalStardust = user?.totalStardust ?? 0;
   const activeConstellationId = user?.activeConstellationId ?? null;
 
@@ -184,7 +187,7 @@ export const GalaxyScreen = () => {
   if (!catalogReady || !skyCatalog) {
     return (
       <CosmicScreenBackground>
-        <View style={[styles.root, styles.centered]}>
+        <View style={[styles.root, styles.centered, { paddingTop: screenTopPadding }]}>
           <AppText variant="galaxyLoading">{t(language, "loadingCatalog")}</AppText>
         </View>
       </CosmicScreenBackground>
@@ -199,14 +202,13 @@ export const GalaxyScreen = () => {
 
   return (
     <TabScreenScaffold
-      stardustAmount={totalStardust}
       scrollStyle={styles.root}
       scrollContentStyle={{ alignItems: "center" }}
       columnStyle={{ gap: spacing.md }}
     >
       <SurfaceCard style={[screenBlock, galaxyCardStyles.summaryCard]} borderVariant="strong">
         <View style={galaxyCardStyles.summaryRow}>
-          <View>
+          <View style={galaxyCardStyles.summaryTextColumn}>
             <AppText variant="galaxySummaryLabel">{t(language, "skyProgress")}</AppText>
             <AppText variant="galaxySummarySubtext">
               <AppText variant="numericCompact" color={theme.colors.textSecondary}>
@@ -227,6 +229,7 @@ export const GalaxyScreen = () => {
               {` ${t(language, "constellationsWord")}`}
             </AppText>
           </View>
+          <StarDustChip amount={totalStardust} compact />
         </View>
         <View style={galaxyCardStyles.progressBgMain}>
           <Animated.View

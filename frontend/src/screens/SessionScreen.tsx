@@ -17,7 +17,6 @@ import {
   BACKGROUND_TOLERANCE_SECONDS,
   PAUSE_LIMIT,
 } from "../shared/constants";
-import { fetchGalacticAdvice } from "../services/galacticAdvice";
 import { t, type TranslationKey } from "../shared/i18n";
 import type { Language, SessionRecord } from "../shared/types";
 import { formatDuration } from "../shared/formatLocale";
@@ -31,6 +30,7 @@ import { SurfaceCard } from "../components/SurfaceCard";
 import { CustomDurationSheet } from "../components/CustomDurationSheet";
 import { TabScreenScaffold } from "../components/layout/TabScreenScaffold";
 import { FocusSectionCard } from "../components/session/FocusSectionCard";
+import { UniverseMessageCard } from "../components/session/UniverseMessageCard";
 import { WeekDayStars } from "../components/session/WeekDayStars";
 import { AppText } from "../components/ui/AppText";
 import { PillChip } from "../components/ui/PillChip";
@@ -67,8 +67,6 @@ const FOCUS_CATEGORY_LABEL: Record<(typeof FOCUS_CATEGORY_IDS)[number], Translat
   sports: "category_sports",
   meditation: "category_meditation",
 };
-
-const COSMIC_QUOTE_KEYS = ["cosmicQuote1", "cosmicQuote2", "cosmicQuote3"] as const satisfies readonly TranslationKey[];
 
 function AnimatedStar({ size }: { size: number }) {
   const pulse = useRef(new Animated.Value(0)).current;
@@ -189,13 +187,11 @@ export const SessionScreen = () => {
     showAlert,
     showConfirm,
     user,
-    token,
     sessions,
     analyticsSummary,
   } = useAppContext();
 
   const [customDurationOpen, setCustomDurationOpen] = useState(false);
-  const [cosmicMessage, setCosmicMessage] = useState<string | null>(null);
   const [weeklyReportOpen, setWeeklyReportOpen] = useState(false);
 
   const {
@@ -261,48 +257,6 @@ export const SessionScreen = () => {
     [analyticsSummary?.weekFocusMinutes, sessions],
   );
   const weekTotalMinutes = useMemo(() => weeklyMinutes.reduce((sum, m) => sum + m, 0), [weeklyMinutes]);
-
-  const fallbackCosmicQuote = useMemo(() => {
-    const dayIndex = new Date().getDate() % COSMIC_QUOTE_KEYS.length;
-    return t(language, COSMIC_QUOTE_KEYS[dayIndex]);
-  }, [language]);
-
-  useEffect(() => {
-    if (!token || !user) {
-      setCosmicMessage(fallbackCosmicQuote);
-      return;
-    }
-    let cancelled = false;
-    void fetchGalacticAdvice(token, {
-      language,
-      durationMinutes: sessionState.selectedDurationMinutes,
-      categoryId: sessionState.selectedCategoryId,
-      currentStreak: user.currentStreak,
-      todayTotalMinutes: dailySummary.totalMinutes,
-      totalStardust: user.totalStardust,
-    })
-      .then((advice) => {
-        if (!cancelled) {
-          setCosmicMessage(advice.trim() || fallbackCosmicQuote);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setCosmicMessage(fallbackCosmicQuote);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    dailySummary.totalMinutes,
-    fallbackCosmicQuote,
-    language,
-    sessionState.selectedCategoryId,
-    sessionState.selectedDurationMinutes,
-    token,
-    user,
-  ]);
 
   const isCustomDuration = !(DURATION_OPTIONS as readonly number[]).includes(sessionState.selectedDurationMinutes);
 
@@ -500,7 +454,6 @@ export const SessionScreen = () => {
         </View>
       ) : (
         <TabScreenScaffold
-          stardustAmount={user?.totalStardust ?? 0}
           paddingBottom={spacing.md}
           scrollContentStyle={{ alignItems: "center" }}
           columnStyle={{ gap: idleGap }}
@@ -667,14 +620,7 @@ export const SessionScreen = () => {
           </ScrollView>
         </FocusSectionCard>
 
-        <FocusSectionCard title={`✨ ${t(language, "cosmicMessageTitle")}`} sectionLabelSize={sectionLabelSize}>
-          <AppText variant="sessionCosmicQuote" maxFontSizeMultiplier={MAX_FONT_SCALE}>
-            "{cosmicMessage ?? fallbackCosmicQuote}"
-          </AppText>
-          <AppText variant="sessionCosmicAttribution" maxFontSizeMultiplier={MAX_FONT_SCALE}>
-            {t(language, "cosmicMessageAttribution")}
-          </AppText>
-        </FocusSectionCard>
+        <UniverseMessageCard language={language} sectionLabelSize={sectionLabelSize} />
 
         <FocusSectionCard title={t(language, "thisWeekTitle")} sectionLabelSize={sectionLabelSize}>
           <View style={styles.weekStatBlock}>

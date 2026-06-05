@@ -7,8 +7,14 @@ import type { DailyGoalProgress } from "../shared/types";
 import { getDeviceTimeZone } from "../shared/timezone";
 import theme from "../theme";
 
+/** One full day — shared cap for picker, clamp, and server validation. */
+export const DAILY_GOAL_MAX_MINUTES = theme.layout.goalSheetMaxMinutes;
+
+export const clampDailyGoalMinutes = (minutes: number): number =>
+  Math.min(DAILY_GOAL_MAX_MINUTES, Math.max(theme.layout.goalSheetMinMinutes, minutes));
+
 export const roundDailyGoalMinutes = (minutes: number): number =>
-  Math.round(minutes / theme.layout.goalSheetStep) * theme.layout.goalSheetStep;
+  clampDailyGoalMinutes(Math.round(minutes / theme.layout.goalSheetStep) * theme.layout.goalSheetStep);
 
 export type TodayDailyGoalState = {
   todayMinutes: number;

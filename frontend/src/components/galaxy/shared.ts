@@ -156,7 +156,12 @@ export const galaxyCardStyles = StyleSheet.create({
   summaryRow: {
     alignItems: "center",
     flexDirection: "row",
+    gap: spacing.sm,
     justifyContent: "space-between",
+  },
+  summaryTextColumn: {
+    flex: 1,
+    gap: 2,
   },
   progressBgMain: {
     height: 5,

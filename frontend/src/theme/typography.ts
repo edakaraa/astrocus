@@ -37,11 +37,51 @@ export const numericTypography: Pick<TextStyle, "fontFamily" | "letterSpacing"> 
   letterSpacing: -0.3,
 };
 
+/** Uppercase section headings (settings blocks, focus cards, galaxy sections). */
+const sectionLabelStyle: TextStyle = {
+  fontSize: 10,
+  lineHeight: 13,
+  fontWeight: "800",
+  letterSpacing: 0.8,
+  textTransform: "uppercase",
+  fontFamily: fontFamilies.body,
+  color: textFaint,
+};
+
+/** Filter / pill chip labels (inactive state). */
+const chipLabelStyle: TextStyle = {
+  fontSize: 11,
+  lineHeight: 14,
+  fontWeight: "800",
+  fontFamily: fontFamilies.body,
+  color: textFaint,
+};
+
 /** Canonical typography tokens — consumed by AppText and re-exported via shared/theme. */
 export const typographyTokens = {
-  hero: { fontSize: 28, fontWeight: "700", color: textPrimary },
-  title: { fontSize: 20, fontWeight: "700", color: textPrimary },
-  card: { fontSize: 16, fontWeight: "600", color: textPrimary },
+  hero: {
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: "700",
+    fontFamily: fontFamilies.displayBold,
+    letterSpacing: -0.2,
+    color: textPrimary,
+  },
+  title: {
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: "700",
+    fontFamily: fontFamilies.displayBold,
+    letterSpacing: -0.15,
+    color: textPrimary,
+  },
+  card: {
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: "700",
+    fontFamily: fontFamilies.displayBold,
+    color: textPrimary,
+  },
   body: {
     fontSize: 14,
     lineHeight: 20,
@@ -70,7 +110,13 @@ export const typographyTokens = {
     fontFamily: fontFamilies.body,
     color: textMuted,
   },
-  micro: { fontSize: 11, fontWeight: "400", color: textSecondary },
+  micro: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "500",
+    fontFamily: fontFamilies.body,
+    color: textSecondary,
+  },
 
   h1: titleStyle,
   h2: {
@@ -88,14 +134,40 @@ export const typographyTokens = {
     fontFamily: fontFamilies.displayBold,
     color: textPrimary,
   },
-  label: {
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
+  label: sectionLabelStyle,
+  buttonLabel: {
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: "700",
+    fontFamily: fontFamilies.displayBold,
+    letterSpacing: -0.1,
+    color: warmOffWhite,
+  },
+  link: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "700",
     fontFamily: fontFamilies.body,
-    color: textFaint,
+    color: accent,
+  },
+  chipLabel: chipLabelStyle,
+  chipLabelActive: {
+    ...chipLabelStyle,
+    color: warmOffWhite,
+  },
+  modalTitle: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: "700",
+    fontFamily: fontFamilies.displayBold,
+    color: textPrimary,
+  },
+  modalMessage: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
+    fontFamily: fontFamilies.body,
+    color: textMuted,
   },
   sessionDisplay: {
     fontFamily: fontFamilies.display,
@@ -124,15 +196,7 @@ export const typographyTokens = {
     fontSize: 28,
     color: textPrimary,
   },
-  focusSectionLabel: {
-    fontSize: 10,
-    lineHeight: 13,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    fontFamily: fontFamilies.body,
-    color: textFaint,
-  },
+  focusSectionLabel: sectionLabelStyle,
   focusCta: {
     fontSize: 15,
     lineHeight: 18,
@@ -146,14 +210,7 @@ export const typographyTokens = {
     color: textPrimary,
   },
 
-  weeklyReportTitle: {
-    color: textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-  },
+  weeklyReportTitle: sectionLabelStyle,
   weeklyReportCta: {
     color: accent,
     fontFamily: fontFamilies.body,
@@ -212,15 +269,14 @@ export const typographyTokens = {
     fontSize: 15,
     fontStyle: "italic",
     lineHeight: 22,
-    textAlign: "center",
+    textAlign: "left",
   },
   sessionCosmicAttribution: {
-    alignSelf: "center",
     color: textFaint,
     fontFamily: fontFamilies.body,
     fontSize: 11,
     fontWeight: "700",
-    textAlign: "center",
+    textAlign: "left",
   },
   sessionWeekStars: {
     ...numericTypography,
@@ -250,11 +306,15 @@ export const typographyTokens = {
   },
   sessionFailedText: {
     color: textMuted,
+    fontFamily: fontFamilies.body,
     fontSize: 12,
+    lineHeight: 16,
   },
   sessionSoftButtonText: {
     color: textPrimary,
-    fontWeight: "800",
+    fontFamily: fontFamilies.displayBold,
+    fontSize: 14,
+    fontWeight: "700",
   },
   weeklyReportBody: {
     fontSize: 14,
@@ -265,6 +325,9 @@ export const typographyTokens = {
   },
   sessionActiveSubtitle: {
     color: textFaint,
+    fontFamily: fontFamilies.body,
+    fontSize: 12,
+    lineHeight: 16,
     marginTop: 4,
     textAlign: "center",
   },
@@ -287,13 +350,8 @@ export const typographyTokens = {
     marginTop: 3,
   },
   galaxySectionTitle: {
-    color: textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1.2,
+    ...sectionLabelStyle,
     marginBottom: 2,
-    textTransform: "uppercase",
   },
   galaxyConstName: {
     color: textPrimary,
@@ -303,7 +361,9 @@ export const typographyTokens = {
   },
   galaxyConstSubname: {
     color: textFaint,
+    fontFamily: fontFamilies.bodyRegular,
     fontSize: 11,
+    lineHeight: 14,
     marginTop: 1,
   },
   galaxyConstCount: {
@@ -313,16 +373,19 @@ export const typographyTokens = {
   },
   galaxyActivePillText: {
     color: accent,
+    fontFamily: fontFamilies.body,
     fontSize: 10,
     fontWeight: "800",
   },
   galaxyNextPillText: {
     color: warning,
+    fontFamily: fontFamilies.body,
     fontSize: 10,
     fontWeight: "800",
   },
   galaxyLockedPillText: {
     color: textFaint,
+    fontFamily: fontFamilies.body,
     fontSize: 10,
     fontWeight: "800",
   },
@@ -340,23 +403,29 @@ export const typographyTokens = {
   },
   galaxyConstDesc: {
     color: textFaint,
+    fontFamily: fontFamilies.bodyRegular,
     fontSize: 11,
     lineHeight: 16,
   },
   galaxyLockedHint: {
     color: textFaint,
+    fontFamily: fontFamilies.bodyRegular,
     fontSize: 11,
     fontStyle: "italic",
+    lineHeight: 16,
     marginTop: 2,
   },
   galaxyCompletedBannerText: {
     color: success,
+    fontFamily: fontFamilies.body,
     fontSize: 11,
     fontWeight: "800",
   },
   galaxyEmptyText: {
     color: textFaint,
+    fontFamily: fontFamilies.bodyRegular,
     fontSize: 13,
+    lineHeight: 18,
   },
   legalTitle: titleStyle,
   legalHeading: {

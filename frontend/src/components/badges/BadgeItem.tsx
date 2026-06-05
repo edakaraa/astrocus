@@ -39,7 +39,7 @@ export const BadgeItem: React.FC<BadgeItemProps> = ({
       <AppText variant="card" color={icon.color} style={styles.symbol}>
         {icon.symbol}
       </AppText>
-      <AppText variant="body" style={styles.title}>
+      <AppText variant="card" style={styles.title}>
         {title}
       </AppText>
       <AppText variant="caption" style={styles.description}>
@@ -73,7 +73,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   title: {
-    fontWeight: "600",
+    fontSize: 14,
+    lineHeight: 18,
     textAlign: "center",
   },
   description: {

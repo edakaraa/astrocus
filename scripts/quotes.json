@@ -1,0 +1,362 @@
+[
+    {
+      "text_en": "We are what we repeatedly do. Excellence, then, is not an act, but a habit.",
+      "text_tr": "Biz neyi tekrar tekrar yapıyorsak oyuz. Dolayısıyla mükemmellik bir eylem değil, bir alışkanlıktır.",
+      "author": "Aristoteles",
+      "order_index": 1
+    },
+    {
+      "text_en": "If one does not know to which port one is sailing, no wind is favorable.",
+      "text_tr": "Hangi limana doğru yelken açtığını bilmeyen bir gemi için hiçbir rüzgar doğru rüzgar değildir.",
+      "author": "Seneca",
+      "order_index": 2
+    },
+    {
+      "text_en": "First say to yourself what you would be; and then do what you have to do.",
+      "text_tr": "İlk önce ne olacağınızı kendinize söyleyin; sonra ne yapmanız gerekiyorsa onu yapın.",
+      "author": "Epiktetos",
+      "order_index": 3
+    },
+    {
+      "text_en": "The secret of getting ahead is getting started.",
+      "text_tr": "İlerlemenin sırrı, başlamaktır.",
+      "author": "Mark Twain",
+      "order_index": 4
+    },
+    {
+      "text_en": "Give me six hours to chop down a tree and I will spend the first four sharpening the axe.",
+      "text_tr": "Bir ağacı kesmek için bana altı saat verin; ilk dördünü baltayı bileyerek geçireyim.",
+      "author": "Abraham Lincoln",
+      "order_index": 5
+    },
+    {
+      "text_en": "It does not matter how slowly you go as long as you do not stop.",
+      "text_tr": "Durmadığın sürece ne kadar yavaş gittiğinin bir önemi yoktur.",
+      "author": "Konfüçyüs",
+      "order_index": 6
+    },
+    {
+      "text_en": "A journey of a thousand miles begins with a single step.",
+      "text_tr": "Bin millik bir yolculuk tek bir adımla başlar.",
+      "author": "Lao Tzu",
+      "order_index": 7
+    },
+    {
+      "text_en": "Fall seven times, stand up eight.",
+      "text_tr": "Yedi kez düş, sekiz kez ayağa kalk.",
+      "author": "Japon Atasözü",
+      "order_index": 8
+    },
+    {
+      "text_en": "Great things are done by a series of small things brought together.",
+      "text_tr": "Büyük şeyler, birçok küçük şeyin bir araya getirilmesiyle yapılır.",
+      "author": "Vincent van Gogh",
+      "order_index": 9
+    },
+    {
+      "text_en": "Dripping water hollows out stone, not through force but through persistence.",
+      "text_tr": "Taşı delen suyun gücü değil, damlaların sürekliliğidir.",
+      "author": "Ovidius",
+      "order_index": 10
+    },
+    {
+      "text_en": "The best time to plant a tree was 20 years ago. The second best time is now.",
+      "text_tr": "Bir ağaç dikmek için en iyi zaman yirmi yıl önceydi. İkinci en iyi zaman ise şimdi.",
+      "author": "Çin Atasözü",
+      "order_index": 11
+    },
+    {
+      "text_en": "It is not that I'm so smart, it's just that I stay with problems longer.",
+      "text_tr": "Bu kadar zeki olduğum için değil, sorunlarla daha uzun süre ilgilendiğim için.",
+      "author":  "Albert Einstein",
+      "order_index": 12
+    },
+    {
+      "text_en": "Genius is one percent inspiration, ninety-nine percent perspiration.",
+      "text_tr": "Deha yüzde bir ilham, yüzde doksan dokuz terdir.",
+      "author": "Thomas Edison",
+      "order_index": 13
+    },
+    {
+      "text_en": "Never leave that till tomorrow which you can do today.",
+      "text_tr": "Bugün yapabileceğin şeyi yarına bırakma.",
+      "author": "Benjamin Franklin",
+      "order_index": 14
+    },
+    {
+      "text_en": "Opportunities multiply as they are seized.",
+      "text_tr": "Fırsatlar, değerlendirildikçe çoğalır.",
+      "author": "Sun Tzu",
+      "order_index": 15
+    },
+    {
+      "text_en": "Believe you can and you're halfway there.",
+      "text_tr": "Yapabileceğinize inanın, yolun yarısını gitmiş olursunuz.",
+      "author": "Theodore Roosevelt",
+      "order_index": 16
+    },
+    {
+      "text_en": "A person who never made a mistake never tried anything new.",
+      "text_tr": "Hiç hata yapmamış bir kişi, yeni hiçbir şey denememiş demektir.",
+      "author": "Albert Einstein",
+      "order_index": 17
+    },
+    {
+      "text_en": "Whether you think you can, or you think you can't, you're right.",
+      "text_tr": "Yapabileceğinizi de düşünseniz, yapamayacağınızı da düşünseniz; her iki durumda da haklısınız.",
+      "author": "Henry Ford",
+      "order_index": 18
+    },
+    {
+      "text_en": "I have learned that success is to be measured not so much by the position that one has reached in life as by the obstacles which he has overcome.",
+      "text_tr": "Başarıyı, bir insanın hayatta ulaştığı konumla değil, başarmaya çalışırken üstesinden geldiği engellerle ölçerim.",
+      "author": "Booker T. Washington",
+      "order_index": 19
+    },
+    {
+      "text_en": "He who controls others may be powerful, but he who has mastered himself is mightier still.",
+      "text_tr": "Başkalarına hükmedenler kuvvetlidir, kendine hükmedenler ise kudretlidir.",
+      "author": "Lao Tzu",
+      "order_index": 20
+    },
+    {
+      "text_en": "The beginning is the most important part of the work.",
+      "text_tr": "Başlangıç, işin en önemli kısmıdır.",
+      "author": "Platon",
+      "order_index": 21
+    },
+    {
+      "text_en": "He who has a why to live can bear almost any how.",
+      "text_tr": "Yaşamak için bir 'neden'i olan, neredeyse her 'nasıl'a katlanabilir.",
+      "author": "Friedrich Nietzsche",
+      "order_index": 22
+    },
+    {
+      "text_en": "One hour of focused work is better than ten hours of daydreaming.",
+      "text_tr": "Bir saatlik odaklı çalışma, on saatlik hayal kurmaktan daha değerlidir.",
+      "author": "Thomas Jefferson",
+      "order_index": 23
+    },
+    {
+      "text_en": "The secret of success is to do the common thing uncommonly well.",
+      "text_tr": "Sıradan şeyleri sıradışı bir şekilde iyi yapmak başarının sırrıdır.",
+      "author": "John D. Rockefeller",
+      "order_index": 24
+    },
+    {
+      "text_en": "Luck is what happens when preparation meets opportunity.",
+      "text_tr": "Şans, hazırlığın fırsatla buluştuğu andır.",
+      "author": "Seneca",
+      "order_index": 25
+    },
+    {
+      "text_en": "I find that the harder I work, the more luck I seem to have.",
+      "text_tr": "Ne kadar çok çalışırsam, o kadar çok şanslı olduğumu fark ediyorum.",
+      "author": "Thomas Jefferson",
+      "order_index": 26
+    },
+    {
+      "text_en": "Great works are performed not by strength but by perseverance.",
+      "text_tr": "Büyük işler, güçle değil, azimle başarılır.",
+      "author": "Samuel Johnson",
+      "order_index": 27
+    },
+    {
+      "text_en": "Knowing is not enough; we must apply. Willing is not enough; we must do.",
+      "text_tr": "Bilmek yeterli değil, uygulamalıyız. İstemek yeterli değil, yapmalıyız.",
+      "author": "Goethe",
+      "order_index": 28
+    },
+    {
+      "text_en": "Victory belongs to those who can say victory is mine.",
+      "text_tr": "Zafer, zafer benimdir diyebilenindir.",
+      "author": "Mustafa Kemal Atatürk",
+      "order_index": 29
+    },
+    {
+      "text_en": "Self-trust is the first secret of success.",
+      "text_tr": "Kendine güven, başarının ilk sırrıdır.",
+      "author": "Ralph Waldo Emerson",
+      "order_index": 30
+    },
+    {
+      "text_en": "I will either find a way, or make one.",
+      "text_tr": "Ya bir yol bulacağım, ya da bir yol yapacağım.",
+      "author": "Hannibal Barca",
+      "order_index": 31
+    },
+    {
+      "text_en": "Well begun is half done.",
+      "text_tr": "İyi bir başlangıç, yarı yarıya başarı demektir.",
+      "author": "Aristoteles",
+      "order_index": 32
+    },
+    {
+      "text_en": "The most difficult thing is the decision to act, the rest is merely tenacity.",
+      "text_tr": "En zor olan, harekete geçme kararıdır; gerisi sadece kararlılıktır.",
+      "author": "Amelia Earhart",
+      "order_index": 33
+    },
+    {
+      "text_en": "In the middle of difficulty lies opportunity.",
+      "text_tr": "Her zorluğun ortasında bir fırsat yatar.",
+      "author": "Albert Einstein",
+      "order_index": 34
+    },
+    {
+      "text_en": "Silence is a source of great strength.",
+      "text_tr": "Sessizlik harika bir güç kaynağıdır.",
+      "author": "Lao Tzu",
+      "order_index": 35
+    },
+    {
+      "text_en": "We suffer more often in imagination than in reality.",
+      "text_tr": "Gerçekte olduğundan daha çok hayalimizde acı çekeriz.",
+      "author": "Seneca",
+      "order_index": 36
+    },
+    {
+      "text_en": "Vision without execution is just hallucination.",
+      "text_tr": "İcraat olmadan vizyon sadece bir hayaldir.",
+      "author": "Thomas Edison",
+      "order_index": 37
+    },
+    {
+      "text_en": "Fortune favors the bold.",
+      "text_tr": "Talih cesurlardan yanadır.",
+      "author": "Virgil",
+      "order_index": 38
+    },
+    {
+      "text_en": "Endurance is one of the most difficult disciplines, but it is to the one who endures that the final victory comes.",
+      "text_tr": "Dayanıklılık en zor disiplinlerden biridir, ancak nihai zafer dayananındır.",
+      "author": "Buda",
+      "order_index": 39
+    },
+    {
+      "text_en": "Thinking is easy, acting is difficult. The hardest thing in the world is to act in accordance with your thinking.",
+      "text_tr": "Düşünmek kolaydır, yapmak zordur. Dünyada en zor şey, düşünüleni yapmaktır.",
+      "author": "Goethe",
+      "order_index": 40
+    },
+    {
+      "text_en": "A man lives only as much as he works.",
+      "text_tr": "İnsan sadece çalıştığı kadar yaşar.",
+      "author": "Lev Tolstoy",
+      "order_index": 41
+    },
+    {
+      "text_en": "Vision without action is a daydream. Action without vision is a nightmare.",
+      "text_tr": "Eylemsiz vizyon sadece bir rüyadır. Vizyonsuz eylem ise kabustu.",
+      "author": "Japon Atasözü",
+      "order_index": 42
+    },
+    {
+      "text_en": "No matter how high the mountain, there is always a path to the top.",
+      "text_tr": "Dağ ne kadar yüksek olursa olsun, yol onun üzerinden geçer.",
+      "author": "Çin Atasözü",
+      "order_index": 43
+    },
+    {
+      "text_en": "Strive to be better today than yesterday, and better tomorrow than today.",
+      "text_tr": "Bugün dünden daha iyi olmaya çalış, yarın bugünden daha iyi ol.",
+      "author": "Buda",
+      "order_index": 44
+    },
+    {
+      "text_en": "Character is destiny.",
+      "text_tr": "Bir insanın karakteri, kaderidir.",
+      "author": "Herakleitos",
+      "order_index": 45
+    },
+    {
+      "text_en": "He who wants to look at the sky must forget the mud under his feet.",
+      "text_tr": "Gökyüzüne bakmak isteyen, ayaklarının altındaki çamuru unutmalıdır.",
+      "author": "Sokrates",
+      "order_index": 46
+    },
+    {
+      "text_en": "Whatever is worth doing is worth doing well.",
+      "text_tr": "Eğer bir şeyi yapmaya değer buluyorsan, onu tüm gücünle yap.",
+      "author": "Benjamin Franklin",
+      "order_index": 47
+    },
+    {
+      "text_en": "Give me a place to stand, and I shall move the earth.",
+      "text_tr": "Bana bir dayanak noktası verin, dünyayı yerinden oynatayım.",
+      "author": "Arşimet",
+      "order_index": 48
+    },
+    {
+      "text_en": "It is better to light one small candle than to curse the darkness.",
+      "text_tr": "Karanlığa küfredeceğine, kalk bir mum yak.",
+      "author": "Konfüçyüs",
+      "order_index": 49
+    },
+    {
+      "text_en": "Sometimes one must take a step back to make a great leap forward.",
+      "text_tr": "Büyük sıçrayışlar için bazen bir adım geri atmak gerekir.",
+      "author": "Fransız Atasözü",
+      "order_index": 50
+    },
+    {
+      "text_en": "Obstacles cannot crush me. Every obstacle yields to stern resolve.",
+      "text_tr": "Engeller beni durduramaz; karşılaştığım her engel kararlılığımı daha da güçlendirir.",
+      "author": "Leonardo da Vinci",
+      "order_index": 51
+    },
+    {
+      "text_en": "The greater danger for most of us lies not in setting our aim too high and falling short, but in setting our aim too low and achieving our mark.",
+      "text_tr": "İnsanların nihai başarısızlığı, hedeflerini çok yüksek seçip ulaşamamaları değil, çok alçak seçip ulaşmalarıdır.",
+      "author": "Michelangelo",
+      "order_index": 52
+    },
+    {
+      "text_en": "Great men are those who overcome circumstances.",
+      "text_tr": "Büyük insanlar, koşulların üstesinden gelenlerdir.",
+      "author": "Ralph Waldo Emerson",
+      "order_index": 53
+    },
+    {
+      "text_en": "Hard work is the accumulation of easy things we didn't do when we should have.",
+      "text_tr": "Zor iş, zamanında yapmamız gereken ama yapmadığımız kolay işlerin birikmesidir.",
+      "author": "Anonim",
+      "order_index": 54
+    },
+    {
+      "text_en": "Do not wait for the perfect time, make the time perfect.",
+      "text_tr": "Mükemmel zamanı bekleme, zamanı mükemmel yap.",
+      "author": "Anonim",
+      "order_index": 55
+    },
+    {
+      "text_en": "Step by step, the journey is completed.",
+      "text_tr": "Adım adım yolculuk tamamlanır.",
+      "author": "Anonim",
+      "order_index": 56
+    },
+    {
+      "text_en": "Today's effort is tomorrow's fruit.",
+      "text_tr": "Bugünün emeği, yarının meyvesidir.",
+      "author": "Anonim",
+      "order_index": 57
+    },
+    {
+      "text_en": "You cannot change the direction of the wind, but you can adjust your sails.",
+      "text_tr": "Rüzgarın yönünü değiştiremezsin, ama yelkenlerini ayarlayabilirsin.",
+      "author": "Anonim",
+      "order_index": 58
+    },
+    {
+      "text_en": "An idle mind is the devil's workshop.",
+      "text_tr": "Boş bir zihin, şeytanın çalışma odasıdır.",
+      "author": "İngiliz Atasözü",
+      "order_index": 59
+    },
+    {
+      "text_en": "Unless you learn to master yourself, you can master nothing.",
+      "text_tr": "Kendinize hakim olmayı öğrenmedikçe, hiçbir şeye hakim olamazsınız.",
+      "author": "Thales",
+      "order_index": 60
+    }
+  ]

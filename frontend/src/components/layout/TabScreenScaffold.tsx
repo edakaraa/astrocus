@@ -2,12 +2,10 @@ import React, { type PropsWithChildren, type ReactNode } from "react";
 import { ScrollView, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 import { CosmicScreenBackground } from "../CosmicScreenBackground";
 import { ScreenContentColumn } from "../ScreenContentColumn";
-import { TabScreenTopBar } from "./TabScreenTopBar";
 import { useResponsive } from "../../shared/responsive";
 import theme from "../../theme";
 
 type TabScreenScaffoldProps = PropsWithChildren<{
-  stardustAmount: number;
   scrollStyle?: StyleProp<ViewStyle>;
   scrollContentStyle?: StyleProp<ViewStyle>;
   columnStyle?: StyleProp<ViewStyle>;
@@ -19,12 +17,9 @@ type TabScreenScaffoldProps = PropsWithChildren<{
   overlay?: ReactNode;
 }>;
 
-/**
- * Shared shell for tab screens: session starfield backdrop, stardust top bar, scroll + content column.
- */
+/** Shared shell for tab screens: cosmic backdrop, responsive top inset, scroll + content column. */
 export const TabScreenScaffold: React.FC<TabScreenScaffoldProps> = ({
   children,
-  stardustAmount,
   scrollStyle,
   scrollContentStyle,
   columnStyle,
@@ -32,7 +27,7 @@ export const TabScreenScaffold: React.FC<TabScreenScaffoldProps> = ({
   footer,
   overlay,
 }) => {
-  const { tabBarClearance } = useResponsive();
+  const { tabBarClearance, screenTopPadding } = useResponsive();
 
   return (
     <CosmicScreenBackground>
@@ -41,6 +36,7 @@ export const TabScreenScaffold: React.FC<TabScreenScaffoldProps> = ({
         contentContainerStyle={[
           styles.scrollContent,
           {
+            paddingTop: screenTopPadding,
             paddingBottom: paddingBottom ?? tabBarClearance,
           },
           scrollContentStyle,
@@ -48,7 +44,6 @@ export const TabScreenScaffold: React.FC<TabScreenScaffoldProps> = ({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <TabScreenTopBar stardustAmount={stardustAmount} />
         <ScreenContentColumn style={[styles.contentColumn, columnStyle]}>{children}</ScreenContentColumn>
       </ScrollView>
       {footer}
@@ -63,6 +58,6 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   contentColumn: {
-    marginTop: theme.layout.topBarBottomGap,
+    marginTop: theme.spacing.xs,
   },
 });

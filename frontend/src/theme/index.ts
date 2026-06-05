@@ -52,7 +52,8 @@ const theme = {
     categoryDotSize: 10,
     rewardToastBottom: 90,
     goalSheetMinMinutes: 15,
-    goalSheetMaxMinutes: 240,
+    /** Upper bound = one full day (24 × 60). */
+    goalSheetMaxMinutes: 24 * 60,
     goalSheetStep: 5,
     goalSheetDefaultMinutes: 60,
     starCount: 80,

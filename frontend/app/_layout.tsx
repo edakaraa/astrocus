@@ -50,6 +50,7 @@ import {
   useAstrocusInfrastructureRefs,
 } from "../src/context/AppContext";
 import { CelebrationHost } from "../src/components/CelebrationHost";
+import { initMonitoring } from "../src/lib/monitoring";
 import { loadSkyCatalog } from "../src/services/skyCatalog";
 import { colors } from "../src/shared/theme";
 
@@ -135,6 +136,7 @@ export default function RootLayout() {
   const refs = useAstrocusInfrastructureRefs();
 
   useEffect(() => {
+    initMonitoring();
     void loadSkyCatalog().catch((error) => {
       if (__DEV__) {
         console.warn("[Astrocus] sky catalog preload failed:", error);

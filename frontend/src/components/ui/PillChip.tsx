@@ -103,8 +103,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   durationGridText: {
+    ...numericTypography,
     fontSize: 14,
-    fontWeight: "700",
   },
   durationTextActive: {
     color: colors.warmOffWhite,

@@ -1,10 +1,11 @@
 import React from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, View } from "react-native";
 import { BlurView } from "expo-blur";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useModalLayout } from "../shared/responsive";
-import { colors, fontFamilies, radii, spacing, typography } from "../shared/theme";
+import { colors, radii, spacing } from "../shared/theme";
 import { GradientButton } from "./GradientButton";
+import { AppText } from "./ui/AppText";
 
 export type AstroAlertModalProps = {
   visible: boolean;
@@ -51,8 +52,12 @@ export const AstroAlertModal = ({
                   <MaterialCommunityIcons color={colors.warmOffWhite} name={icon} size={28} />
                 </View>
               ) : null}
-              <Text style={[styles.title, icon ? styles.titleCentered : null]}>{title}</Text>
-              <Text style={[styles.message, icon ? styles.messageCentered : null]}>{message}</Text>
+              <AppText variant="modalTitle" style={icon ? styles.titleCentered : undefined}>
+                {title}
+              </AppText>
+              <AppText variant="modalMessage" style={[styles.message, icon ? styles.messageCentered : null]}>
+                {message}
+              </AppText>
               <GradientButton label={confirmLabel} onPress={onClose} style={styles.button} fullWidth={modal.isSheet} />
             </View>
           </BlurView>
@@ -114,17 +119,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     width: 56,
   },
-  title: {
-    ...typography.h3,
-    color: colors.warmOffWhite,
-    fontFamily: fontFamilies.displayBold,
-  },
   titleCentered: {
     textAlign: "center",
   },
   message: {
-    ...typography.body,
-    color: colors.textMuted,
     marginTop: spacing.sm,
   },
   messageCentered: {

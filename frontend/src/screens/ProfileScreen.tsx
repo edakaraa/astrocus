@@ -140,7 +140,6 @@ export const ProfileScreen = () => {
 
   return (
     <TabScreenScaffold
-      stardustAmount={user.totalStardust}
       columnStyle={styles.column}
       overlay={
         <WeeklyReportModal

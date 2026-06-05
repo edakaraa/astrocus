@@ -84,6 +84,11 @@ export const useResponsive = () => {
     const tabBarClearance = isMobile ? tabBarMetrics.clearance : spacing.xl + spacing.md;
     const topInset = insets.top;
     const topBarHeight = Math.max(layout.topBarMaxHeight, spacing.lg + topInset);
+    /** Safe area + fluid breathing room so tab content does not hug the status bar. */
+    const screenTopPadding = Math.max(
+      topInset + fluid(spacing.sm, spacing.lg, width),
+      topInset + spacing.sm,
+    );
 
     /** Usable height after system insets (for centering / sizing rings). */
     const availableHeight = height - insets.top - insets.bottom;
@@ -104,6 +109,7 @@ export const useResponsive = () => {
       tabBarClearance,
       topInset,
       topBarHeight,
+      screenTopPadding,
       hitSlop: layout.hitSlop,
       /** Scale a px value to the current viewport width. */
       scale: (size: number, minFactor?: number, maxFactor?: number) =>

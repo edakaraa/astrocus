@@ -13,7 +13,7 @@ export const StatBox: React.FC<StatBoxProps> = ({ value, label }) => (
     <AppText variant="numeric" style={styles.value}>
       {value}
     </AppText>
-    <AppText variant="micro" style={styles.label}>
+    <AppText variant="caption" style={styles.label}>
       {label}
     </AppText>
   </View>

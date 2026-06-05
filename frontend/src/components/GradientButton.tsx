@@ -1,7 +1,8 @@
 import React from "react";
-import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from "react-native";
+import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { colors, fontFamilies, layout, radii, spacing } from "../shared/theme";
+import { colors, layout, radii, spacing } from "../shared/theme";
+import { AppText } from "./ui/AppText";
 
 type GradientButtonProps = {
   label: string;
@@ -59,7 +60,7 @@ export const GradientButton = ({
           style={styles.gradient}
         >
           <View style={styles.highlight} />
-          <Text style={styles.label}>{label}</Text>
+          <AppText variant="buttonLabel">{label}</AppText>
         </LinearGradient>
       </View>
     </Pressable>
@@ -107,12 +108,5 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 34,
     top: 0,
-  },
-  label: {
-    color: colors.warmOffWhite,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 16,
-    fontWeight: "700",
-    letterSpacing: -0.1,
   },
 });

@@ -1,5 +1,5 @@
 import React, { type PropsWithChildren, type ReactNode } from "react";
-import { ScrollView, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
+import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CosmicScreenBackground } from "../CosmicScreenBackground";
 import { ScreenContentColumn } from "../ScreenContentColumn";
@@ -62,22 +62,18 @@ export const legalDocumentStyles = StyleSheet.create({
     marginBottom: theme.spacing.lg,
   },
   heading: {
-    ...theme.typography.card,
-    color: theme.colors.accent,
+    ...theme.typography.legalHeading,
     marginBottom: theme.spacing.xs,
   },
   headingSpacious: {
-    ...theme.typography.card,
-    color: theme.colors.accent,
+    ...theme.typography.legalHeading,
     marginBottom: theme.spacing.sm,
   },
   body: {
-    ...theme.typography.body,
-    color: theme.colors.textSecondary,
+    ...theme.typography.legalBody,
   },
   intro: {
-    ...theme.typography.body,
-    color: theme.colors.textSecondary,
+    ...theme.typography.legalBody,
     marginBottom: theme.spacing.lg,
   },
   spacer: {

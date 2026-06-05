@@ -6,14 +6,14 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
   TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
-import { colors, fontFamilies, layout, numericTypography, radii, spacing } from "../shared/theme";
+import { colors, layout, numericTypography, radii, spacing } from "../shared/theme";
 import { PillChip } from "./ui/PillChip";
+import { AppText } from "./ui/AppText";
 import { t } from "../shared/i18n";
 import type { Language } from "../shared/types";
 
@@ -65,7 +65,7 @@ export const CustomDurationSheet = ({
           <Pressable onPress={() => {}} style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
             <BlurView intensity={72} tint="dark" style={styles.blur}>
               <View style={styles.handle} />
-              <Text style={styles.title}>{t(language, "durationSheetTitle")}</Text>
+              <AppText variant="h3" style={styles.title}>{t(language, "durationSheetTitle")}</AppText>
 
               <View style={styles.optionGrid}>
                 {SHEET_OPTIONS.map((minutes) => {
@@ -87,7 +87,9 @@ export const CustomDurationSheet = ({
                 })}
               </View>
 
-              <Text style={styles.customLabel}>{t(language, "customDurationInputLabel")}</Text>
+              <AppText variant="label" style={styles.customLabel}>
+                {t(language, "customDurationInputLabel")}
+              </AppText>
               <View style={styles.customRow}>
                 <TextInput
                   accessibilityLabel={t(language, "customDurationPlaceholder")}
@@ -105,7 +107,7 @@ export const CustomDurationSheet = ({
                   onPress={applyCustom}
                   style={styles.applyBtn}
                 >
-                  <Text style={styles.applyText}>{t(language, "customDurationConfirm")}</Text>
+                  <AppText variant="buttonLabel">{t(language, "customDurationConfirm")}</AppText>
                 </Pressable>
               </View>
             </BlurView>
@@ -144,26 +146,16 @@ const styles = StyleSheet.create({
     width: 40,
   },
   title: {
-    color: colors.text,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 18,
-    fontWeight: "800",
     textAlign: "center",
+  },
+  customLabel: {
+    marginTop: spacing.xs,
   },
   optionGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: spacing.sm,
     justifyContent: "center",
-  },
-  customLabel: {
-    color: colors.textFaint,
-    fontFamily: fontFamilies.body,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.6,
-    marginTop: spacing.xs,
-    textTransform: "uppercase",
   },
   customRow: {
     flexDirection: "row",
@@ -189,11 +181,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: layout.touchTargetMin,
     paddingHorizontal: spacing.lg,
-  },
-  applyText: {
-    color: colors.warmOffWhite,
-    fontFamily: fontFamilies.displayBold,
-    fontSize: 14,
-    fontWeight: "800",
   },
 });

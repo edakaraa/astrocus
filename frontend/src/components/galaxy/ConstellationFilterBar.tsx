@@ -1,6 +1,7 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { colors, radii } from "../../shared/theme";
+import { AppText } from "../ui/AppText";
 
 export type ConstellationFilterId = "all" | "active" | "completed";
 
@@ -30,7 +31,7 @@ export const ConstellationFilterBar: React.FC<ConstellationFilterBarProps> = ({
           onPress={() => onChange(item.id)}
           style={[styles.chip, active ? styles.chipActive : null]}
         >
-          <Text style={[styles.text, active ? styles.textActive : null]}>{item.label}</Text>
+          <AppText variant={active ? "chipLabelActive" : "chipLabel"}>{item.label}</AppText>
         </Pressable>
       );
     })}
@@ -54,13 +55,5 @@ const styles = StyleSheet.create({
   },
   chipActive: {
     backgroundColor: colors.primary,
-  },
-  text: {
-    color: colors.textFaint,
-    fontSize: 11,
-    fontWeight: "800",
-  },
-  textActive: {
-    color: colors.warmOffWhite,
   },
 });

@@ -2,6 +2,7 @@ import React from "react";
 import { Pressable, StyleSheet } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { AppText } from "../ui/AppText";
+import { useSettingsSpacing } from "./settingsSpacing";
 import theme from "../../theme";
 
 type SettingsNavLinkProps = {
@@ -19,6 +20,7 @@ export const SettingsNavLink: React.FC<SettingsNavLinkProps> = ({
   variant = "default",
   isLast = false,
 }) => {
+  const spacing = useSettingsSpacing();
   const labelColor = variant === "destructive" ? theme.colors.badgeScorpio : theme.colors.textPrimary;
 
   return (
@@ -28,6 +30,10 @@ export const SettingsNavLink: React.FC<SettingsNavLinkProps> = ({
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
+        {
+          gap: theme.spacing.md,
+          minHeight: spacing.linkMinHeight,
+        },
         !isLast ? styles.rowBorder : null,
         pressed ? styles.pressed : null,
       ]}
@@ -44,8 +50,6 @@ const styles = StyleSheet.create({
   row: {
     alignItems: "center",
     flexDirection: "row",
-    gap: theme.spacing.md,
-    paddingVertical: theme.spacing.md,
   },
   rowBorder: {
     borderBottomColor: theme.colors.border,

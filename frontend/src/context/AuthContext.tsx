@@ -14,7 +14,7 @@ import { supabase } from "../lib/supabase";
 import { asyncStorage, secureStorage } from "../shared/storage";
 import { STORAGE_KEYS } from "../shared/constants";
 import { resolveInitialLanguage } from "../shared/resolveLanguage";
-import { trackEvent } from "../shared/analytics";
+import { setAnalyticsUserId, trackEvent } from "../shared/analytics";
 import { AuthMode, AuthPayload, CelebrationPayload, PendingSession, UnlockStarResult, User, UserConstellationRow } from "../shared/types";
 import { createDevDemoPayload, isDevDemoToken, matchesDevDemoCredentials } from "./auth/devDemo";
 
@@ -86,6 +86,7 @@ export const AuthProvider = ({
     async (payload: AuthPayload) => {
       setToken(payload.token);
       setUser(payload.user);
+      setAnalyticsUserId(payload.user.id);
       setConstellationProgress(payload.constellationProgress ?? []);
       sessionHydrateRef.current?.(payload);
       await secureStorage.set(STORAGE_KEYS.authToken, payload.token);
@@ -239,6 +240,7 @@ export const AuthProvider = ({
     }
     setToken(null);
     setUser(null);
+    setAnalyticsUserId(null);
     setConstellationProgress([]);
     await secureStorage.remove(STORAGE_KEYS.authToken);
     await asyncStorage.remove(STORAGE_KEYS.demoAuthPayload);

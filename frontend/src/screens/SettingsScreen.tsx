@@ -1,5 +1,5 @@
-import React from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import React, { useMemo } from "react";
+import { Pressable, ScrollView, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SubScreenScaffold } from "../components/layout/SubScreenScaffold";
@@ -13,15 +13,40 @@ import { UserAvatar } from "../components/UserAvatar";
 import { Card } from "../components/ui/Card";
 import { AppText } from "../components/ui/AppText";
 import { LanguageToggle } from "../components/ui/LanguageToggle";
+import { SettingsBlock } from "../components/settings/SettingsBlock";
 import { SettingsDivider } from "../components/settings/SettingsDivider";
-import { SettingsRow } from "../components/settings/SettingsRow";
 import { SettingsNavLink } from "../components/settings/SettingsNavLink";
+import { SettingsRow } from "../components/settings/SettingsRow";
+import { useSettingsSpacing } from "../components/settings/settingsSpacing";
 import { OfflineSyncButton } from "../components/settings/OfflineSyncButton";
+import { useResponsive } from "../shared/responsive";
 import theme from "../theme";
 
 export const SettingsScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const spacing = useSettingsSpacing();
+  const { scale, isCompact, screenTopPadding } = useResponsive();
+  const avatarSize = scale(isCompact ? 48 : 52);
+  const avatarOptionSize = scale(isCompact ? 52 : 56);
+
+  const cardStyle = useMemo(
+    () => ({
+      gap: 0,
+      paddingHorizontal: spacing.cardPaddingX,
+      paddingVertical: spacing.cardPaddingY,
+    }),
+    [spacing.cardPaddingX, spacing.cardPaddingY],
+  );
+
+  const avatarOptionStyle = useMemo(
+    () => ({
+      height: avatarOptionSize,
+      width: avatarOptionSize,
+    }),
+    [avatarOptionSize],
+  );
+
   const {
     language,
     setLanguage,
@@ -80,19 +105,25 @@ export const SettingsScreen = () => {
           backAccessibilityLabel={t(language, "back")}
           onBack={() => router.back()}
         />
-        <ScreenContentColumn style={styles.column}>
-          <Card style={styles.section}>
-            <SettingsRow
-              label={t(language, "language")}
-              caption={t(language, "appLanguageSubtitle")}
-              control={<LanguageToggle language={language} onSelect={setLanguage} />}
+        <ScreenContentColumn style={[styles.column, { marginTop: screenTopPadding }]}>
+          <Card padding={0} style={cardStyle}>
+            <SettingsBlock
+              header={
+                <SettingsRow
+                  label={t(language, "language")}
+                  caption={t(language, "appLanguageSubtitle")}
+                  control={<LanguageToggle language={language} onSelect={setLanguage} />}
+                  labelsFlex
+                />
+              }
             />
 
             <SettingsDivider />
 
-            <View style={styles.block}>
-              <AppText variant="card">{t(language, "avatar")}</AppText>
-              <AppText variant="caption">{t(language, "avatarSwipeHint")}</AppText>
+            <SettingsBlock
+              title={t(language, "avatar")}
+              caption={t(language, "avatarSwipeHint")}
+            >
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -105,64 +136,66 @@ export const SettingsScreen = () => {
                       accessibilityRole="button"
                       accessibilityLabel={`${t(language, preset.labelKey as TranslationKey)} ${t(language, "selectAvatarA11y")}`}
                       key={preset.id}
-                      style={[styles.avatarOption, selected ? styles.avatarOptionActive : null]}
+                      style={[
+                        styles.avatarOption,
+                        avatarOptionStyle,
+                        selected ? styles.avatarOptionActive : null,
+                      ]}
                       onPress={() => updateProfile({ avatar: preset.id })}
                     >
-                      <UserAvatar avatar={preset.id} size={52} style={styles.avatarImage} />
+                      <UserAvatar avatar={preset.id} size={avatarSize} style={styles.avatarImage} />
                     </Pressable>
                   );
                 })}
               </ScrollView>
-            </View>
+            </SettingsBlock>
 
             <SettingsDivider />
 
-            <View style={styles.offlineBlock}>
-              <View style={styles.offlineLabels}>
-                <AppText variant="card">{t(language, "offlineSessions")}</AppText>
-                <AppText variant="caption">
+            <SettingsBlock
+              title={t(language, "offlineSessions")}
+              caption={
+                <>
                   <AppText variant="numericCompact">{formatNumber(language, pendingCount)}</AppText>
                   {` ${t(language, "pendingRecords")}`}
-                </AppText>
-              </View>
+                </>
+              }
+            >
               <OfflineSyncButton
                 label={t(language, "syncNow")}
                 accessibilityLabel={t(language, "syncOffline")}
                 disabled={!hasPending}
                 onPress={() => void handleSync()}
               />
-            </View>
+            </SettingsBlock>
 
             <SettingsDivider />
 
-            <View style={styles.legalSection}>
-              <AppText variant="caption" color={theme.colors.muted}>
-                {t(language, "settingsLegalSection")}
-              </AppText>
-              <View style={styles.legalLinks}>
-                <SettingsNavLink
-                  label={t(language, "privacyPolicy")}
-                  accessibilityLabel={t(language, "privacyPolicy")}
-                  onPress={() => router.push("/legal/privacy-policy")}
-                />
-                <SettingsNavLink
-                  label={t(language, "openSourceCredits")}
-                  accessibilityLabel={t(language, "openSourceCredits")}
-                  onPress={() => router.push("/legal/acknowledgments")}
-                  isLast
-                />
-              </View>
-            </View>
+            <SettingsBlock variant="links">
+              <SettingsNavLink
+                label={t(language, "privacyPolicy")}
+                accessibilityLabel={t(language, "privacyPolicy")}
+                onPress={() => router.push("/legal/privacy-policy")}
+              />
+              <SettingsNavLink
+                label={t(language, "openSourceCredits")}
+                accessibilityLabel={t(language, "openSourceCredits")}
+                onPress={() => router.push("/legal/acknowledgments")}
+                isLast
+              />
+            </SettingsBlock>
 
             <SettingsDivider />
 
-            <SettingsNavLink
-              label={t(language, "deleteAccount")}
-              accessibilityLabel={t(language, "deleteAccount")}
-              onPress={() => router.push("/legal/delete-account")}
-              variant="destructive"
-              isLast
-            />
+            <SettingsBlock variant="links">
+              <SettingsNavLink
+                label={t(language, "deleteAccount")}
+                accessibilityLabel={t(language, "deleteAccount")}
+                onPress={() => router.push("/legal/delete-account")}
+                variant="destructive"
+                isLast
+              />
+            </SettingsBlock>
           </Card>
 
           <Pressable
@@ -184,51 +217,23 @@ const styles = StyleSheet.create({
   },
   column: {
     gap: theme.spacing.lg,
-    marginTop: theme.spacing.sm,
-  },
-  section: {
-    gap: theme.spacing.lg,
-  },
-  block: {
-    gap: theme.spacing.sm,
   },
   avatarScroll: {
-    gap: theme.spacing.sm,
-    paddingVertical: theme.spacing.sm,
+    gap: theme.spacing.md,
   },
   avatarOption: {
     alignItems: "center",
-    backgroundColor: theme.colors.overlay,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radii.lg,
-    borderWidth: 1,
-    height: 64,
+    borderColor: "transparent",
+    borderRadius: 999,
+    borderWidth: 2,
     justifyContent: "center",
-    width: 64,
   },
   avatarOptionActive: {
     borderColor: theme.colors.accent,
-    borderWidth: 2,
   },
   avatarImage: {
+    backgroundColor: "transparent",
     borderWidth: 0,
-  },
-  offlineBlock: {
-    gap: theme.spacing.md,
-  },
-  offlineLabels: {
-    gap: theme.spacing.xs,
-  },
-  legalSection: {
-    gap: theme.spacing.sm,
-  },
-  legalLinks: {
-    backgroundColor: theme.colors.overlay,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radii.md,
-    borderWidth: 1,
-    overflow: "hidden",
-    paddingHorizontal: theme.spacing.md,
   },
   signOut: {
     alignItems: "center",

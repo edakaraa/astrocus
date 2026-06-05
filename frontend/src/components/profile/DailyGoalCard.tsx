@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Keyboard, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Slider } from "@miblanchard/react-native-slider";
 import { toastTone, useAppContext } from "../../context/AppContext";
-import { roundDailyGoalMinutes } from "../../lib/dailyGoalStorage";
+import { clampDailyGoalMinutes, roundDailyGoalMinutes } from "../../lib/dailyGoalStorage";
 import { t } from "../../shared/i18n";
+import { colors, layout, numericTypography } from "../../shared/theme";
 import theme from "../../theme";
 import { AppText } from "../ui/AppText";
 import { Card } from "../ui/Card";
@@ -30,7 +31,13 @@ export const DailyGoalCard: React.FC<DailyGoalCardProps> = ({
 }) => {
   const { language, showToast } = useAppContext();
   const rewardedRef = useRef(false);
+  const inputRef = useRef<TextInput>(null);
   const [draftMinutes, setDraftMinutes] = useState(pickerDefaultMinutes);
+  const [isEditingMinutes, setIsEditingMinutes] = useState(false);
+  const [inputValue, setInputValue] = useState(String(pickerDefaultMinutes));
+
+  const minMinutes = theme.layout.goalSheetMinMinutes;
+  const maxMinutes = theme.layout.goalSheetMaxMinutes;
 
   const hasGoalToday = goalMinutes > 0;
   const pct = hasGoalToday ? Math.round(Math.min(elapsedMinutes / goalMinutes, 1) * 100) : 0;
@@ -40,9 +47,17 @@ export const DailyGoalCard: React.FC<DailyGoalCardProps> = ({
   useEffect(() => {
     if (!hasGoalToday) {
       setDraftMinutes(pickerDefaultMinutes);
+      setInputValue(String(pickerDefaultMinutes));
+      setIsEditingMinutes(false);
       rewardedRef.current = false;
     }
   }, [hasGoalToday, pickerDefaultMinutes]);
+
+  useEffect(() => {
+    if (!isEditingMinutes) {
+      setInputValue(String(draftMinutes));
+    }
+  }, [draftMinutes, isEditingMinutes]);
 
   useEffect(() => {
     if (!goalReached || rewardedRef.current) {
@@ -57,8 +72,44 @@ export const DailyGoalCard: React.FC<DailyGoalCardProps> = ({
     onGoalReached?.();
   }, [goalReached, language, onGoalReached, showToast]);
 
+  const commitDraftInput = () => {
+    const parsed = Number.parseInt(inputValue.trim(), 10);
+    if (Number.isFinite(parsed)) {
+      const clamped = clampDailyGoalMinutes(parsed);
+      setDraftMinutes(clamped);
+      setInputValue(String(clamped));
+    } else {
+      setInputValue(String(draftMinutes));
+    }
+    setIsEditingMinutes(false);
+    Keyboard.dismiss();
+  };
+
   const handleConfirm = () => {
-    onConfirmGoal(roundDailyGoalMinutes(draftMinutes));
+    let minutes = draftMinutes;
+    if (isEditingMinutes) {
+      const parsed = Number.parseInt(inputValue.trim(), 10);
+      if (Number.isFinite(parsed)) {
+        minutes = clampDailyGoalMinutes(parsed);
+        setDraftMinutes(minutes);
+        setInputValue(String(minutes));
+      }
+      setIsEditingMinutes(false);
+      Keyboard.dismiss();
+    }
+    onConfirmGoal(roundDailyGoalMinutes(minutes));
+  };
+
+  const handleSliderChange = (value: number | number[]) => {
+    const next = Array.isArray(value) ? value[0] : value;
+    setDraftMinutes(clampDailyGoalMinutes(next));
+    setIsEditingMinutes(false);
+  };
+
+  const startEditingMinutes = () => {
+    setInputValue(String(draftMinutes));
+    setIsEditingMinutes(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
   };
 
   return (
@@ -73,14 +124,43 @@ export const DailyGoalCard: React.FC<DailyGoalCardProps> = ({
           <AppText variant="caption" color={theme.colors.textSecondary}>
             {t(language, "dailyGoalSheetQuestion")}
           </AppText>
-          <AppText variant="numericHero" style={styles.pickerValue}>
-            {`${draftMinutes} ${t(language, "minuteUnit")}`}
-          </AppText>
+
+          {isEditingMinutes ? (
+            <View style={styles.pickerValueRow}>
+              <TextInput
+                ref={inputRef}
+                accessibilityLabel={t(language, "dailyGoalEditMinutesA11y")}
+                keyboardType="number-pad"
+                maxLength={4}
+                value={inputValue}
+                onChangeText={setInputValue}
+                onBlur={commitDraftInput}
+                onSubmitEditing={commitDraftInput}
+                selectTextOnFocus
+                style={styles.pickerInput}
+              />
+              <AppText variant="numericHero" style={styles.pickerUnit}>
+                {t(language, "minuteUnit")}
+              </AppText>
+            </View>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t(language, "dailyGoalEditMinutesA11y")}
+              onPress={startEditingMinutes}
+              style={({ pressed }) => [styles.pickerValuePressable, pressed ? styles.pressed : null]}
+            >
+              <AppText variant="numericHero" style={styles.pickerValue}>
+                {`${draftMinutes} ${t(language, "minuteUnit")}`}
+              </AppText>
+            </Pressable>
+          )}
+
           <Slider
             value={draftMinutes}
-            onValueChange={(v: number | number[]) => setDraftMinutes(Array.isArray(v) ? v[0] : v)}
-            minimumValue={theme.layout.goalSheetMinMinutes}
-            maximumValue={theme.layout.goalSheetMaxMinutes}
+            onValueChange={handleSliderChange}
+            minimumValue={minMinutes}
+            maximumValue={maxMinutes}
             step={theme.layout.goalSheetStep}
             minimumTrackTintColor={theme.colors.accent}
             maximumTrackTintColor={theme.colors.surface}
@@ -132,8 +212,36 @@ const styles = StyleSheet.create({
   pickerBody: {
     gap: theme.spacing.md,
   },
+  pickerValuePressable: {
+    alignSelf: "center",
+  },
   pickerValue: {
     textAlign: "center",
+  },
+  pickerValueRow: {
+    alignItems: "center",
+    alignSelf: "center",
+    flexDirection: "row",
+    gap: theme.spacing.sm,
+    justifyContent: "center",
+  },
+  pickerInput: {
+    ...numericTypography,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: colors.border,
+    borderRadius: theme.radii.sm,
+    borderWidth: 1,
+    color: colors.text,
+    fontSize: 28,
+    lineHeight: 34,
+    minHeight: layout.touchTargetMin,
+    minWidth: 88,
+    paddingHorizontal: theme.spacing.md,
+    textAlign: "center",
+  },
+  pickerUnit: {
+    fontSize: 22,
+    lineHeight: 28,
   },
   setButton: {
     alignItems: "center",

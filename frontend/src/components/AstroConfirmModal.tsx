@@ -1,9 +1,10 @@
 import React from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, View } from "react-native";
 import { BlurView } from "expo-blur";
 import { useModalLayout } from "../shared/responsive";
-import { colors, radii, spacing, typography } from "../shared/theme";
+import { colors, radii, spacing } from "../shared/theme";
 import { GradientButton } from "./GradientButton";
+import { AppText } from "./ui/AppText";
 
 export type AstroConfirmModalProps = {
   visible: boolean;
@@ -49,8 +50,8 @@ export const AstroConfirmModal = ({
             <View style={styles.glassTint} />
             {modal.isSheet ? <View style={styles.sheetHandle} accessibilityElementsHidden /> : null}
             <View style={styles.content}>
-              <Text style={styles.title}>{title}</Text>
-              <Text style={styles.message}>{message}</Text>
+              <AppText variant="modalTitle">{title}</AppText>
+              <AppText variant="modalMessage" style={styles.message}>{message}</AppText>
               <View style={styles.actions}>
                 <GradientButton
                   label={cancelLabel}
@@ -116,13 +117,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
   },
-  title: {
-    ...typography.h3,
-    color: colors.text,
-  },
   message: {
-    ...typography.body,
-    color: colors.textMuted,
     marginTop: spacing.sm,
   },
   actions: {

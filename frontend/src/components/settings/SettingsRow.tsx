@@ -20,17 +20,17 @@ export const SettingsRow: React.FC<SettingsRowProps> = ({
   style,
 }) => (
   <View style={[styles.row, style]}>
-    <View style={labelsFlex ? styles.labelsFlex : styles.labels}>
+    <View style={[labelsFlex ? styles.labelsFlex : styles.labels, styles.labelStack]}>
       <AppText variant="card">{label}</AppText>
       {caption ? <AppText variant="caption">{caption}</AppText> : null}
     </View>
-    {control}
+    {control ? <View style={styles.control}>{control}</View> : null}
   </View>
 );
 
 const styles = StyleSheet.create({
   row: {
-    alignItems: "center",
+    alignItems: "flex-start",
     flexDirection: "row",
     gap: theme.spacing.md,
     justifyContent: "space-between",
@@ -40,5 +40,11 @@ const styles = StyleSheet.create({
   },
   labelsFlex: {
     flex: 1,
+  },
+  labelStack: {
+    gap: theme.spacing.xs,
+  },
+  control: {
+    alignSelf: "center",
   },
 });
