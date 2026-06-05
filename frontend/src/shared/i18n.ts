@@ -208,8 +208,9 @@ const translations = {
     permanentlyDelete: "Hesabımı kalıcı olarak sil",
     cancelAction: "Vazgeç",
     deleteAccountTitle: "Hesabı Sil",
-    deleteAccountConfirm: "Hesabı sil?",
-    deleteAccountMessage: "Bu işlem geri alınamaz. Tüm verilerin silinir.",
+    deleteAccountConfirm: "Hesabı kalıcı olarak sil?",
+    deleteAccountMessage:
+      "Profil bilgileriniz, odak seansları, yıldız tozu kayıtları ve tüm ilişkili veriler kalıcı olarak silinecek. Bu işlem geri alınamaz.",
     deleteAction: "Sil",
 
     celebrationTitle: "Seans tamamlandı",
@@ -346,16 +347,17 @@ const translations = {
     openSourceCreditsIntro: "Astrocus'ta kullanılan üçüncü taraf içerik ve lisans bilgileri.",
     creditsAvatarsTitle: "Profil avatarları",
     avatarAttributionCompact:
-      "Profil görselleri: DiceBear Glyphs · Matt Houser · CC BY 4.0",
+      "Profil görselleri: DiceBear Lorelei · Lisa Wischofsky · CC0 1.0",
     avatarAttributionBody:
-      "Hazır profil avatarları DiceBear «Glyphs» stilinden üretilir. Tasarım: Matt Houser.",
-    avatarAttributionLink: "dicebear.com/styles/glyphs",
-    avatarAttributionA11y: "DiceBear Glyphs atıf sayfasını aç",
+      "Hazır profil avatarları DiceBear «Lorelei» stilinden üretilir. Tasarım: Lisa Wischofsky.",
+    avatarAttributionLink: "dicebear.com/styles/lorelei",
+    avatarAttributionA11y: "DiceBear Lorelei atıf sayfasını aç",
     offlineSessions: "Çevrimdışı seanslar",
     pendingRecords: "bekleyen kayıt",
     syncNow: "Senkronize et",
     settingsLegalSection: "Yasal ve bilgi",
-    deleteAccountBody: "App Store ve Play Store gereksinimi. Silme işlemi geri alınamaz.",
+    deleteAccountBody:
+      "Google Play gereksinimi olarak hesabınızı uygulama içinden silebilirsiniz. Onayladığınızda profil bilgileriniz, odak seansları, yıldız tozu kayıtları ve tüm ilişkili veriler kalıcı olarak silinir. Bu işlem geri alınamaz.",
     deleteFailed: "Silme başarısız",
     goBack: "Geri dön",
     weekDay_mon: "Pzt",
@@ -582,8 +584,9 @@ const translations = {
     permanentlyDelete: "Permanently delete my account",
     cancelAction: "Cancel",
     deleteAccountTitle: "Delete Account",
-    deleteAccountConfirm: "Delete account?",
-    deleteAccountMessage: "This cannot be undone. All your data will be removed.",
+    deleteAccountConfirm: "Permanently delete account?",
+    deleteAccountMessage:
+      "Your profile, focus sessions, stardust records, and all related data will be permanently deleted. This action cannot be undone.",
     deleteAction: "Delete",
 
     celebrationTitle: "Session complete",
@@ -720,16 +723,17 @@ const translations = {
     openSourceCreditsIntro: "Third-party content and licenses used in Astrocus.",
     creditsAvatarsTitle: "Profile avatars",
     avatarAttributionCompact:
-      "Profile avatars: DiceBear Glyphs · Matt Houser · CC BY 4.0",
+      "Profile avatars: DiceBear Lorelei · Lisa Wischofsky · CC0 1.0",
     avatarAttributionBody:
-      "Preset profile avatars are generated with the DiceBear “Glyphs” style. Design: Matt Houser.",
-    avatarAttributionLink: "dicebear.com/styles/glyphs",
-    avatarAttributionA11y: "Open DiceBear Glyphs attribution page",
+      "Preset profile avatars are generated with the DiceBear “Lorelei” style. Design: Lisa Wischofsky.",
+    avatarAttributionLink: "dicebear.com/styles/lorelei",
+    avatarAttributionA11y: "Open DiceBear Lorelei attribution page",
     offlineSessions: "Offline sessions",
     pendingRecords: "pending records",
     syncNow: "Sync now",
     settingsLegalSection: "Legal & information",
-    deleteAccountBody: "Required for App Store and Play Store. Deletion is immediate and cannot be undone.",
+    deleteAccountBody:
+      "As required by Google Play, you can delete your account in the app. When you confirm, your profile, focus sessions, stardust records, and all related data are permanently removed. This action cannot be undone.",
     deleteFailed: "Delete failed",
     goBack: "Go back",
     weekDay_mon: "Mon",

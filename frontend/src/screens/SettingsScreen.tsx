@@ -1,14 +1,12 @@
 import React, { useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { SubScreenScaffold } from "../components/layout/SubScreenScaffold";
+import { SubScreenScaffold, SubScreenScrollLayout } from "../components/layout/SubScreenScaffold";
 import { SubScreenTopBar } from "../components/layout/TabScreenTopBar";
 import { toastTone, useAppContext } from "../context/AppContext";
 import { PRESET_AVATARS, resolveAvatarId } from "../shared/constants";
 import { t, type TranslationKey } from "../shared/i18n";
 import { formatNumber } from "../shared/formatLocale";
-import { ScreenContentColumn } from "../components/ScreenContentColumn";
 import { UserAvatar } from "../components/UserAvatar";
 import { Card } from "../components/ui/Card";
 import { AppText } from "../components/ui/AppText";
@@ -24,9 +22,8 @@ import theme from "../theme";
 
 export const SettingsScreen = () => {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const spacing = useSettingsSpacing();
-  const { scale, isCompact, screenTopPadding } = useResponsive();
+  const { scale, isCompact } = useResponsive();
   const avatarSize = scale(isCompact ? 48 : 52);
   const avatarOptionSize = scale(isCompact ? 52 : 56);
 
@@ -91,22 +88,14 @@ export const SettingsScreen = () => {
 
   return (
     <SubScreenScaffold>
-      <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          {
-            paddingBottom: Math.max(insets.bottom, theme.spacing.xl),
-          },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
+      <SubScreenScrollLayout columnStyle={styles.column}>
         <SubScreenTopBar
+          embedded
           title={t(language, "settingsScreenTitle")}
           backAccessibilityLabel={t(language, "back")}
           onBack={() => router.back()}
         />
-        <ScreenContentColumn style={[styles.column, { marginTop: screenTopPadding }]}>
-          <Card padding={0} style={cardStyle}>
+        <Card padding={0} style={cardStyle}>
             <SettingsBlock
               header={
                 <SettingsRow
@@ -205,16 +194,12 @@ export const SettingsScreen = () => {
           >
             <AppText variant="card">{t(language, "signOut")}</AppText>
           </Pressable>
-        </ScreenContentColumn>
-      </ScrollView>
+      </SubScreenScrollLayout>
     </SubScreenScaffold>
   );
 };
 
 const styles = StyleSheet.create({
-  scroll: {
-    flexGrow: 1,
-  },
   column: {
     gap: theme.spacing.lg,
   },

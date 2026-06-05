@@ -1,10 +1,9 @@
 import React, { useState } from "react";
-import { View } from "react-native";
 import { useRouter } from "expo-router";
 import { toastTone, useAppContext } from "../context/AppContext";
 import { t } from "../shared/i18n";
 import { GradientButton } from "../components/GradientButton";
-import { LegalDocumentLayout, legalDocumentStyles } from "../components/layout/LegalDocumentLayout";
+import { LegalDocumentLayout } from "../components/layout/LegalDocumentLayout";
 import { AppText } from "../components/ui/AppText";
 import theme from "../theme";
 
@@ -49,6 +48,7 @@ export const DeleteAccountScreen = () => {
       titleColor={theme.colors.badgeScorpio}
       backAccessibilityLabel={t(language, "back")}
       onBack={() => router.back()}
+      titleAboveCard
       footer={
         <>
           <GradientButton
@@ -56,12 +56,16 @@ export const DeleteAccountScreen = () => {
             onPress={handleDelete}
             disabled={isDeleting}
             accessibilityLabel={t(language, "deleteAccount")}
+            fullWidth
+            hideHighlight
           />
           <GradientButton
             label={t(language, "cancelAction")}
             onPress={() => router.back()}
             variant="soft"
             accessibilityLabel={t(language, "cancel")}
+            fullWidth
+            hideHighlight
           />
         </>
       }
@@ -69,7 +73,6 @@ export const DeleteAccountScreen = () => {
       <AppText variant="body" color={theme.colors.textSecondary}>
         {t(language, "deleteAccountBody")}
       </AppText>
-      <View style={legalDocumentStyles.spacer} />
     </LegalDocumentLayout>
   );
 };

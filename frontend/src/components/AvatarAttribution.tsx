@@ -1,9 +1,10 @@
 import React from "react";
-import { Linking, Pressable, StyleProp, StyleSheet, ViewStyle } from "react-native";
+import { Linking, Pressable, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { useAppContext } from "../context/AppContext";
-import { DICEBEAR_GLYPHS_ATTRIBUTION } from "../shared/dicebearGlyphs";
+import { DICEBEAR_AVATAR_ATTRIBUTION } from "../shared/dicebearAvatars";
 import { t } from "../shared/i18n";
 import { AppText } from "./ui/AppText";
+import theme from "../theme";
 
 type AvatarAttributionProps = {
   style?: StyleProp<ViewStyle>;
@@ -14,11 +15,11 @@ export const AvatarAttribution = ({ style, compact = false }: AvatarAttributionP
   const { language } = useAppContext();
 
   const openStylePage = () => {
-    void Linking.openURL(DICEBEAR_GLYPHS_ATTRIBUTION.styleUrl);
+    void Linking.openURL(DICEBEAR_AVATAR_ATTRIBUTION.styleUrl);
   };
 
   const openLicense = () => {
-    void Linking.openURL(DICEBEAR_GLYPHS_ATTRIBUTION.licenseUrl);
+    void Linking.openURL(DICEBEAR_AVATAR_ATTRIBUTION.licenseUrl);
   };
 
   if (compact) {
@@ -37,39 +38,35 @@ export const AvatarAttribution = ({ style, compact = false }: AvatarAttributionP
   }
 
   return (
-    <Pressable
-      accessibilityRole="link"
-      accessibilityLabel={t(language, "avatarAttributionA11y")}
-      onPress={openStylePage}
-      style={style}
-    >
-      <AppText variant="bodyMuted" style={styles.text}>
+    <View style={[styles.stack, style]}>
+      <AppText variant="body" color={theme.colors.textSecondary}>
         {t(language, "avatarAttributionBody")}
       </AppText>
-      <AppText variant="link" style={styles.link}>
-        {t(language, "avatarAttributionLink")}
-      </AppText>
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel={t(language, "avatarAttributionA11y")}
+        onPress={openStylePage}
+        hitSlop={4}
+      >
+        <AppText variant="link">{t(language, "avatarAttributionLink")}</AppText>
+      </Pressable>
       <Pressable accessibilityRole="link" onPress={openLicense} hitSlop={8}>
-        <AppText variant="caption" style={styles.license}>
-          {DICEBEAR_GLYPHS_ATTRIBUTION.license}
+        <AppText variant="caption" color={theme.colors.textSecondary} style={styles.license}>
+          {DICEBEAR_AVATAR_ATTRIBUTION.license}
         </AppText>
       </Pressable>
-    </Pressable>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  stack: {
+    gap: theme.spacing.xs,
+  },
   compactText: {
     textAlign: "center",
   },
-  text: {
-    lineHeight: 16,
-  },
-  link: {
-    marginTop: 4,
-  },
   license: {
-    marginTop: 2,
     textDecorationLine: "underline",
   },
 });

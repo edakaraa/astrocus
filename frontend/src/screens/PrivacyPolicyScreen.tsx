@@ -1,12 +1,12 @@
-import React from "react";
-import { View } from "react-native";
+import React, { Fragment } from "react";
 import { useRouter } from "expo-router";
 import { useAppContext } from "../context/AppContext";
 import { getPrivacyPolicyBlocks } from "../features/legal/privacyPolicyContent";
 import { t } from "../shared/i18n";
-import { AppText } from "../components/ui/AppText";
-import { LegalDocumentLayout, legalDocumentStyles } from "../components/layout/LegalDocumentLayout";
-import theme from "../theme";
+import { LegalDocumentCard } from "../components/legal/LegalDocumentCard";
+import { LegalSection } from "../components/legal/LegalSection";
+import { LegalDocumentLayout } from "../components/layout/LegalDocumentLayout";
+import { SettingsDivider } from "../components/settings/SettingsDivider";
 
 export const PrivacyPolicyScreen = () => {
   const router = useRouter();
@@ -18,17 +18,16 @@ export const PrivacyPolicyScreen = () => {
       title={t(language, "privacyPolicy")}
       backAccessibilityLabel={t(language, "back")}
       onBack={() => router.back()}
+      titleAboveCard
     >
-      {blocks.map((block) => (
-        <View key={block.title} style={legalDocumentStyles.block}>
-          <AppText variant="card" color={theme.colors.accent}>
-            {block.title}
-          </AppText>
-          <AppText variant="body" color={theme.colors.textSecondary}>
-            {block.body}
-          </AppText>
-        </View>
-      ))}
+      <LegalDocumentCard>
+        {blocks.map((block, index) => (
+          <Fragment key={block.title}>
+            {index > 0 ? <SettingsDivider /> : null}
+            <LegalSection title={block.title}>{block.body}</LegalSection>
+          </Fragment>
+        ))}
+      </LegalDocumentCard>
     </LegalDocumentLayout>
   );
 };

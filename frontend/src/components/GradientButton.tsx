@@ -12,6 +12,7 @@ type GradientButtonProps = {
   variant?: "primary" | "soft";
   accessibilityLabel?: string;
   fullWidth?: boolean;
+  hideHighlight?: boolean;
 };
 
 export const GradientButton = ({
@@ -22,6 +23,7 @@ export const GradientButton = ({
   variant = "primary",
   accessibilityLabel,
   fullWidth,
+  hideHighlight = false,
 }: GradientButtonProps) => {
   const isPrimary = variant === "primary";
 
@@ -59,7 +61,7 @@ export const GradientButton = ({
           end={{ x: 1, y: 1 }}
           style={styles.gradient}
         >
-          <View style={styles.highlight} />
+          {!hideHighlight ? <View style={styles.highlight} /> : null}
           <AppText variant="buttonLabel">{label}</AppText>
         </LinearGradient>
       </View>

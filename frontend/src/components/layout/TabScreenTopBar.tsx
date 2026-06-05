@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useResponsive } from "../../shared/responsive";
 import theme from "../../theme";
@@ -39,6 +39,46 @@ const TopBarActionButton = ({
   </Pressable>
 );
 
+type SubScreenTitleRowProps = {
+  title: string;
+  onBack: () => void;
+  backAccessibilityLabel: string;
+  titleColor?: string;
+  rightMeta?: string;
+  /** No top margin — sits flush under safe area or stardust row. */
+  flush?: boolean;
+  style?: StyleProp<ViewStyle>;
+};
+
+/** Geri + ortalanmış başlık — kartın hemen üstünde kullanım için. */
+export const SubScreenTitleRow: React.FC<SubScreenTitleRowProps> = ({
+  title,
+  onBack,
+  backAccessibilityLabel,
+  titleColor,
+  rightMeta,
+  flush = false,
+  style,
+}) => (
+  <View style={[styles.navRow, flush ? styles.navRowFlush : null, style]}>
+    <TopBarActionButton
+      icon="arrow-left"
+      accessibilityLabel={backAccessibilityLabel}
+      onPress={onBack}
+    />
+    <AppText variant="title" color={titleColor} style={styles.screenTitle}>
+      {title}
+    </AppText>
+    {rightMeta ? (
+      <AppText variant="caption" style={styles.rightMeta}>
+        {rightMeta}
+      </AppText>
+    ) : (
+      <View style={styles.actionPlaceholder} />
+    )}
+  </View>
+);
+
 export const TabScreenTopBar: React.FC<TabScreenTopBarProps> = ({ stardustAmount }) => {
   const { topInset, edgePadding, maxContentWidth } = useResponsive();
 
@@ -70,6 +110,8 @@ type SubScreenTopBarProps = {
   stardustAmount?: number;
   rightMeta?: string;
   titleColor?: string;
+  /** Parent scroll already applied `screenTopPadding` — omit safe-area top inset. */
+  embedded?: boolean;
 };
 
 /** Alt ekranlar: geri + başlık; isteğe bağlı yıldız tozu satırı. */
@@ -80,9 +122,33 @@ export const SubScreenTopBar: React.FC<SubScreenTopBarProps> = ({
   stardustAmount,
   rightMeta,
   titleColor,
+  embedded = false,
 }) => {
   const { topInset, edgePadding, maxContentWidth } = useResponsive();
   const showStardust = stardustAmount !== undefined;
+
+  const nav = (
+    <>
+      {showStardust ? (
+        <View style={styles.row}>
+          <View style={styles.actionPlaceholder} />
+          <StarDustChip amount={stardustAmount} />
+        </View>
+      ) : null}
+      <SubScreenTitleRow
+        title={title}
+        onBack={onBack}
+        backAccessibilityLabel={backAccessibilityLabel}
+        titleColor={titleColor}
+        rightMeta={rightMeta}
+        flush={!showStardust}
+      />
+    </>
+  );
+
+  if (embedded) {
+    return <View style={[styles.inner, { maxWidth: maxContentWidth, width: "100%" }]}>{nav}</View>;
+  }
 
   return (
     <View
@@ -95,31 +161,7 @@ export const SubScreenTopBar: React.FC<SubScreenTopBarProps> = ({
         },
       ]}
     >
-      <View style={[styles.inner, { maxWidth: maxContentWidth }]}>
-        {showStardust ? (
-          <View style={styles.row}>
-            <View style={styles.actionPlaceholder} />
-            <StarDustChip amount={stardustAmount} />
-          </View>
-        ) : null}
-        <View style={[styles.navRow, !showStardust ? styles.navRowFlush : null]}>
-          <TopBarActionButton
-            icon="arrow-left"
-            accessibilityLabel={backAccessibilityLabel}
-            onPress={onBack}
-          />
-          <AppText variant="title" color={titleColor} style={styles.screenTitle}>
-            {title}
-          </AppText>
-          {rightMeta ? (
-            <AppText variant="caption" style={styles.rightMeta}>
-              {rightMeta}
-            </AppText>
-          ) : (
-            <View style={styles.actionPlaceholder} />
-          )}
-        </View>
-      </View>
+      <View style={[styles.inner, { maxWidth: maxContentWidth }]}>{nav}</View>
     </View>
   );
 };

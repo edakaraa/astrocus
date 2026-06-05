@@ -1,7 +1,7 @@
-import { buildDiceBearGlyphsUriForAvatarId } from "./dicebearGlyphs";
+import { buildDiceBearAvatarUriForAvatarId } from "./dicebearAvatars";
 
 /**
- * Hazır profil avatarları — DiceBear Glyphs (PNG, HTTP API).
+ * Hazır profil avatarları — DiceBear Lorelei (PNG, HTTP API).
  * DB'de yalnızca id saklanır; görsel api.dicebear.com üzerinden gelir.
  */
 export const PRESET_AVATAR_IDS = [
@@ -72,7 +72,7 @@ export const resolveAvatarId = (stored: string | null | undefined): PresetAvatar
 
 export const getPresetAvatarUri = (stored: string | null | undefined, sizePx: number): string => {
   const id = resolveAvatarId(stored);
-  return buildDiceBearGlyphsUriForAvatarId(id, sizePx);
+  return buildDiceBearAvatarUriForAvatarId(id, sizePx);
 };
 
 export const isPresetAvatarId = (value: string): value is PresetAvatarId =>

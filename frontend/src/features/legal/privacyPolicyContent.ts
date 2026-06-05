@@ -25,7 +25,7 @@ const tr: PolicyBlock[] = [
   },
   {
     title: "Üçüncü Taraf İçerik (Profil Görselleri)",
-    body: "Hazır profil avatarları DiceBear «Glyphs» stilini kullanır (lisans: CC BY 4.0). Tasarım: Matt Houser. API: dicebear.com. Seçtiğiniz avatar yalnızca bir kimlik (seed) olarak saklanır; görsel dosyası cihazınıza indirilip veritabanına kaydedilmez.",
+    body: "Hazır profil avatarları DiceBear «Lorelei» stilini kullanır (lisans: CC0 1.0). Tasarım: Lisa Wischofsky. API: dicebear.com. Seçtiğiniz avatar yalnızca bir kimlik (seed) olarak saklanır; görsel dosyası cihazınıza indirilip veritabanına kaydedilmez.",
   },
 ];
 
@@ -52,7 +52,7 @@ const en: PolicyBlock[] = [
   },
   {
     title: "Third-Party Content (Profile Avatars)",
-    body: "Preset profile avatars use the DiceBear “Glyphs” style (license: CC BY 4.0). Design: Matt Houser. API: dicebear.com. Only your avatar choice (seed id) is stored; image files are not saved in our database.",
+    body: "Preset profile avatars use the DiceBear “Lorelei” style (license: CC0 1.0). Design: Lisa Wischofsky. API: dicebear.com. Only your avatar choice (seed id) is stored; image files are not saved in our database.",
   },
 ];
 
