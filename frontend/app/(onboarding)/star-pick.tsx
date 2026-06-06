@@ -5,7 +5,9 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { toastTone, useAppContext } from "../../src/context/AppContext";
 import { constellationLabel } from "../../src/services/constellationCatalog";
 import { loadSkyCatalog } from "../../src/services/skyCatalog";
-import { t } from "../../src/shared/i18n";
+import { formatNumber } from "../../src/shared/formatLocale";
+import { formatTranslation, t } from "../../src/shared/i18n";
+import { STARDUST_PER_MINUTE } from "../../src/shared/constants";
 import type { Constellation, Language } from "../../src/shared/types";
 import { colors, fontFamilies, radii, spacing } from "../../src/shared/theme";
 import { GradientButton } from "../../src/components/GradientButton";
@@ -101,7 +103,11 @@ export default function StarPickRoute() {
 
       <View style={styles.hintCard}>
         <MaterialCommunityIcons name="information-outline" size={15} color={colors.primary} />
-        <Text style={styles.hintText}>{t(language, "onboardingConstellationHint")}</Text>
+        <Text style={styles.hintText}>
+          {formatTranslation(language, "onboardingConstellationHint", {
+            exampleEarn: formatNumber(language, STARDUST_PER_MINUTE * 25),
+          })}
+        </Text>
       </View>
 
       <View style={styles.selectedPreview}>

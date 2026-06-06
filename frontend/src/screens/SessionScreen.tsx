@@ -14,9 +14,10 @@ import {
   BACKGROUND_TOLERANCE_SECONDS,
   PAUSE_LIMIT,
 } from "../shared/constants";
-import { t, type TranslationKey } from "../shared/i18n";
+import { formatTranslation, t, type TranslationKey } from "../shared/i18n";
+import { STARDUST_PER_MINUTE } from "../shared/constants";
 import type { Language, SessionRecord } from "../shared/types";
-import { formatDuration } from "../shared/formatLocale";
+import { formatDuration, formatNumber } from "../shared/formatLocale";
 import { getFocusPresetIcon } from "../shared/appIcons";
 import { getMondayWeekFocusMinutes } from "../shared/weekFocus";
 import { MAX_FONT_SCALE, useResponsive } from "../shared/responsive";
@@ -30,6 +31,7 @@ import { TabScreenScaffold } from "../components/layout/TabScreenScaffold";
 import { FocusSectionCard } from "../components/session/FocusSectionCard";
 import { UniverseMessageCard } from "../components/session/UniverseMessageCard";
 import { WeekDayStars } from "../components/session/WeekDayStars";
+import { StardustInfoButton } from "../components/StardustInfoButton";
 import { AppText } from "../components/ui/AppText";
 import { AppIcon } from "../components/ui/AppIcon";
 import { PillChip } from "../components/ui/PillChip";
@@ -476,6 +478,14 @@ export const SessionScreen = () => {
               {t(language, "todayFocusLabel")}
             </AppText>
           </View>
+          <View style={styles.stardustHintRow}>
+            <AppText variant="caption" style={styles.stardustHintText} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+              {formatTranslation(language, "stardustPerMinute", {
+                rate: formatNumber(language, STARDUST_PER_MINUTE),
+              })}
+            </AppText>
+            <StardustInfoButton size={15} />
+          </View>
         </SurfaceCard>
 
         <FocusSectionCard title={t(language, "quickStartTitle")} sectionLabelSize={sectionLabelSize}>
@@ -734,6 +744,17 @@ const styles = StyleSheet.create({
   heroStatBlock: {
     alignItems: "center",
     marginTop: spacing.xs,
+  },
+  stardustHintRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.xxs,
+    justifyContent: "center",
+    marginTop: spacing.xs,
+  },
+  stardustHintText: {
+    color: colors.textMuted,
+    textAlign: "center",
   },
   presetScroller: {
     flexGrow: 1,

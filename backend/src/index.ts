@@ -16,13 +16,24 @@ initProductAnalytics();
 const app = express();
 const port = Number(process.env.PORT) || 4000;
 const allowedOrigin = process.env.ALLOWED_ORIGIN?.trim();
+const isProduction =
+  process.env.APP_ENV?.trim() === "production" || process.env.NODE_ENV?.trim() === "production";
+
+if (isProduction && (!allowedOrigin || allowedOrigin === "false")) {
+  console.warn(
+    "[Astrocus API] Production: ALLOWED_ORIGIN boş veya false — CORS kapalı (mobil için OK). Web istemcisi için https://astrocus.app ayarlayın.",
+  );
+}
+
+// Railway / Render reverse proxy — rate limit doğru client IP kullanır
+app.set("trust proxy", 1);
 
 app.use(helmet());
 app.use(
   cors(
-    allowedOrigin
+    allowedOrigin && allowedOrigin !== "false"
       ? { origin: allowedOrigin, credentials: true }
-      : undefined,
+      : { origin: false },
   ),
 );
 app.use(express.json({ limit: "32kb" }));

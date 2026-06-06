@@ -58,9 +58,11 @@ const extractBearerToken = (req: Request): string | null => {
   return (match?.[1] ?? "").trim() || null;
 };
 
+const CRON_SECRET_MIN_LENGTH = 32;
+
 const authorizeCronSecret = (req: Request): boolean => {
   const cronSecret = Deno.env.get("CRON_SECRET")?.trim();
-  if (!cronSecret) return false;
+  if (!cronSecret || cronSecret.length < CRON_SECRET_MIN_LENGTH) return false;
   const bearer = extractBearerToken(req);
   return bearer === cronSecret;
 };

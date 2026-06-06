@@ -229,7 +229,7 @@ export const GalaxyScreen = () => {
               {` ${t(language, "constellationsWord")}`}
             </AppText>
           </View>
-          <StarDustChip amount={totalStardust} compact />
+          <StarDustChip amount={totalStardust} compact showInfo />
         </View>
         <View style={galaxyCardStyles.progressBgMain}>
           <Animated.View

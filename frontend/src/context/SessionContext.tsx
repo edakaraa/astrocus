@@ -79,7 +79,7 @@ export type SessionContextValue = {
   pauseSession: () => void;
   resumeSession: () => void;
   resetSession: () => void;
-  /** Cancel an in-progress session. Applies the 10-min rule for stardust. */
+  /** Cancel an in-progress session. Applies partial-stardust threshold (min 5 min or 50% of plan). */
   cancelSession: () => Promise<void>;
   endSession: () => void;
   syncOfflineQueue: () => Promise<void>;

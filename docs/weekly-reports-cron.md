@@ -20,7 +20,7 @@ Edge Function: `generate-weekly-reports` (Supabase'de **ACTIVE**).
 | Secret | Zorunlu | Açıklama |
 |--------|---------|----------|
 | `OPENROUTER_API_KEY` | ✅ | OpenRouter API anahtarınız |
-| `CRON_SECRET` | ✅ | Rastgele uzun string (cron isteğini doğrular) |
+| `CRON_SECRET` | ✅ | En az 32 karakter (`openssl rand -hex 32`); cron isteğini doğrular |
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Genelde otomatik; yoksa Settings → API |
 | `SUPABASE_URL` | — | Genelde otomatik |
 
@@ -56,7 +56,14 @@ npx supabase functions deploy generate-weekly-reports
 
 ```bash
 curl -X POST "https://YOUR_PROJECT_REF.supabase.co/functions/v1/generate-weekly-reports" \
-  -H "Authorization: Bearer YOUR_ANON_OR_SERVICE_KEY" \
+  -H "Authorization: Bearer YOUR_CRON_SECRET" \
+  -H "Content-Type: application/json"
+```
+
+Alternatif header:
+
+```bash
+curl -X POST "https://YOUR_PROJECT_REF.supabase.co/functions/v1/generate-weekly-reports" \
   -H "x-cron-secret: YOUR_CRON_SECRET" \
   -H "Content-Type: application/json"
 ```

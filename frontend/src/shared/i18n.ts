@@ -104,7 +104,7 @@ const translations = {
       "Seçtiğin takımyıldız hemen açılır. Diğer 12 takımyıldız yıldız sayısına göre sırayla açılır; bir takımyıldızdaki tüm yıldızlar bitmeden sonraki açılmaz.",
     onboardingSelectConstellation: "İlk Takımyıldızını Seç",
     onboardingSelectStar: "İlk yıldızını seç",
-    onboardingConstellationHint: "Her yıldızın maliyeti katalogda belirlenir. 25 dakika odak = 50 ✦ kazanç.",
+    onboardingConstellationHint: "Her yıldızın maliyeti katalogda belirlenir. 25 dakika odak = {exampleEarn} ✦ kazanç.",
     onboardingStart: "Başla",
     onboardingSkip: "Atla",
     onboardingPhase1Title: "Her şey bir\nodakla başlar",
@@ -207,7 +207,7 @@ const translations = {
     dailyGoalSheetTitle: "Günlük Odak Hedefin",
     dailyGoalSheetQuestion: "Kaç dakika odaklanmak istiyorsun?",
     dailyGoalProgressCaption: "{goal} dk günlük hedef · {sessions} seans bugün",
-    dailyGoalRewardToast: "+50 Yıldız Tozu kazandın",
+    dailyGoalRewardToast: "+{amount} Yıldız Tozu kazandın",
     badgesScreenTitle: "Rozetler",
     settingsScreenTitle: "Ayarlar",
     myConstellation: "Takımyıldızım",
@@ -281,7 +281,27 @@ const translations = {
       "Bu seans için tek duraklama hakkını kullandın. Devam ettikten sonra bir daha duraklatamazsın.",
     pauseExhaustedTitle: "Bir daha duraklatamazsın",
     pauseExhaustedMessage: "Bu seans için yalnızca bir kez duraklatabilirsin.",
-    stardustPerMinute: "Tamamlanan seanslarda 2 ✦/dk",
+    stardustPerMinute: "Tamamlanan seanslarda {rate} ✦/dk",
+    stardustInfoTitle: "Yıldız Tozu nasıl kazanılır?",
+    stardustInfoClose: "Anladım",
+    stardustInfoA11y: "Yıldız tozu kazanma rehberi",
+    stardustInfoBaseTitle: "Temel kazanç",
+    stardustInfoBaseBody: "Tamamlanan odak seanslarında dakika başına {rate} ✦ kazanırsın.",
+    stardustInfoBonusesTitle: "Seans bonusları",
+    stardustInfoStreakBonus:
+      "Seri bonusu: Her ardışık odak günü için +{dayPct}% (en fazla +{maxPct}%, 5+ günlük seride).",
+    stardustInfoPauseBonus: "Duraklatmadan tamamlama: +{pct}% ekstra.",
+    stardustInfoPartialTitle: "Erken bitirme",
+    stardustInfoPartialBody:
+      "Seçtiğin sürenin en az yarısını (minimum 5 dk) odaklandıysan dakika başına {rate} ✦ alırsın; bonus uygulanmaz.",
+    stardustInfoDailyGoalTitle: "Günlük hedef",
+    stardustInfoDailyGoalBody: "Günlük odak hedefini tamamladığında günde bir kez +{amount} ✦.",
+    stardustInfoUnlockTitle: "Yıldız açma",
+    stardustInfoUnlockCatalog: "Her yıldızın kataloğunda sabit bir maliyeti vardır.",
+    stardustInfoUnlockTierEasy: "Kolay kademe (0–{max} tamamlanmış takımyıldız): yıldız başına {cost} ✦.",
+    stardustInfoUnlockTierMedium:
+      "Orta kademe ({min}–{max} tamamlanmış): yıldız başına {cost} ✦.",
+    stardustInfoUnlockTierMastery: "Ustalık kademesi ({min}+ tamamlanmış): yıldız başına {cost} ✦.",
     minutes: "dakika",
     category: "Kategori",
     todayFocused: "Bugün odaklandığın süre",
@@ -365,7 +385,8 @@ const translations = {
     avatar_saturn: "Satürn",
     avatarSwipeHint: "Daha fazlası için kaydır",
     openSourceCredits: "Açık kaynak ve atıflar",
-    openSourceCreditsIntro: "Astrocus'ta kullanılan üçüncü taraf içerik ve lisans bilgileri.",
+    openSourceCreditsIntro: "Özel lisans veya atıf gerektiren yazı tipleri, ikonlar ve görseller.",
+    creditsTypographyTitle: "Tipografi ve ikonlar",
     creditsAvatarsTitle: "Profil avatarları",
     avatarAttributionCompact:
       "Profil görselleri: DiceBear Lorelei · Lisa Wischofsky · CC0 1.0",
@@ -501,7 +522,7 @@ const translations = {
       "Your chosen constellation opens immediately. The other 12 unlock in order by star count; finish every star before the next constellation opens.",
     onboardingSelectConstellation: "Choose Your First Constellation",
     onboardingSelectStar: "Choose your first star",
-    onboardingConstellationHint: "Each star has a catalog cost. 25 minutes of focus = 50 ✦ earned.",
+    onboardingConstellationHint: "Each star has a catalog cost. 25 minutes of focus = {exampleEarn} ✦ earned.",
     onboardingStart: "Start",
     onboardingSkip: "Skip",
     onboardingPhase1Title: "Everything begins\nwith focus",
@@ -604,7 +625,7 @@ const translations = {
     dailyGoalSheetTitle: "Daily focus goal",
     dailyGoalSheetQuestion: "How many minutes do you want to focus?",
     dailyGoalProgressCaption: "{goal} min daily goal · {sessions} sessions today",
-    dailyGoalRewardToast: "You earned +50 stardust",
+    dailyGoalRewardToast: "You earned +{amount} stardust",
     badgesScreenTitle: "Badges",
     settingsScreenTitle: "Settings",
     myConstellation: "My constellation",
@@ -678,7 +699,27 @@ const translations = {
       "You used your one pause for this session. After you resume, you cannot pause again.",
     pauseExhaustedTitle: "Cannot pause again",
     pauseExhaustedMessage: "You can only pause once per session.",
-    stardustPerMinute: "2 ✦/min on completed sessions",
+    stardustPerMinute: "{rate} ✦/min on completed sessions",
+    stardustInfoTitle: "How to earn stardust",
+    stardustInfoClose: "Got it",
+    stardustInfoA11y: "Stardust earning guide",
+    stardustInfoBaseTitle: "Base reward",
+    stardustInfoBaseBody: "Completed focus sessions earn {rate} ✦ per focused minute.",
+    stardustInfoBonusesTitle: "Session bonuses",
+    stardustInfoStreakBonus:
+      "Streak bonus: +{dayPct}% per consecutive focus day (up to +{maxPct}% at a 5+ day streak).",
+    stardustInfoPauseBonus: "No-pause completion: +{pct}% extra.",
+    stardustInfoPartialTitle: "Ending early",
+    stardustInfoPartialBody:
+      "If you focused at least half your chosen duration (minimum 5 min), you earn {rate} ✦ per minute with no bonuses.",
+    stardustInfoDailyGoalTitle: "Daily goal",
+    stardustInfoDailyGoalBody: "Meet your daily focus goal once per day for +{amount} ✦.",
+    stardustInfoUnlockTitle: "Unlocking stars",
+    stardustInfoUnlockCatalog: "Each star has a fixed catalog cost.",
+    stardustInfoUnlockTierEasy: "Easy tier (0–{max} constellations completed): {cost} ✦ per star.",
+    stardustInfoUnlockTierMedium:
+      "Medium tier ({min}–{max} completed): {cost} ✦ per star.",
+    stardustInfoUnlockTierMastery: "Mastery tier ({min}+ completed): {cost} ✦ per star.",
     minutes: "minutes",
     category: "Category",
     todayFocused: "Today's focused time",
@@ -762,7 +803,8 @@ const translations = {
     avatar_saturn: "Saturn",
     avatarSwipeHint: "Swipe for more",
     openSourceCredits: "Open source & credits",
-    openSourceCreditsIntro: "Third-party content and licenses used in Astrocus.",
+    openSourceCreditsIntro: "Fonts, icons, and visuals that require a license notice or attribution.",
+    creditsTypographyTitle: "Typography & icons",
     creditsAvatarsTitle: "Profile avatars",
     avatarAttributionCompact:
       "Profile avatars: DiceBear Lorelei · Lisa Wischofsky · CC0 1.0",
@@ -800,3 +842,16 @@ export type TranslationKey = keyof (typeof translations)["tr"];
 
 export const t = (language: Language, key: TranslationKey): string =>
   translations[language][key] ?? translations.en[key] ?? key;
+
+/** Replace `{name}` placeholders in a translation string. */
+export const formatTranslation = (
+  language: Language,
+  key: TranslationKey,
+  vars: Record<string, string | number>,
+): string => {
+  let text = t(language, key);
+  for (const [name, value] of Object.entries(vars)) {
+    text = text.replaceAll(`{${name}}`, String(value));
+  }
+  return text;
+};

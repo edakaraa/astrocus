@@ -2,7 +2,7 @@
 
 Bu dosya, projede şimdiye kadar yapılan işleri, **güncel bileşen envanterini**, tamamlanan / eksik kalemleri ve teslim öncesi riskleri tek yerde tutar.
 
-> **Son güncelleme:** 2026-06-06 (push bildirimleri, Galaktik Tavsiye kaldırıldı, PostHog SDK, Sentry refactor, UI polish)  
+> **Son güncelleme:** 2026-06-06 (yıldız tozu ekonomisi 10 ✦/dk, bilgi modalı, migration 024–025)  
 > İlgili dokümanlar: `prodocs/PRD.md`, `tech-stack.md`, `plan.md`, `DesignSystem.md`  
 > OAuth rehberi: `docs/oauth-expo-go.md` · Galaksi katalog planı: `docs/galaxy-catalog.md`
 
@@ -10,13 +10,21 @@ Bu dosya, projede şimdiye kadar yapılan işleri, **güncel bileşen envanterin
 
 ## Güncel özet (2026-06-06 — ikinci tur)
 
+### Yıldız tozu ekonomisi (024–025)
+
+- **10 ✦/dk** temel kazanç (`complete_focus_session` / `cancel_focus_session` RPC)
+- Bonuslar: seri +10%/gün (max +50%), duraklatmadan +10%; erken bitirmede bonus yok
+- Günlük hedef ödülü **+250 ✦**; katalog maliyetleri ve mevcut bakiyeler ×5 (tek seferlik geçiş)
+- Dinamik tier: **500 / 1500 / 2000** ✦ (`compute_star_cost`)
+- Frontend: `stardustEconomy.ts`, `StardustInfoModal` (!), odak/gökyüzü/profil ekranları
+
 ### MVP çekirdek döngü — kod durumu
 
 | # | PRD özelliği | Kod | Uzak DB / deploy | Not |
 |---|--------------|-----|------------------|-----|
 | 01 | Odak zamanlayıcısı | ✅ | ✅ | Quick preset + özel süre; **duraklatma 5 dk iptali yapılmayacak** (karar) |
 | 02 | Yıldız / Galaksi | ✅ | ✅ | **Takımyıldızı kartları** (PRD gökyüzü haritası yerine — tasarım kararı) |
-| 03 | Yıldız tozu (2 ✦/dk) | ✅ | ✅ | **Manuel unlock**; saat dilimi bonusu v1.1 |
+| 03 | Yıldız tozu (10 ✦/dk) | ✅ | 🟡 | **Manuel unlock**; streak/duraklatma bonusu; günlük hedef +250 ✦; `024`/`025` push bekliyor |
 | 04 | Gökyüzü / galaksi UI | ✅ | ✅ | `GalaxyScreen` + 67 yıldız DB katalog |
 | 05 | Kategori seçimi | ✅ | ✅ | 8 kategori |
 | 06 | Çıkış toleransı + uyarı | ✅ | ✅ | 10 sn yerel bildirim; 20 sn → seans `failed` |
@@ -219,7 +227,8 @@ backend/supabase/
 | **UIContext** | `context/UIContext.tsx` | Dil, kutlama modal state | ✅ |
 | **NotificationContext** | `context/NotificationContext.tsx` | Global `showToast`, `showAlert`, `showConfirm` | ✅ |
 | **session/*** | `context/session/*.ts` | Offline kuyruk, timer, süre hesabı (SessionContext'ten ayrıştırıldı) | ✅ |
-| **devDemo** | `context/auth/devDemo.ts` | `demo` / `demo@astrocus.dev` — 2 ✦/dk simülasyon | ✅ |
+| **devDemo** | `context/auth/devDemo.ts` | `demo` / `demo@astrocus.dev` — 10 ✦/dk simülasyon | ✅ |
+| **stardustEconomy** | `shared/stardustEconomy.ts` | Kazanç oranları, tier maliyetleri, günlük ödül tek kaynak | ✅ |
 | **stardust** | `context/session/stardust.ts` | Günlük özet (yerel aggregation) | ✅ |
 | **dateKey** | `context/session/dateKey.ts` | Tarih anahtarı (streak / günlük) | ✅ |
 
@@ -503,12 +512,13 @@ Dashboard → **SQL Editor** → her dosyayı **sırayla** yapıştırıp çalı
 | `017`–`018` | `quotes` tablosu, push notification profil alanları | 🟡 yerelde hazır |
 | `019`–`020` | Günlük hedef üst sınırı 1440 dk | 🟡 yerelde hazır |
 | `021`–`023` | Benzersiz / case-sensitive / Türkçe kullanıcı adı + `is_username_available` | 🟡 yerelde hazır |
+| `024`–`025` | Yıldız tozu ekonomisi 10 ✦/dk, katalog ×5, tier 500/1500/2000 | 🟡 yerelde hazır — **push bekliyor** |
 
 ### RPC özeti (authenticated)
 
 | RPC | İşlev |
 |-----|--------|
-| `complete_focus_session` | Seans kaydı, XP, stardust (2 ✦/dk + bonus), streak, rozetler |
+| `complete_focus_session` | Seans kaydı, stardust (10 ✦/dk + bonus), streak, rozetler |
 | `cancel_focus_session` | Erken bitir; dinamik eşik + aktif odak dakikası |
 | `unlock_star` | Manuel yıldız açma, dinamik maliyet, takımyıldızı tamamlama |
 | `start_constellation` | Onboarding; `active_constellation_id` + `onboarding_completed` |

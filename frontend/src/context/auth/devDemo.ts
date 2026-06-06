@@ -1,5 +1,12 @@
 import { AuthPayload, SessionRecord, User } from "../../shared/types";
-import { STARS, getPartialStardustThresholdMinutes, STARDUST_PER_MINUTE } from "../../shared/constants";
+import {
+  STARS,
+  getPartialStardustThresholdMinutes,
+  STARDUST_NO_PAUSE_BONUS,
+  STARDUST_PER_MINUTE,
+  STARDUST_STREAK_BONUS_MAX,
+  STARDUST_STREAK_BONUS_PER_DAY,
+} from "../../shared/constants";
 import { getDateKey, isSameLocalCalendarDay } from "../session/dateKey";
 
 export const DEV_DEMO = {
@@ -8,16 +15,19 @@ export const DEV_DEMO = {
   password: "demo1234",
 } as const;
 
-/** Sadece __DEV__ demo oturumunda — migration 003 ile uyumlu (2 ✦/dk taban). */
+/** Sadece __DEV__ demo oturumunda — sunucu ile aynı kazanç formülü. */
 export const simulateDemoSessionReward = (input: {
   durationMinutes: number;
   pauseCount: number;
   /** Seri +1 varsayımı ile demo kutlaması */
   streakAfterSession: number;
 }) => {
-  const baseStardust = input.durationMinutes * 2;
-  const streakBonus = Math.min(input.streakAfterSession * 0.1, 0.5);
-  const pauseBonus = input.pauseCount === 0 ? 0.1 : 0;
+  const baseStardust = input.durationMinutes * STARDUST_PER_MINUTE;
+  const streakBonus = Math.min(
+    input.streakAfterSession * STARDUST_STREAK_BONUS_PER_DAY,
+    STARDUST_STREAK_BONUS_MAX,
+  );
+  const pauseBonus = input.pauseCount === 0 ? STARDUST_NO_PAUSE_BONUS : 0;
   const totalBonus = streakBonus + pauseBonus;
   const stardustEarned = Math.round(baseStardust + baseStardust * totalBonus);
   return { stardustEarned, streakCount: input.streakAfterSession };

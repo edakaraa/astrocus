@@ -12,7 +12,7 @@ Haftalık AI rapor **bu API'de değil** — Supabase Edge Function `generate-wee
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Sunucu tarafı (asla mobilde) |
 | `PORT` | — | Varsayılan `4000` |
 | `HOST` | — | Varsayılan `0.0.0.0` |
-| `ALLOWED_ORIGIN` | önerilir | Production API CORS (ör. `https://astrocus.app`) |
+| `ALLOWED_ORIGIN` | ✅ | `https://astrocus.app` veya mobil-only ise `false` — **boş bırakmayın** |
 
 ## Docker (Railway / Render / Fly)
 
@@ -42,12 +42,17 @@ EXPO_PUBLIC_API_URL=https://YOUR_API_HOST
 APP_ENV=production
 ```
 
-EAS Secrets:
+EAS Secrets (production build):
 
 ```bash
 cd frontend
 eas secret:create --name EXPO_PUBLIC_API_URL --value https://YOUR_API_HOST --scope project
+eas secret:create --name EXPO_PUBLIC_SUPABASE_URL --value https://YOUR_PROJECT.supabase.co --scope project
+eas secret:create --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value YOUR_ANON_KEY --scope project
+eas secret:create --name APP_ENV --value production --scope project
 ```
+
+Liste: `eas secret:list`
 
 ## Doğrulama
 

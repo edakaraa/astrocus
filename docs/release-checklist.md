@@ -9,9 +9,11 @@ Son doğrulama: **2026-06-05**
 | 1 | Supabase migration 001–016 | ✅ | `supabase migration list` — Local = Remote |
 | 2 | Edge Function `generate-weekly-reports` | ✅ | ACTIVE v8 |
 | 3 | Haftalık rapor cron | ⬜ | `docs/weekly-reports-cron.md` |
-| 4 | Express API production deploy | ⬜ | `docs/backend-deploy.md` |
+| 4 | Express API production deploy | ⬜ | `docs/backend-deploy.md`; Railway: `ALLOWED_ORIGIN=https://astrocus.app` |
+| 4b | RLS tüm tablolarda aktif | ⬜ | `backend/supabase/scripts/verify-rls.sql` |
+| 4c | Edge Function cron auth | ⬜ | Yalnızca `CRON_SECRET` (≥32 char); function redeploy |
 | 5 | `OPENROUTER_API_KEY` Supabase secret | ⬜ | `docs/weekly-reports-cron.md` |
-| 6 | `EXPO_PUBLIC_API_URL` production build | ⬜ | EAS secret |
+| 6 | EAS Secrets (production) | ⬜ | `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` |
 | 7 | CI yeşil | ⬜ | `.github/workflows/ci.yml` |
 | 8 | PostHog (veya analitik) | ⬜ | `EXPO_PUBLIC_POSTHOG_API_KEY` |
 | 9 | Sentry crash DSN | ⬜ | `EXPO_PUBLIC_SENTRY_DSN` |

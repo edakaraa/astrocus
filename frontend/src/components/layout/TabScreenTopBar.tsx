@@ -97,7 +97,7 @@ export const TabScreenTopBar: React.FC<TabScreenTopBarProps> = ({ stardustAmount
       <View style={[styles.inner, { maxWidth: maxContentWidth }]}>
         <View style={styles.row}>
           <View style={styles.actionPlaceholder} />
-          <StarDustChip amount={stardustAmount} />
+          <StarDustChip amount={stardustAmount} showInfo />
         </View>
       </View>
     </View>
@@ -134,7 +134,7 @@ export const SubScreenTopBar: React.FC<SubScreenTopBarProps> = ({
       {showStardust ? (
         <View style={styles.row}>
           <View style={styles.actionPlaceholder} />
-          <StarDustChip amount={stardustAmount} />
+          <StarDustChip amount={stardustAmount} showInfo />
         </View>
       ) : null}
       <SubScreenTitleRow

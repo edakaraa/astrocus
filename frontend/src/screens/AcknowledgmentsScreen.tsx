@@ -8,6 +8,7 @@ import { LegalSection } from "../components/legal/LegalSection";
 import { LegalDocumentLayout } from "../components/layout/LegalDocumentLayout";
 import { SettingsDivider } from "../components/settings/SettingsDivider";
 import { useSettingsSpacing } from "../components/settings/settingsSpacing";
+import { getTypographyAndIconsCredits } from "../features/legal/openSourceCreditsContent";
 import { t } from "../shared/i18n";
 
 export const AcknowledgmentsScreen = () => {
@@ -24,6 +25,12 @@ export const AcknowledgmentsScreen = () => {
     >
       <LegalDocumentCard>
         <LegalSection>{t(language, "openSourceCreditsIntro")}</LegalSection>
+
+        <SettingsDivider />
+
+        <LegalSection title={t(language, "creditsTypographyTitle")}>
+          {getTypographyAndIconsCredits(language)}
+        </LegalSection>
 
         <SettingsDivider />
 

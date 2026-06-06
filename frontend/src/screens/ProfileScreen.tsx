@@ -20,7 +20,9 @@ import { WeeklyReportCard } from "../components/WeeklyReportCard";
 import { AppText } from "../components/ui/AppText";
 import { TabScreenScaffold } from "../components/layout/TabScreenScaffold";
 import { StatBox } from "../components/profile/StatBox";
+import { StardustInfoButton } from "../components/StardustInfoButton";
 import { StardustMark } from "../components/ui/StardustMark";
+import { DAILY_GOAL_STARDUST_REWARD } from "../shared/stardustEconomy";
 import { DailyGoalCard } from "../components/profile/DailyGoalCard";
 import { trackGoalCompleted } from "../lib/analytics";
 import { CategoryDistribution } from "../components/profile/CategoryDistribution";
@@ -112,7 +114,7 @@ export const ProfileScreen = () => {
 
     if (token && !isDevDemoToken(token)) {
       try {
-        const result = await api.claimDailyGoalReward();
+        const result = await api.claimDailyGoalReward(undefined, DAILY_GOAL_STARDUST_REWARD);
         if (result.claimed) {
           await refreshUser();
         }
@@ -129,7 +131,7 @@ export const ProfileScreen = () => {
     }
     await asyncStorage.set(STORAGE_KEYS.dailyGoalRewardDate, todayKey);
     await updateProfile({
-      totalStardust: user.totalStardust + theme.layout.dailyGoalStardustReward,
+      totalStardust: user.totalStardust + DAILY_GOAL_STARDUST_REWARD,
     });
   }, [refreshUser, token, updateProfile, user]);
 
@@ -196,6 +198,7 @@ export const ProfileScreen = () => {
           </AppText>
           <StardustMark size={12} />
           <AppText variant="numericCompact">{formatNumber(language, user.totalStardust)}</AppText>
+          <StardustInfoButton size={16} />
         </View>
         <View style={styles.statsRow}>
           <StatBox value={formatDuration(language, totalFocusedMinutes)} label={t(language, "totalFocus")} />

@@ -4,6 +4,7 @@ import { useAppContext } from "../../context/AppContext";
 import { formatNumber } from "../../shared/formatLocale";
 import { spacing } from "../../shared/theme";
 import theme from "../../theme";
+import { StardustInfoButton } from "../StardustInfoButton";
 import { AppText } from "./AppText";
 import { StardustMark } from "./StardustMark";
 
@@ -11,9 +12,15 @@ type StarDustChipProps = {
   amount: number;
   /** Compact padding for inline use (e.g. sky progress card). */
   compact?: boolean;
+  /** Show ! button that opens stardust earning guide. */
+  showInfo?: boolean;
 };
 
-export const StarDustChip: React.FC<StarDustChipProps> = ({ amount, compact = false }) => {
+export const StarDustChip: React.FC<StarDustChipProps> = ({
+  amount,
+  compact = false,
+  showInfo = false,
+}) => {
   const { language } = useAppContext();
 
   return (
@@ -23,6 +30,7 @@ export const StarDustChip: React.FC<StarDustChipProps> = ({ amount, compact = fa
         <AppText variant="numeric" color={theme.colors.textPrimary}>
           {formatNumber(language, amount)}
         </AppText>
+        {showInfo ? <StardustInfoButton size={16} /> : null}
       </View>
     </View>
   );

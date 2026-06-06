@@ -452,21 +452,19 @@ const extractBearerToken = (req: Request): string | null => {
   return (match?.[1] ?? auth).trim();
 };
 
-/** Cron secret, x-cron-secret, or service role (Dashboard test / server cron). */
+const CRON_SECRET_MIN_LENGTH = 32;
+
+/** Yalnızca CRON_SECRET (Bearer veya x-cron-secret). Service role ile auth kaldırıldı. */
 const authorizeCron = (req: Request): boolean => {
   const cronSecret = Deno.env.get("CRON_SECRET")?.trim();
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
+  if (!cronSecret || cronSecret.length < CRON_SECRET_MIN_LENGTH) {
+    return false;
+  }
+
   const bearer = extractBearerToken(req);
   const cronHeader = req.headers.get("x-cron-secret")?.trim();
-  const apiKey = req.headers.get("apikey")?.trim();
 
-  if (cronSecret && (bearer === cronSecret || cronHeader === cronSecret)) {
-    return true;
-  }
-  if (serviceKey && (bearer === serviceKey || apiKey === serviceKey)) {
-    return true;
-  }
-  return false;
+  return bearer === cronSecret || cronHeader === cronSecret;
 };
 
 Deno.serve(async (req) => {

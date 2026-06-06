@@ -2,6 +2,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
+// stars-catalog.ts holds post-rebalance costs (10 ✦/min economy).
+// Do not re-apply migration 024's `required_stardust * 5` if you regenerate 008 from this catalog.
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const catalogPath = join(root, "backend/supabase/scripts/stars-catalog.ts");
 const outPath = join(root, "backend/supabase/migrations/008_real_star_catalog.sql");

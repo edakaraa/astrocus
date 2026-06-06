@@ -1,5 +1,9 @@
 import { ENV_FILE_PATH } from "../loadEnv";
+import type { WebSocketLikeConstructor } from "@supabase/realtime-js";
 import { createClient } from "@supabase/supabase-js";
+import ws from "ws";
+
+const wsTransport = ws as unknown as WebSocketLikeConstructor;
 
 function requireEnv(name: "SUPABASE_URL" | "SUPABASE_SERVICE_ROLE_KEY" | "SUPABASE_ANON_KEY"): string {
   const value = process.env[name]?.trim();
@@ -17,10 +21,12 @@ const anonKey = requireEnv("SUPABASE_ANON_KEY");
 
 export const supabaseAdmin = createClient(url, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
+  realtime: { transport: wsTransport },
 });
 
 export const createSupabaseUserClient = (accessToken: string) =>
   createClient(url, anonKey, {
     global: { headers: { Authorization: `Bearer ${accessToken}` } },
     auth: { autoRefreshToken: false, persistSession: false },
+    realtime: { transport: wsTransport },
   });

@@ -1,5 +1,29 @@
 import { CATEGORY_ICON } from "./appIcons";
-import { Category, Language, Star, StarCostInfo, StarCostTier } from "./types";
+import { Category, Language, Star } from "./types";
+import {
+  DAILY_GOAL_STARDUST_REWARD,
+  STARDUST_PER_MINUTE,
+  STAR_COST_EASY,
+  STAR_COST_MASTERY,
+  STAR_COST_MEDIUM,
+  getStarCostInfo,
+} from "./stardustEconomy";
+
+export {
+  DAILY_GOAL_STARDUST_REWARD,
+  STARDUST_PER_MINUTE,
+  STARDUST_STREAK_BONUS_MAX,
+  STARDUST_STREAK_BONUS_PER_DAY,
+  STARDUST_NO_PAUSE_BONUS,
+  STAR_COST_EASY,
+  STAR_COST_MEDIUM,
+  STAR_COST_MASTERY,
+  STAR_COST_TIER_THRESHOLDS,
+  formatBonusPercent,
+  formatStreakBonusPercent,
+  getStarCostInfo,
+} from "./stardustEconomy";
+export type { StarCostInfo, StarCostTier } from "./stardustEconomy";
 
 export { STORAGE_KEYS } from "../constants/storageKeys";
 
@@ -11,8 +35,6 @@ export const SESSION_DURATION_OPTIONS = [5, 15, 25, 45, 60, 90, 120] as const;
 export const BACKGROUND_TOLERANCE_SECONDS = 20;
 export const WARNING_THRESHOLD_SECONDS = 10;
 export const PAUSE_LIMIT = 1;
-/** Tamamlanan seanslarda kazanç: 2 ✦/dk (migration 003 ile uyumlu) */
-export const STARDUST_PER_MINUTE = 2;
 /** Erken bitirmede kısmi ödül eşiği: en az 5 dk veya planlanan sürenin %50'si */
 export const MIN_PARTIAL_STARDUST_MINUTES = 5;
 export const PARTIAL_STARDUST_DURATION_RATIO = 0.5;
@@ -22,23 +44,6 @@ export const getPartialStardustThresholdMinutes = (plannedDurationMinutes: numbe
     MIN_PARTIAL_STARDUST_MINUTES,
     plannedDurationMinutes * PARTIAL_STARDUST_DURATION_RATIO,
   );
-
-// ---------------------------------------------------------------------------
-// Dynamic pricing — mirrors compute_star_cost SQL function
-// ---------------------------------------------------------------------------
-export const STAR_COST_EASY    = 100;  // 0–3 constellations completed
-export const STAR_COST_MEDIUM  = 350;  // 4–8 constellations completed
-export const STAR_COST_MASTERY = 800;  // 9+ constellations completed
-
-export const getStarCostInfo = (completedCount: number): StarCostInfo => {
-  if (completedCount < 4) {
-    return { tier: "easy" as StarCostTier, completedCount, costPerStar: STAR_COST_EASY };
-  }
-  if (completedCount < 9) {
-    return { tier: "medium" as StarCostTier, completedCount, costPerStar: STAR_COST_MEDIUM };
-  }
-  return { tier: "mastery" as StarCostTier, completedCount, costPerStar: STAR_COST_MASTERY };
-};
 
 // ---------------------------------------------------------------------------
 // Categories
@@ -59,10 +64,10 @@ export const CATEGORIES: Category[] = [
 // ---------------------------------------------------------------------------
 export const LEGACY_STARS: Star[] = [
   { id: "luna",   name: "İlk Adım",    description: "Odak yolculuğunun ilk yıldızı.",             requiredStardust: 0,    constellationId: null, starSortOrder: 1 },
-  { id: "solis",  name: "Odak Ustası", description: "Düzenli seanslarla açılan güçlü yıldız.",    requiredStardust: 250,  constellationId: null, starSortOrder: 2 },
-  { id: "nova",   name: "Gece Kuşu",   description: "Sessiz saatlerde istikrar kazananlara.",      requiredStardust: 600,  constellationId: null, starSortOrder: 3 },
-  { id: "aurora", name: "Derin Uzay",  description: "Uzun odak serilerinin mor ışıltısı.",         requiredStardust: 1000, constellationId: null, starSortOrder: 4 },
-  { id: "zenith", name: "Yıldız Tozu", description: "Galaksini büyüten son parlak ödül.",          requiredStardust: 1500, constellationId: null, starSortOrder: 5 },
+  { id: "solis",  name: "Odak Ustası", description: "Düzenli seanslarla açılan güçlü yıldız.",    requiredStardust: 1250, constellationId: null, starSortOrder: 2 },
+  { id: "nova",   name: "Gece Kuşu",   description: "Sessiz saatlerde istikrar kazananlara.",      requiredStardust: 3000, constellationId: null, starSortOrder: 3 },
+  { id: "aurora", name: "Derin Uzay",  description: "Uzun odak serilerinin mor ışıltısı.",         requiredStardust: 5000, constellationId: null, starSortOrder: 4 },
+  { id: "zenith", name: "Yıldız Tozu", description: "Galaksini büyüten son parlak ödül.",          requiredStardust: 7500, constellationId: null, starSortOrder: 5 },
 ];
 
 // Takımyıldız + gök yıldızları Supabase'den yüklenir (skyCatalog.ts).

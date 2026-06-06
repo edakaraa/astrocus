@@ -7,7 +7,9 @@ import {
   normalizeDailyGoalMinutes,
   parseDailyGoalInput,
 } from "../../lib/dailyGoalStorage";
-import { t } from "../../shared/i18n";
+import { formatNumber } from "../../shared/formatLocale";
+import { formatTranslation, t } from "../../shared/i18n";
+import { DAILY_GOAL_STARDUST_REWARD } from "../../shared/stardustEconomy";
 import { colors, layout, numericTypography } from "../../shared/theme";
 import theme from "../../theme";
 import { AppText } from "../ui/AppText";
@@ -70,7 +72,9 @@ export const DailyGoalCard: React.FC<DailyGoalCardProps> = ({
     }
     rewardedRef.current = true;
     showToast({
-      title: t(language, "dailyGoalRewardToast"),
+      title: formatTranslation(language, "dailyGoalRewardToast", {
+        amount: formatNumber(language, DAILY_GOAL_STARDUST_REWARD),
+      }),
       ...toastTone.trophy,
       placement: "bottom",
     });
