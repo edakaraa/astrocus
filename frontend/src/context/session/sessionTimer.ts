@@ -1,4 +1,4 @@
-import { DEFAULT_DURATION_MINUTES, PAUSE_LIMIT } from "../../shared/constants";
+import { NO_SESSION_DURATION_SELECTED, PAUSE_LIMIT } from "../../shared/constants";
 import type { TimerStatus } from "../../shared/types";
 
 /** Immutable snapshot used when persisting a session — avoids stale React closure bugs. */
@@ -8,6 +8,10 @@ export type SessionCompletionSnapshot = {
   categoryId: string;
   pauseCount: number;
   startedAt: string;
+  /** Wall-clock instant when the snapshot was taken (timer end / cancel). */
+  completedAt: string;
+  /** True when the countdown reached zero (not early cancel). */
+  completedNaturally: boolean;
 };
 
 export type FocusTimerState = {
@@ -27,7 +31,7 @@ export type FocusTimerState = {
 };
 
 export const createIdleFocusTimerState = (
-  selectedDurationMinutes = DEFAULT_DURATION_MINUTES,
+  selectedDurationMinutes = NO_SESSION_DURATION_SELECTED,
   selectedCategoryId = "general",
 ): FocusTimerState => ({
   selectedDurationMinutes,
@@ -101,6 +105,10 @@ export const heartbeatTick = (state: FocusTimerState, nowMs = Date.now()): Focus
 };
 
 export const startFocusSession = (state: FocusTimerState, nowMs = Date.now()): FocusTimerState => {
+  if (state.selectedDurationMinutes <= 0) {
+    return state;
+  }
+
   const plannedDurationMinutes = state.selectedDurationMinutes;
   const plannedSeconds = plannedDurationMinutes * 60;
 
@@ -154,6 +162,7 @@ export const failFocusSession = (state: FocusTimerState): FocusTimerState => ({
 export const buildCompletionSnapshot = (
   state: FocusTimerState,
   nowMs = Date.now(),
+  completedNaturally = false,
 ): SessionCompletionSnapshot | null => {
   if (!state.startedAt || state.plannedDurationMinutes === null) {
     return null;
@@ -168,8 +177,17 @@ export const buildCompletionSnapshot = (
     categoryId: state.selectedCategoryId,
     pauseCount: state.pauseCount,
     startedAt: state.startedAt,
+    completedAt: new Date(nowMs).toISOString(),
+    completedNaturally,
   };
 };
 
-export const snapshotFocusedMinutes = (snapshot: SessionCompletionSnapshot): number =>
-  Math.floor(Math.max(0, snapshot.focusedSeconds) / 60);
+/** Active focus minutes to persist — never above the planned session length. */
+export const snapshotFocusedMinutes = (snapshot: SessionCompletionSnapshot): number => {
+  if (snapshot.completedNaturally) {
+    return snapshot.plannedDurationMinutes;
+  }
+
+  const focusedMinutes = Math.floor(Math.max(0, snapshot.focusedSeconds) / 60);
+  return Math.min(snapshot.plannedDurationMinutes, Math.max(0, focusedMinutes));
+};

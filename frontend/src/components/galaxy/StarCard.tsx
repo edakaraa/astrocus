@@ -6,9 +6,10 @@ import { formatNumber } from "../../shared/formatLocale";
 import { colors } from "../../shared/theme";
 import { t } from "../../shared/i18n";
 import type { StarWithProgress } from "../../shared/types";
-import { CelestialVisual } from "../CelestialVisual";
 import { AppText } from "../ui/AppText";
-import { CELESTIAL_VARIANTS, galaxyCardStyles as styles } from "./shared";
+import { StardustMark } from "../ui/StardustMark";
+import { galaxyCardStyles as styles } from "./shared";
+import { StarVisual } from "./StarVisual";
 import { starDisplayName, starUnlockCost } from "../../services/constellationCatalog";
 
 export type StarCardProps = {
@@ -17,7 +18,6 @@ export type StarCardProps = {
   totalStardust: number;
   isActiveConstellation: boolean;
   onPress: (star: StarWithProgress) => void;
-  cardIndex: number;
 };
 
 export const StarCard = React.memo(
@@ -27,10 +27,8 @@ export const StarCard = React.memo(
     totalStardust,
     isActiveConstellation,
     onPress,
-    cardIndex,
   }: StarCardProps) => {
     const { language } = useAppContext();
-    const variant = CELESTIAL_VARIANTS[cardIndex % 3];
     const unlockCost = starUnlockCost(star);
     const canAfford = totalStardust >= unlockCost;
     const tappable = isActiveConstellation && isNextToUnlock && canAfford;
@@ -49,9 +47,14 @@ export const StarCard = React.memo(
           pressed && styles.starCardPressed,
         ]}
       >
-        {star.isUnlocked ? <View style={styles.starGlow} /> : null}
+        {star.isUnlocked || tappable ? (
+          <View style={[styles.starGlow, tappable ? styles.starCardAffordableGlow : null]} />
+        ) : null}
 
-        <CelestialVisual variant={variant} size={72} muted={!star.isUnlocked} />
+        <StarVisual
+          starSortOrder={star.starSortOrder}
+          isUnlocked={star.isUnlocked}
+        />
 
         <AppText
           variant="galaxyStarName"
@@ -69,15 +72,14 @@ export const StarCard = React.memo(
           </View>
         ) : isNextToUnlock && isActiveConstellation ? (
           <View style={[styles.statusPill, canAfford ? styles.pillAffordable : styles.pillLocked]}>
-            <MaterialCommunityIcons
-              name={canAfford ? "star-four-points" : "lock-outline"}
-              size={11}
-              color={canAfford ? colors.warning : colors.textFaint}
-            />
-            <AppText variant="galaxyStatusText" color={canAfford ? colors.warning : colors.textFaint}>
+            {!canAfford ? (
+              <MaterialCommunityIcons name="lock-outline" size={11} color={colors.textFaint} />
+            ) : null}
+            <StardustMark size={11} color={canAfford ? colors.warmOffWhite : colors.textFaint} />
+            <AppText variant="galaxyStatusText" color={canAfford ? colors.warmOffWhite : colors.textFaint}>
               {canAfford
-                ? `${unlockCost} ✦`
-                : `${formatNumber(language, remaining)} ✦ ${t(language, "starShortfallSuffix")}`}
+                ? formatNumber(language, unlockCost)
+                : `${formatNumber(language, remaining)} ${t(language, "starShortfallSuffix")}`}
             </AppText>
           </View>
         ) : (

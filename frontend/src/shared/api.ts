@@ -26,6 +26,7 @@ import { isFocusedDurationPlausible } from "../context/session/duration";
 import { createDailySummary } from "../context/session/stardust";
 import { t } from "./i18n";
 import type { Language } from "./types";
+import { isUsernameTakenError, normalizeUsername, validateUsername } from "./username";
 import { asyncStorage } from "./storage";
 import { STORAGE_KEYS } from "./constants";
 import {
@@ -52,9 +53,24 @@ const MIGRATION_HINT =
 
 export const isTransientNetworkError = (error: unknown): boolean => {
   const msg = error instanceof Error ? error.message : String(error);
-  return /network|fetch|timeout|internet|failed to fetch|network request failed|econnrefused|enotfound/i.test(
-    msg,
-  );
+  if (
+    /network|fetch|timeout|internet|failed to fetch|network request failed|econnrefused|enotfound|unable to resolve|load failed|offline|connection refused|temporarily unavailable|service unavailable|gateway timeout|bad gateway|socket/i.test(
+      msg,
+    )
+  ) {
+    return true;
+  }
+  if (error instanceof TypeError && /fetch|network|load|failed/i.test(msg)) {
+    return true;
+  }
+  const coded = error as { code?: string; status?: number };
+  if (coded.code === "ECONNABORTED" || coded.code === "ENOTFOUND" || coded.code === "ECONNREFUSED") {
+    return true;
+  }
+  if (coded.status === 0) {
+    return true;
+  }
+  return false;
 };
 
 export const isSchemaSessionError = (error: unknown): boolean => {
@@ -307,25 +323,46 @@ const hydratePayloadAfterSessionWrite = async (
   return { ...payload, token: accessToken };
 };
 
+const ensureOAuthProfile = async (): Promise<void> => {
+  const { error } = await supabase.rpc("ensure_oauth_profile");
+  if (error && !/ensure_oauth_profile|schema cache/i.test(error.message)) {
+    throw new Error(error.message);
+  }
+};
+
 /** OAuth deep-link veya WebBrowser dönüşü — profil tetikleyicisi için retry. */
-export const loadAuthPayloadFromSession = (session: Session): Promise<AuthPayload> =>
-  fetchUserDataWithRetry(session.user.id, session.access_token);
+export const loadAuthPayloadFromSession = async (session: Session): Promise<AuthPayload> => {
+  try {
+    await ensureOAuthProfile();
+  } catch (error) {
+    if (__DEV__) {
+      console.warn("[Astrocus OAuth profile]", error);
+    }
+  }
+  return fetchUserDataWithRetry(session.user.id, session.access_token);
+};
 
 const applyRegistrationProfile = async (
   userId: string,
-  input: { username: string; displayName: string; galaxyName?: string },
+  input: { username: string; displayName: string; galaxyName?: string; language: Language },
 ) => {
   const { error: profileError } = await supabase
     .from("profiles")
     .update({
-      username: input.username.trim(),
+      username: normalizeUsername(input.username),
       galaxy_name: input.galaxyName?.trim() || "Astrocus",
       display_name: input.displayName.trim(),
+      language: input.language,
     })
     .eq("id", userId);
 
-  if (profileError && !/column/i.test(profileError.message)) {
-    throw new Error(profileError.message);
+  if (profileError) {
+    if (isUsernameTakenError(profileError.message)) {
+      throw new Error("username_taken");
+    }
+    if (!/column/i.test(profileError.message)) {
+      throw new Error(profileError.message);
+    }
   }
 };
 
@@ -347,7 +384,7 @@ export const api = {
       options: {
         emailRedirectTo: getAuthEmailRedirectUri("verify-success"),
         data: {
-          username: input.username.trim(),
+          username: normalizeUsername(input.username),
           galaxy_name: input.galaxyName?.trim() || "Astrocus",
           display_name: input.displayName.trim(),
         },
@@ -373,7 +410,7 @@ export const api = {
 
     // Supabase e-posta onayı KAPALI → oturum direkt gelir
     if (data.session) {
-      await applyRegistrationProfile(data.user.id, input);
+      await applyRegistrationProfile(data.user.id, { ...input, language });
       return fetchUserDataWithRetry(data.user.id, data.session.access_token);
     }
 
@@ -464,20 +501,46 @@ export const api = {
     return fetchUserData(userData.user.id, token);
   },
 
+  async isUsernameAvailable(username: string, userId?: string): Promise<boolean> {
+    const validation = validateUsername(username);
+    if (!validation.ok) {
+      return false;
+    }
+    const { data, error } = await supabase.rpc("is_username_available", {
+      p_username: validation.normalized,
+      p_user_id: userId ?? null,
+    });
+    if (error) {
+      if (/is_username_available|schema cache/i.test(error.message)) {
+        return false;
+      }
+      throw new Error(error.message);
+    }
+    return Boolean(data);
+  },
+
   async updateProfile(token: string, input: Partial<User>): Promise<AuthPayload> {
+    const normalizedInput =
+      input.username !== undefined
+        ? { ...input, username: normalizeUsername(input.username) }
+        : input;
+
     if (isDevDemoToken(token)) {
       const stored = await asyncStorage.get<AuthPayload | null>(STORAGE_KEYS.demoAuthPayload, null);
       const base =
         stored?.token === token
           ? stored
           : createDevDemoPayload({ email: stored?.user.email ?? "demo@astrocus.dev" });
-      return withDemoPayload(token, base, (user) => ({ ...user, ...input }));
+      return withDemoPayload(token, base, (user) => ({ ...user, ...normalizedInput }));
     }
     const session = await requireSession();
-    const patch = profileUpdateFromUser(input);
+    const patch = profileUpdateFromUser(normalizedInput);
     if (Object.keys(patch).length > 0) {
       const { error } = await supabase.from("profiles").update(patch).eq("id", session.user.id);
       if (error) {
+        if (isUsernameTakenError(error.message)) {
+          throw new Error("username_taken");
+        }
         throw new Error(error.message);
       }
     }
@@ -755,26 +818,16 @@ export const api = {
     return { result, payload };
   },
 
-  async syncSessions(token: string, sessions: PendingSession[], current: AuthPayload): Promise<AuthPayload> {
-    if (isDevDemoToken(token)) {
-      let payload = current;
-      for (const pending of sessions) {
-        const demoResult = appendDemoCompletedSession(payload, {
-          categoryId: pending.categoryId,
-          durationMinutes: pending.durationMinutes,
-          startedAt: pending.startedAt,
-          completedAt: pending.completedAt,
-          pauseCount: 0,
-        });
-        payload = demoResult.payload;
-      }
-      return payload;
-    }
-    const authSession = await requireSession();
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  async syncSessions(
+    token: string,
+    sessions: PendingSession[],
+    current: AuthPayload,
+  ): Promise<{ payload: AuthPayload; syncedIds: string[]; error: Error | null }> {
+    const syncedIds: string[] = [];
     let payload = current;
 
-    for (const pending of sessions) {
+    const pushPending = async (pending: PendingSession): Promise<void> => {
+      const pauseCount = pending.pauseCount ?? 0;
       if (
         !isFocusedDurationPlausible(
           pending.durationMinutes,
@@ -785,12 +838,27 @@ export const api = {
         throw new Error("duration_mismatch");
       }
 
+      if (isDevDemoToken(token)) {
+        const demoResult = appendDemoCompletedSession(payload, {
+          categoryId: pending.categoryId,
+          durationMinutes: pending.durationMinutes,
+          startedAt: pending.startedAt,
+          completedAt: pending.completedAt,
+          pauseCount,
+        });
+        payload = demoResult.payload;
+        syncedIds.push(pending.id);
+        return;
+      }
+
+      const authSession = await requireSession();
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const { data, error } = await supabase.rpc("complete_focus_session", {
         p_category_id: pending.categoryId,
         p_duration_minutes: pending.durationMinutes,
         p_started_at: pending.startedAt,
         p_completed_at: pending.completedAt,
-        p_pause_used: false,
+        p_pause_used: pauseCount > 0,
         p_is_offline: true,
         p_timezone: tz,
       });
@@ -807,14 +875,27 @@ export const api = {
           durationMinutes: pending.durationMinutes,
           startedAt: pending.startedAt,
           completedAt: pending.completedAt,
-          pauseCount: 0,
+          pauseCount,
         },
         authSession.user.id,
         authSession.access_token,
       );
+      syncedIds.push(pending.id);
+    };
+
+    for (const pending of sessions) {
+      try {
+        await pushPending(pending);
+      } catch (error) {
+        return {
+          payload,
+          syncedIds,
+          error: error instanceof Error ? error : new Error(String(error)),
+        };
+      }
     }
 
-    return payload;
+    return { payload, syncedIds, error: null };
   },
 
   async fetchDailyGoalProgress(timezone = getDeviceTimeZone()): Promise<DailyGoalProgress> {

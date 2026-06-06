@@ -38,6 +38,7 @@ export const SubScreenScrollLayout: React.FC<SubScreenScrollLayoutProps> = ({
         contentContainerStyle,
       ]}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
       <ScreenContentColumn style={[styles.contentColumn, columnStyle]}>{children}</ScreenContentColumn>
     </ScrollView>

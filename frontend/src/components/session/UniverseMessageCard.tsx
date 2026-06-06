@@ -60,7 +60,8 @@ export const UniverseMessageCard: React.FC<UniverseMessageCardProps> = ({
 
   return (
     <FocusSectionCard
-      title={`✨ ${t(language, "cosmicMessageTitle")}`}
+      title={t(language, "cosmicMessageTitle")}
+      titleIcon="star-four-points-outline"
       sectionLabelSize={sectionLabelSize}
     >
       {loading ? (

@@ -2,11 +2,16 @@ import React, { useEffect, useRef, useState } from "react";
 import { Keyboard, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Slider } from "@miblanchard/react-native-slider";
 import { toastTone, useAppContext } from "../../context/AppContext";
-import { clampDailyGoalMinutes, roundDailyGoalMinutes } from "../../lib/dailyGoalStorage";
+import {
+  clampDailyGoalMinutes,
+  normalizeDailyGoalMinutes,
+  parseDailyGoalInput,
+} from "../../lib/dailyGoalStorage";
 import { t } from "../../shared/i18n";
 import { colors, layout, numericTypography } from "../../shared/theme";
 import theme from "../../theme";
 import { AppText } from "../ui/AppText";
+import { StardustMark } from "../ui/StardustMark";
 import { Card } from "../ui/Card";
 import { ProgressBar } from "../ui/ProgressBar";
 
@@ -73,11 +78,11 @@ export const DailyGoalCard: React.FC<DailyGoalCardProps> = ({
   }, [goalReached, language, onGoalReached, showToast]);
 
   const commitDraftInput = () => {
-    const parsed = Number.parseInt(inputValue.trim(), 10);
-    if (Number.isFinite(parsed)) {
-      const clamped = clampDailyGoalMinutes(parsed);
-      setDraftMinutes(clamped);
-      setInputValue(String(clamped));
+    const parsed = parseDailyGoalInput(inputValue);
+    if (parsed != null) {
+      const normalized = normalizeDailyGoalMinutes(parsed);
+      setDraftMinutes(normalized);
+      setInputValue(String(normalized));
     } else {
       setInputValue(String(draftMinutes));
     }
@@ -88,16 +93,16 @@ export const DailyGoalCard: React.FC<DailyGoalCardProps> = ({
   const handleConfirm = () => {
     let minutes = draftMinutes;
     if (isEditingMinutes) {
-      const parsed = Number.parseInt(inputValue.trim(), 10);
-      if (Number.isFinite(parsed)) {
-        minutes = clampDailyGoalMinutes(parsed);
+      const parsed = parseDailyGoalInput(inputValue);
+      if (parsed != null) {
+        minutes = normalizeDailyGoalMinutes(parsed);
         setDraftMinutes(minutes);
         setInputValue(String(minutes));
       }
       setIsEditingMinutes(false);
       Keyboard.dismiss();
     }
-    onConfirmGoal(roundDailyGoalMinutes(minutes));
+    onConfirmGoal(normalizeDailyGoalMinutes(minutes));
   };
 
   const handleSliderChange = (value: number | number[]) => {
@@ -130,8 +135,8 @@ export const DailyGoalCard: React.FC<DailyGoalCardProps> = ({
               <TextInput
                 ref={inputRef}
                 accessibilityLabel={t(language, "dailyGoalEditMinutesA11y")}
-                keyboardType="number-pad"
-                maxLength={4}
+                keyboardType="decimal-pad"
+                maxLength={6}
                 value={inputValue}
                 onChangeText={setInputValue}
                 onBlur={commitDraftInput}
@@ -182,7 +187,7 @@ export const DailyGoalCard: React.FC<DailyGoalCardProps> = ({
           <View style={styles.topRow}>
             {goalReached ? (
               <View style={styles.reachedRow}>
-                <AppText variant="card">✦</AppText>
+                <StardustMark size={16} color={theme.colors.bg} />
                 <AppText variant="card">{t(language, "dailyGoalReached")}</AppText>
               </View>
             ) : (

@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { trackWeeklyReportViewed } from "../lib/analytics";
 import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { BlurView } from "expo-blur";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -21,6 +22,12 @@ type WeeklyReportModalProps = {
 export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({ visible, report, onClose }) => {
   const { language } = useAppContext();
   const modal = useModalLayout();
+
+  useEffect(() => {
+    if (visible && report) {
+      trackWeeklyReportViewed();
+    }
+  }, [visible, report]);
 
   if (!report) {
     return null;

@@ -1,7 +1,9 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from "react-native";
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { MAX_FONT_SCALE } from "../../shared/responsive";
+import type { AppIconName } from "../../shared/appIcons";
 import { colors, fontFamilies, layout, numericTypography, radii, spacing } from "../../shared/theme";
+import { AppIcon } from "./AppIcon";
 
 export type PillChipVariant = "duration" | "activity";
 
@@ -11,6 +13,7 @@ type PillChipProps = {
   onPress: () => void;
   variant: PillChipVariant;
   accessibilityLabel: string;
+  leadingIcon?: AppIconName;
   /** Duration chips in a row — equal flex. */
   flex?: boolean;
   /** Duration chips in a grid (custom duration sheet). */
@@ -27,6 +30,7 @@ export const PillChip: React.FC<PillChipProps> = ({
   flex = false,
   gridCell = false,
   style,
+  leadingIcon,
 }) => (
   <Pressable
     accessibilityRole="button"
@@ -41,21 +45,31 @@ export const PillChip: React.FC<PillChipProps> = ({
       style,
     ]}
   >
-    <Text
-      style={[
-        variant === "duration" ? styles.durationText : styles.activityText,
-        gridCell ? styles.durationGridText : null,
-        active
-          ? variant === "duration"
-            ? styles.durationTextActive
-            : styles.activityTextActive
-          : null,
-      ]}
-      numberOfLines={1}
-      maxFontSizeMultiplier={MAX_FONT_SCALE}
-    >
-      {label}
-    </Text>
+    <View style={leadingIcon ? styles.labelRow : null}>
+      {leadingIcon ? (
+        <AppIcon
+          name={leadingIcon}
+          size={16}
+          color={active ? colors.text : colors.textMuted}
+        />
+      ) : null}
+      <Text
+        style={[
+          variant === "duration" ? styles.durationText : styles.activityText,
+          gridCell ? styles.durationGridText : null,
+          flex ? styles.durationTextFlex : null,
+          active
+            ? variant === "duration"
+              ? styles.durationTextActive
+              : styles.activityTextActive
+            : null,
+        ]}
+        numberOfLines={flex ? 1 : undefined}
+        maxFontSizeMultiplier={MAX_FONT_SCALE}
+      >
+        {label}
+      </Text>
+    </View>
   </Pressable>
 );
 
@@ -74,7 +88,7 @@ const styles = StyleSheet.create({
   },
   duration: {
     minHeight: layout.touchTargetMin,
-    paddingHorizontal: spacing.xs,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
   durationFlex: {
@@ -102,6 +116,9 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 13,
   },
+  durationTextFlex: {
+    flexShrink: 1,
+  },
   durationGridText: {
     ...numericTypography,
     fontSize: 14,
@@ -117,5 +134,10 @@ const styles = StyleSheet.create({
   },
   activityTextActive: {
     color: colors.text,
+  },
+  labelRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.xxs,
   },
 });

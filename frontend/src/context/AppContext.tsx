@@ -23,9 +23,6 @@ export const useAstrocusInfrastructureRefs = (): AstrocusInfraRefs => {
   const sessionSetPendingRef = useRef<((sessions: PendingSession[]) => void) | null>(null);
   const uiSetLanguageRef = useRef<((language: Language) => void) | null>(null);
   const uiSetCelebrationRef = useRef<((state: CelebrationPayload) => void) | null>(null);
-  const uiPatchCelebrationRef = useRef<
-    ((patch: Partial<NonNullable<CelebrationPayload>>) => void) | null
-  >(null);
 
   return useMemo(
     () => ({
@@ -33,7 +30,6 @@ export const useAstrocusInfrastructureRefs = (): AstrocusInfraRefs => {
       sessionSetPendingRef,
       uiSetLanguageRef,
       uiSetCelebrationRef,
-      uiPatchCelebrationRef,
     }),
     [],
   );

@@ -15,16 +15,18 @@ import {
   PRESET_AVATARS,
   BACKGROUND_TOLERANCE_SECONDS,
   CATEGORIES,
-  DEFAULT_DURATION_MINUTES,
   STORAGE_KEYS,
   STARS,
 } from "../shared/constants";
-import { api, formatSessionSaveError, isSchemaSessionError, isTransientNetworkError } from "../shared/api";
+import { api, formatSessionSaveError } from "../shared/api";
 import { fetchAnalyticsSummary } from "../services/analyticsApi";
-import { fetchGalacticAdvice } from "../services/galacticAdvice";
 import { asyncStorage } from "../shared/storage";
 import { t } from "../shared/i18n";
-import { trackEvent } from "../shared/analytics";
+import {
+  trackFirstSessionStarted,
+  trackSessionCompleted,
+  trackStreakIncreased,
+} from "../lib/analytics";
 import { cancelScheduledNotification, scheduleBackgroundWarning } from "../shared/notifications";
 import {
   AnalyticsSummary,
@@ -51,6 +53,9 @@ import {
   type FocusTimerState,
   type SessionCompletionSnapshot,
 } from "./session/sessionTimer";
+import { persistLocalDailyGoal } from "../lib/dailyGoalStorage";
+import { mergeSessionsWithPending } from "./session/offlineSessions";
+import { shouldQueueSessionAfterSaveFailure } from "./session/offlineQueue";
 import { createDailySummary, estimateSessionCelebration } from "./session/stardust";
 
 type SessionState = FocusTimerState;
@@ -87,7 +92,7 @@ const createGuestSessionState = (): SessionState => createIdleFocusTimerState();
 type SessionProviderProps = PropsWithChildren<
   Pick<
     AstrocusInfraRefs,
-    "sessionHydrateRef" | "sessionSetPendingRef" | "uiSetCelebrationRef" | "uiPatchCelebrationRef"
+    "sessionHydrateRef" | "sessionSetPendingRef" | "uiSetCelebrationRef"
   >
 >;
 
@@ -96,13 +101,10 @@ export const SessionProvider = ({
   sessionHydrateRef,
   sessionSetPendingRef,
   uiSetCelebrationRef,
-  uiPatchCelebrationRef,
 }: SessionProviderProps) => {
   const { token, user, isReady, applyAuthPayload, setIsOnline, apiUrl, constellationProgress } = useAuth();
-  const { showAlert } = useAppNotifier();
+  const { showAlert, showToast } = useAppNotifier();
   const prevTokenRef = useRef<string | null>(null);
-  const sessionBootstrapPrimedRef = useRef(false);
-
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [unlockedStarIds, setUnlockedStarIds] = useState<string[]>([STARS[0].id]);
   const [earnedBadgeIds, setEarnedBadgeIds] = useState<string[]>([]);
@@ -142,7 +144,11 @@ export const SessionProvider = ({
       setSessions(nextSessions);
       setUnlockedStarIds(nextUnlocked);
       setEarnedBadgeIds(Array.isArray(payload.earnedBadgeIds) ? payload.earnedBadgeIds : []);
-      setDailyGoalToday(payload.dailyGoalToday ?? null);
+      const nextDailyGoal = payload.dailyGoalToday ?? null;
+      setDailyGoalToday(nextDailyGoal);
+      if (nextDailyGoal && nextDailyGoal.goalMinutes > 0) {
+        void persistLocalDailyGoal(nextDailyGoal.goalMinutes, nextDailyGoal);
+      }
     };
 
     sessionSetPendingRef.current = (pending: PendingSession[]) => {
@@ -164,7 +170,6 @@ export const SessionProvider = ({
     prevTokenRef.current = token;
 
     if (prev && !token) {
-      sessionBootstrapPrimedRef.current = false;
       setSessions([]);
       setDailyGoalToday(null);
       setUnlockedStarIds([STARS[0].id]);
@@ -175,21 +180,6 @@ export const SessionProvider = ({
       scheduledNotificationRef.current = null;
     }
   }, [isReady, token]);
-
-  useEffect(() => {
-    if (!isReady || !token || !user) {
-      return;
-    }
-    if (sessionBootstrapPrimedRef.current) {
-      return;
-    }
-    sessionBootstrapPrimedRef.current = true;
-    setSessionState((current) => ({
-      ...current,
-      selectedDurationMinutes: DEFAULT_DURATION_MINUTES,
-      remainingSeconds: DEFAULT_DURATION_MINUTES * 60,
-    }));
-  }, [isReady, token, user]);
 
   useEffect(() => {
     if (sessionState.status !== "running") {
@@ -204,7 +194,8 @@ export const SessionProvider = ({
 
         const next = heartbeatTick(current, Date.now());
         if (next.status === "completed" && current.status === "running") {
-          completionSnapshotRef.current = buildCompletionSnapshot(next) ?? null;
+          completionSnapshotRef.current =
+            buildCompletionSnapshot(next, Date.now(), true) ?? null;
         }
         return next;
       });
@@ -260,7 +251,7 @@ export const SessionProvider = ({
         return;
       }
 
-      const completedAt = new Date().toISOString();
+      const completedAt = snapshot.completedAt;
       const durationMinutes = snapshotFocusedMinutes(snapshot);
       if (durationMinutes < 1) {
         finalizingRef.current = false;
@@ -302,23 +293,16 @@ export const SessionProvider = ({
           unlockedStarId: response.unlockedStarId,
           newBadgeIds: response.newBadges.length > 0 ? response.newBadges : undefined,
         });
-        if (!isDevDemoToken(token)) {
-          void fetchGalacticAdvice(token, {
-            language: user.language,
-            durationMinutes: response.durationMinutes,
-            categoryId: sessionInput.categoryId,
-            currentStreak: response.payload.user.currentStreak,
-            todayTotalMinutes: response.todayTotalMinutes,
-            totalStardust: response.payload.user.totalStardust,
-          })
-            .then((galacticAdvice) => {
-              uiPatchCelebrationRef.current?.({ galacticAdvice });
-            })
-            .catch(() => undefined);
+        const durationSeconds = durationMinutes * 60;
+        const plannedSeconds = snapshot.plannedDurationMinutes * 60;
+        const focusScore =
+          plannedSeconds > 0
+            ? Math.min(100, Math.round((snapshot.focusedSeconds / plannedSeconds) * 100))
+            : 100;
+        trackSessionCompleted(durationSeconds, focusScore);
+        if (response.streakCount > user.currentStreak) {
+          trackStreakIncreased(response.streakCount);
         }
-        await trackEvent("session_completed", {
-          stardust: response.stardustEarned,
-        });
       } catch (error) {
         if (__DEV__) {
           console.warn("[Astrocus session complete failed]", error);
@@ -326,8 +310,9 @@ export const SessionProvider = ({
 
         const message = formatSessionSaveError(error);
         const language = user.language;
+        const shouldQueue = await shouldQueueSessionAfterSaveFailure(error);
 
-        if (isSchemaSessionError(error) || !isTransientNetworkError(error)) {
+        if (!shouldQueue) {
           void showAlert({
             title: t(language, "sessionSaveFailedTitle"),
             message,
@@ -344,6 +329,7 @@ export const SessionProvider = ({
           durationMinutes: sessionInput.durationMinutes,
           startedAt: sessionInput.startedAt,
           completedAt,
+          pauseCount: sessionInput.pauseCount,
         };
         setPendingSessions((current) => {
           const nextPendingSessions = [...current, pendingSession];
@@ -358,6 +344,11 @@ export const SessionProvider = ({
           pauseCount: sessionInput.pauseCount,
         });
         notifyQueuedForSync(estimate);
+        showToast({
+          title: t(language, "celebrationQueued"),
+          subtitle: t(language, "celebrationPendingSync"),
+          ...toastTone.success,
+        });
       } finally {
         finalizingRef.current = false;
         completionSnapshotRef.current = null;
@@ -371,8 +362,8 @@ export const SessionProvider = ({
       refreshAnalytics,
       setIsOnline,
       token,
-      uiPatchCelebrationRef,
       showAlert,
+      showToast,
       uiSetCelebrationRef,
       earnedBadgeIds,
       unlockedStarIds,
@@ -386,7 +377,12 @@ export const SessionProvider = ({
     }
 
     const snapshot =
-      completionSnapshotRef.current ?? buildCompletionSnapshot(sessionState, Date.now());
+      completionSnapshotRef.current ??
+      buildCompletionSnapshot(
+        sessionState,
+        Date.now(),
+        sessionState.status === "completed",
+      );
     if (!snapshot) {
       setSessionState(createGuestSessionState());
       return;
@@ -418,7 +414,6 @@ export const SessionProvider = ({
 
         if (elapsedSeconds >= BACKGROUND_TOLERANCE_SECONDS) {
           setSessionState((current) => failFocusSession(current));
-          await trackEvent("session_abandoned", { reason: "background_timeout" });
           return;
         }
 
@@ -430,7 +425,8 @@ export const SessionProvider = ({
           const synced = syncFocusTimer(current, Date.now());
           if (synced.remainingSeconds <= 0) {
             const completed = completeFocusTimer(synced);
-            completionSnapshotRef.current = buildCompletionSnapshot(completed) ?? null;
+            completionSnapshotRef.current =
+              buildCompletionSnapshot(completed, Date.now(), true) ?? null;
             return completed;
           }
 
@@ -444,12 +440,10 @@ export const SessionProvider = ({
   }, [sessionState.status]);
 
   const startSession = useCallback(async () => {
+    completionSnapshotRef.current = null;
     setSessionState((current) => startFocusSession(current, Date.now()));
-    await trackEvent("session_started", {
-      duration: sessionState.selectedDurationMinutes,
-      categoryId: sessionState.selectedCategoryId,
-    });
-  }, [sessionState.selectedCategoryId, sessionState.selectedDurationMinutes]);
+    void trackFirstSessionStarted();
+  }, []);
 
   const pauseSession = useCallback(() => {
     setSessionState((current) => pauseFocusSession(current, Date.now()));
@@ -551,54 +545,86 @@ export const SessionProvider = ({
       return;
     }
 
-    try {
-      const payload = await api.syncSessions(token, pendingSessions, authSnapshot);
-      await applyAuthPayload(payload);
-      setPendingSessions([]);
-      await asyncStorage.set(STORAGE_KEYS.pendingSessions, []);
-      setIsOnline(true);
+    const result = await api.syncSessions(token, pendingSessions, authSnapshot);
+    const language = authSnapshot.user.language;
+
+    if (result.syncedIds.length > 0) {
+      await applyAuthPayload(result.payload);
+      const syncedIdSet = new Set(result.syncedIds);
+      setPendingSessions((current) => {
+        const remaining = current.filter((session) => !syncedIdSet.has(session.id));
+        void asyncStorage.set(STORAGE_KEYS.pendingSessions, remaining);
+        return remaining;
+      });
       void refreshAnalytics();
-    } catch (error) {
+    }
+
+    if (result.error) {
       if (__DEV__) {
-        console.warn("[Astrocus sync offline queue failed]", error);
+        console.warn("[Astrocus sync offline queue failed]", result.error);
       }
-      if (isSchemaSessionError(error)) {
-        void showAlert({
-          title: t(authSnapshot.user.language, "sessionSaveFailedTitle"),
-          message: formatSessionSaveError(error),
-          confirmLabel: t(authSnapshot.user.language, "ok"),
-          icon: toastTone.error.icon,
+      const remainingCount = pendingSessions.length - result.syncedIds.length;
+      if (result.syncedIds.length > 0 && remainingCount > 0) {
+        showToast({
+          title: t(language, "syncPartialSuccess"),
+          subtitle: t(language, "syncPartialSuccessDetail")
+            .replace("{synced}", String(result.syncedIds.length))
+            .replace("{pending}", String(remainingCount)),
+          ...toastTone.success,
         });
       }
+      throw result.error;
     }
-  }, [applyAuthPayload, buildAuthSnapshot, pendingSessions, refreshAnalytics, setIsOnline, showAlert, token]);
+
+    setIsOnline(true);
+  }, [
+    applyAuthPayload,
+    buildAuthSnapshot,
+    pendingSessions,
+    refreshAnalytics,
+    setIsOnline,
+    showToast,
+    token,
+  ]);
 
   useEffect(() => {
     if (!token || pendingSessions.length === 0) {
       return;
     }
 
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      const online = Boolean(state.isConnected) && state.isInternetReachable !== false;
+    const handleConnectivity = (online: boolean) => {
       if (!online) {
         setIsOnline(false);
         return;
       }
       setIsOnline(true);
-      void syncOfflineQueue();
+      void syncOfflineQueue().catch(() => undefined);
+    };
+
+    void NetInfo.fetch().then((state) => {
+      handleConnectivity(Boolean(state.isConnected) && state.isInternetReachable !== false);
+    });
+
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      handleConnectivity(Boolean(state.isConnected) && state.isInternetReachable !== false);
     });
 
     return unsubscribe;
   }, [pendingSessions.length, setIsOnline, syncOfflineQueue, token]);
 
+  const displaySessions = useMemo(
+    () => (user ? mergeSessionsWithPending(sessions, pendingSessions, user.id) : sessions),
+    [pendingSessions, sessions, user],
+  );
+
   const dailySummary = useMemo(
-    () => createDailySummary(sessions, user, dailyGoalToday),
-    [sessions, user, dailyGoalToday],
+    () => createDailySummary(displaySessions, user, dailyGoalToday),
+    [displaySessions, user, dailyGoalToday],
   );
 
   const value = useMemo<SessionContextValue>(
     () => ({
-      sessions,
+      sessions: displaySessions,
       unlockedStarIds,
       earnedBadgeIds,
       pendingSessions,
@@ -646,7 +672,7 @@ export const SessionProvider = ({
       resumeSession,
       sessionState,
       earnedBadgeIds,
-      sessions,
+      displaySessions,
       startSession,
       syncOfflineQueue,
       unlockedStarIds,

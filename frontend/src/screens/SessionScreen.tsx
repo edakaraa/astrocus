@@ -1,7 +1,5 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import {
-  Animated,
-  Easing,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,7 +8,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect, useNavigation } from "expo-router";
-import Svg, { Circle, Line } from "react-native-svg";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/AppContext";
 import {
@@ -20,6 +17,7 @@ import {
 import { t, type TranslationKey } from "../shared/i18n";
 import type { Language, SessionRecord } from "../shared/types";
 import { formatDuration } from "../shared/formatLocale";
+import { getFocusPresetIcon } from "../shared/appIcons";
 import { getMondayWeekFocusMinutes } from "../shared/weekFocus";
 import { MAX_FONT_SCALE, useResponsive } from "../shared/responsive";
 import { colors, fontFamilies, getTabBarMetrics, layout, radii, screenBlock, spacing, typography } from "../shared/theme";
@@ -33,19 +31,23 @@ import { FocusSectionCard } from "../components/session/FocusSectionCard";
 import { UniverseMessageCard } from "../components/session/UniverseMessageCard";
 import { WeekDayStars } from "../components/session/WeekDayStars";
 import { AppText } from "../components/ui/AppText";
+import { AppIcon } from "../components/ui/AppIcon";
 import { PillChip } from "../components/ui/PillChip";
+import { UserAvatar } from "../components/UserAvatar";
 import { WeeklyReportCard } from "../components/WeeklyReportCard";
 import { WeeklyReportModal } from "../components/WeeklyReportModal";
 import { useWeeklyReport } from "../hooks/useWeeklyReport";
+import theme from "../theme";
 
 /** Recommended durations in the "Duration" section (distinct from quick-start presets). */
 const DURATION_OPTIONS = [15, 30, 90, 120] as const;
 const QUICK_PRESETS = [
-  { titleKey: "presetBreath" as const, minutes: 10, emoji: "🌬️" },
-  { titleKey: "presetPomodoro" as const, minutes: 25, emoji: "🍅" },
-  { titleKey: "presetFlow" as const, minutes: 45, emoji: "⚡" },
-  { titleKey: "presetDeep" as const, minutes: 60, emoji: "🌙" },
+  { titleKey: "presetBreath" as const, minutes: 10 },
+  { titleKey: "presetPomodoro" as const, minutes: 25 },
+  { titleKey: "presetFlow" as const, minutes: 45 },
+  { titleKey: "presetDeep" as const, minutes: 60 },
 ] as const;
+const QUICK_PRESET_MINUTES = QUICK_PRESETS.map((preset) => preset.minutes);
 
 const FOCUS_CATEGORY_IDS = [
   "general",
@@ -67,85 +69,6 @@ const FOCUS_CATEGORY_LABEL: Record<(typeof FOCUS_CATEGORY_IDS)[number], Translat
   sports: "category_sports",
   meditation: "category_meditation",
 };
-
-function AnimatedStar({ size }: { size: number }) {
-  const pulse = useRef(new Animated.Value(0)).current;
-  const rotate = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 2400,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulse, {
-          toValue: 0,
-          duration: 2400,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start();
-
-    Animated.loop(
-      Animated.timing(rotate, {
-        toValue: 1,
-        duration: 20000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }),
-    ).start();
-  }, []);
-
-  const coreScale = pulse.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.86, 1.14],
-  });
-  const rayRotate = rotate.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0deg", "360deg"],
-  });
-
-  const coreSize = size * 0.26;
-  const coreOffset = (size - coreSize) / 2;
-
-  return (
-    <View style={{ width: size, height: size, alignItems: "center", justifyContent: "center" }}>
-      <Animated.View
-        pointerEvents="none"
-        style={{
-          position: "absolute",
-          width: size,
-          height: size,
-          transform: [{ rotate: rayRotate }],
-        }}
-      >
-        <Svg width={size} height={size} viewBox="0 0 100 100">
-          <Line x1={50} y1={8} x2={50} y2={92} stroke="#E8E6C8" strokeWidth={1} strokeOpacity={0.5} />
-          <Line x1={8} y1={50} x2={92} y2={50} stroke="#E8E6C8" strokeWidth={1} strokeOpacity={0.38} />
-          <Line x1={18} y1={18} x2={82} y2={82} stroke="#E8C97A" strokeWidth={0.7} strokeOpacity={0.25} />
-          <Line x1={82} y1={18} x2={18} y2={82} stroke="#E8C97A" strokeWidth={0.7} strokeOpacity={0.25} />
-        </Svg>
-      </Animated.View>
-      <Animated.View
-        pointerEvents="none"
-        style={{
-          position: "absolute",
-          left: coreOffset,
-          top: coreOffset,
-          transform: [{ scale: coreScale }],
-        }}
-      >
-        <Svg width={coreSize} height={coreSize} viewBox="0 0 100 100">
-          <Circle cx={50} cy={50} r={46} fill="#E8E6C8" opacity={0.94} />
-        </Svg>
-      </Animated.View>
-    </View>
-  );
-}
 
 const formatSeconds = (seconds: number) => {
   const minutes = Math.floor(seconds / 60)
@@ -258,7 +181,12 @@ export const SessionScreen = () => {
   );
   const weekTotalMinutes = useMemo(() => weeklyMinutes.reduce((sum, m) => sum + m, 0), [weeklyMinutes]);
 
-  const isCustomDuration = !(DURATION_OPTIONS as readonly number[]).includes(sessionState.selectedDurationMinutes);
+  const selectedDurationMinutes = sessionState.selectedDurationMinutes;
+  const hasDurationSelected = selectedDurationMinutes > 0;
+  const isCustomDuration =
+    hasDurationSelected &&
+    !(DURATION_OPTIONS as readonly number[]).includes(selectedDurationMinutes) &&
+    !QUICK_PRESET_MINUTES.includes(selectedDurationMinutes);
 
   const focusCategories = useMemo(
     () =>
@@ -269,6 +197,7 @@ export const SessionScreen = () => {
   );
 
   const heroStarSize = scale(isCompact ? 52 : isShort ? 58 : 64);
+  const heroSparkleRadius = scale(6);
   const heroTitleSize = font(isCompact ? 17 : 19);
   const heroSubtitleSize = font(isCompact ? 12 : 13);
   const heroNumberSize = font(isCompact ? 36 : 40);
@@ -287,6 +216,14 @@ export const SessionScreen = () => {
         );
 
   const handleStartSession = () => {
+    if (!hasDurationSelected) {
+      void showAlert({
+        title: t(language, "selectDurationTitle"),
+        message: t(language, "selectDurationMessage"),
+        confirmLabel: t(language, "continue"),
+      });
+      return;
+    }
     void startSession();
   };
 
@@ -492,8 +429,24 @@ export const SessionScreen = () => {
             contentPadding={spacing.md}
             style={[screenBlock, styles.heroSurface, isShort ? styles.heroSurfaceCompact : null]}
           >
-          <View style={styles.heroStarWrap}>
-            <AnimatedStar size={heroStarSize} />
+          <View style={styles.heroAvatarWrap}>
+            <View
+              style={[
+                styles.heroAvatarSparkle,
+                {
+                  width: heroStarSize,
+                  height: heroStarSize,
+                  borderRadius: heroStarSize / 2,
+                  shadowRadius: heroSparkleRadius,
+                },
+              ]}
+            >
+              <UserAvatar
+                avatar={user?.avatar ?? "moon"}
+                size={heroStarSize}
+                style={styles.heroAvatarBare}
+              />
+            </View>
           </View>
           <AppText
             variant="sessionDisplay"
@@ -532,7 +485,7 @@ export const SessionScreen = () => {
             contentContainerStyle={[styles.presetScroller, { minWidth: cardInnerWidth }]}
           >
             {QUICK_PRESETS.map((item) => {
-              const active = sessionState.selectedDurationMinutes === item.minutes;
+              const active = hasDurationSelected && selectedDurationMinutes === item.minutes;
               return (
                 <Pressable
                   key={item.titleKey}
@@ -547,7 +500,11 @@ export const SessionScreen = () => {
                     pressed ? styles.presetTilePressed : null,
                   ]}
                 >
-                  <AppText variant="sessionPresetEmoji">{item.emoji}</AppText>
+                  <AppIcon
+                    name={getFocusPresetIcon(item.titleKey)}
+                    size={presetTitleSize + 10}
+                    color={active ? colors.warmOffWhite : colors.textMuted}
+                  />
                   <AppText
                     variant="sessionPresetTitle"
                     style={{ fontSize: presetTitleSize }}
@@ -571,14 +528,30 @@ export const SessionScreen = () => {
         </FocusSectionCard>
 
         <FocusSectionCard title={t(language, "durationTitle")} sectionLabelSize={sectionLabelSize}>
-          <View style={styles.durationRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.durationScroller}
+          >
+            <PillChip
+              variant="duration"
+              style={styles.durationChip}
+              label={
+                isCustomDuration
+                  ? formatDuration(language, selectedDurationMinutes)
+                  : t(language, "customDuration")
+              }
+              active={isCustomDuration}
+              accessibilityLabel={t(language, "customDuration")}
+              onPress={() => setCustomDurationOpen(true)}
+            />
             {DURATION_OPTIONS.map((minutes) => {
-              const active = sessionState.selectedDurationMinutes === minutes;
+              const active = hasDurationSelected && selectedDurationMinutes === minutes;
               return (
                 <PillChip
                   key={minutes}
                   variant="duration"
-                  flex
+                  style={styles.durationChip}
                   label={formatDuration(language, minutes)}
                   active={active}
                   accessibilityLabel={`${minutes} ${t(language, "selectSessionMinutesA11y")}`}
@@ -586,19 +559,7 @@ export const SessionScreen = () => {
                 />
               );
             })}
-            <PillChip
-              variant="duration"
-              flex
-              label={
-                isCustomDuration
-                  ? formatDuration(language, sessionState.selectedDurationMinutes)
-                  : t(language, "customDuration")
-              }
-              active={isCustomDuration}
-              accessibilityLabel={t(language, "customDuration")}
-              onPress={() => setCustomDurationOpen(true)}
-            />
-          </View>
+          </ScrollView>
         </FocusSectionCard>
 
         <FocusSectionCard title={t(language, "activityTitle")} sectionLabelSize={sectionLabelSize}>
@@ -610,7 +571,8 @@ export const SessionScreen = () => {
                 <PillChip
                   key={category.id}
                   variant="activity"
-                  label={`${category.emoji} ${t(language, labelKey)}`}
+                  label={t(language, labelKey)}
+                  leadingIcon={category.icon}
                   active={active}
                   accessibilityLabel={`${t(language, labelKey)} ${t(language, "selectCategoryA11y")}`}
                   onPress={() => setSelectedCategoryId(category.id)}
@@ -746,11 +708,22 @@ const styles = StyleSheet.create({
   heroSurface: {
     alignItems: "center",
     gap: spacing.xs,
-    overflow: "hidden",
   },
-  heroStarWrap: {
+  heroAvatarWrap: {
     alignItems: "center",
     alignSelf: "center",
+  },
+  heroAvatarSparkle: {
+    alignItems: "center",
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    shadowColor: theme.colors.accent,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.34,
+  },
+  heroAvatarBare: {
+    backgroundColor: "transparent",
+    borderWidth: 0,
   },
   heroSurfaceCompact: {
     gap: spacing.xxs,
@@ -788,9 +761,12 @@ const styles = StyleSheet.create({
   presetTilePressed: {
     opacity: 0.92,
   },
-  durationRow: {
-    flexDirection: "row",
+  durationScroller: {
     gap: spacing.sm,
+    paddingRight: spacing.xs,
+  },
+  durationChip: {
+    flexShrink: 0,
   },
   categoryScroller: {
     gap: spacing.sm,

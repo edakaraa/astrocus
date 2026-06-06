@@ -1,6 +1,8 @@
 # Backend API — Production Deploy
 
-Express API: analytics özeti, seans sonu Gemini tavsiyesi, hesap silme proxy.
+Express API: analytics özeti, yıldız kilidi, hesap silme proxy.
+
+Haftalık AI rapor **bu API'de değil** — Supabase Edge Function `generate-weekly-reports` (OpenRouter). Kurulum: `docs/weekly-reports-cron.md`.
 
 ## Gereksinimler
 
@@ -8,8 +10,6 @@ Express API: analytics özeti, seans sonu Gemini tavsiyesi, hesap silme proxy.
 |----------|---------|----------|
 | `SUPABASE_URL` | ✅ | Supabase proje URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ | Sunucu tarafı (asla mobilde) |
-| `GEMINI_API_KEY` | ✅ | Seans sonu `/ai/galactic-advice` |
-| `GEMINI_MODEL` | — | Varsayılan `gemini-2.0-flash` |
 | `PORT` | — | Varsayılan `4000` |
 | `HOST` | — | Varsayılan `0.0.0.0` |
 | `ALLOWED_ORIGIN` | önerilir | Production API CORS (ör. `https://astrocus.app`) |
@@ -22,7 +22,7 @@ docker build -t astrocus-api .
 docker run -p 4000:4000 --env-file .env astrocus-api
 ```
 
-Health check: `GET /health` → `{ ok: true, checks: { supabase: true, gemini: true } }`
+Health check: `GET /health` → `{ ok: true, checks: { supabase: true } }`
 
 ## Railway (önerilen)
 
@@ -55,4 +55,4 @@ eas secret:create --name EXPO_PUBLIC_API_URL --value https://YOUR_API_HOST --sco
 curl https://YOUR_API_HOST/health
 ```
 
-`gemini: false` ise `GEMINI_API_KEY` eksik — kutlama ekranında AI tavsiyesi çalışmaz.
+`supabase: false` ise `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` kontrol edin.

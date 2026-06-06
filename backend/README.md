@@ -1,7 +1,8 @@
 # Astrocus Backend
 
 - **Supabase:** PostgreSQL şeması, RLS, `complete_focus_session` ve `unlock_star` RPC
-- **Node API:** Analytics, yıldız kilidi, Gemini (Galaktik Tavsiyeler), hesap silme
+- **Node API:** Analytics, yıldız kilidi, hesap silme
+- **Edge Functions:** Haftalık AI rapor (`generate-weekly-reports`, OpenRouter) — `docs/weekly-reports-cron.md`
 
 ## Kurulum
 
@@ -37,8 +38,6 @@ npm start
 | `SUPABASE_URL` | Evet | Supabase proje URL |
 | `SUPABASE_ANON_KEY` | Evet | Anon key (kullanıcı JWT istemcisi) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Evet | Service role (auth doğrulama, hesap silme) |
-| `GEMINI_API_KEY` | AI için | Google Gemini API anahtarı |
-| `GEMINI_MODEL` | Hayır | Varsayılan: `gemini-2.0-flash` |
 | `PORT` | Hayır | Varsayılan: `4000` |
 | `ALLOWED_ORIGIN` | Hayır | CORS origin (ör. `https://astrocus.app`) |
 
@@ -49,23 +48,7 @@ npm start
 | GET | `/health` | Hayır | Sağlık kontrolü |
 | GET | `/analytics/summary?timezone=` | Bearer | Profil + haftalık odak özeti |
 | POST | `/stars/unlock` | Bearer | Body: `{ "star_id": "solis" }` — stardust harcayarak yıldız aç |
-| POST | `/ai/galactic-advice` | Bearer | Seans sonu kişiselleştirilmiş tavsiye |
 | POST | `/account/delete` | Bearer | Kullanıcı hesabını kalıcı sil |
-
-### `POST /ai/galactic-advice` gövdesi
-
-```json
-{
-  "language": "tr",
-  "durationMinutes": 25,
-  "categoryId": "work",
-  "currentStreak": 3,
-  "todayTotalMinutes": 50,
-  "totalStardust": 120
-}
-```
-
-Yanıt: `{ "advice": "..." }`
 
 ## Deploy (platform sizin seçiminiz)
 

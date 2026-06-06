@@ -2,8 +2,10 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 import { useAppContext } from "../../context/AppContext";
 import { formatNumber } from "../../shared/formatLocale";
+import { spacing } from "../../shared/theme";
 import theme from "../../theme";
 import { AppText } from "./AppText";
+import { StardustMark } from "./StardustMark";
 
 type StarDustChipProps = {
   amount: number;
@@ -16,9 +18,12 @@ export const StarDustChip: React.FC<StarDustChipProps> = ({ amount, compact = fa
 
   return (
     <View style={[styles.chip, compact ? styles.chipCompact : null]}>
-      <AppText variant="numeric" color={theme.colors.textPrimary}>
-        {`✦ ${formatNumber(language, amount)}`}
-      </AppText>
+      <View style={styles.row}>
+        <StardustMark size={14} />
+        <AppText variant="numeric" color={theme.colors.textPrimary}>
+          {formatNumber(language, amount)}
+        </AppText>
+      </View>
     </View>
   );
 };
@@ -39,5 +44,10 @@ const styles = StyleSheet.create({
     minHeight: undefined,
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
+  },
+  row: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.xxs,
   },
 });

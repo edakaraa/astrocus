@@ -42,7 +42,7 @@ export const CategoryDistribution: React.FC<CategoryDistributionProps> = ({ cate
               {`${formatDuration(language, row.minutes)} (${row.percentage}%)`}
             </AppText>
           </View>
-          <ProgressBar progress={row.percentage / 100} height={4} />
+          <ProgressBar progress={row.percentage / 100} height={4} color={row.color} />
         </View>
       ))}
     </Card>

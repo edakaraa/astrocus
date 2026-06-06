@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppContext } from "../context/AppContext";
 import { BADGES, getBadgeLabel } from "../shared/constants";
 import { t } from "../shared/i18n";
+import { useResponsive } from "../shared/responsive";
 import { SubScreenScaffold } from "../components/layout/SubScreenScaffold";
 import { SubScreenTopBar } from "../components/layout/TabScreenTopBar";
 import { BadgeItem } from "../components/badges/BadgeItem";
@@ -13,6 +14,7 @@ import theme from "../theme";
 export const BadgesScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { edgePadding, maxContentWidth, screenTopPadding } = useResponsive();
   const { language, earnedBadgeIds, user } = useAppContext();
   const earnedSet = useMemo(() => new Set(earnedBadgeIds), [earnedBadgeIds]);
 
@@ -38,8 +40,8 @@ export const BadgesScreen = () => {
 
   const listHeader = (
     <SubScreenTopBar
+      embedded
       title={t(language, "badgesScreenTitle")}
-      stardustAmount={user.totalStardust}
       backAccessibilityLabel={t(language, "back")}
       onBack={() => router.back()}
       rightMeta={`${unlockedCount}/${BADGES.length}`}
@@ -57,7 +59,12 @@ export const BadgesScreen = () => {
         contentContainerStyle={[
           styles.list,
           {
+            alignSelf: "center",
+            maxWidth: maxContentWidth,
+            paddingTop: screenTopPadding + theme.spacing.xs,
+            paddingHorizontal: edgePadding,
             paddingBottom: Math.max(insets.bottom, theme.spacing.xl),
+            width: "100%",
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -79,8 +86,6 @@ export const BadgesScreen = () => {
 const styles = StyleSheet.create({
   list: {
     gap: theme.spacing.md,
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.md,
   },
   columnWrap: {
     gap: theme.spacing.md,

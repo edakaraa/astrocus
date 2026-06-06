@@ -1,8 +1,11 @@
+import { CATEGORY_ICON } from "./appIcons";
 import { Category, Language, Star, StarCostInfo, StarCostTier } from "./types";
 
 export { STORAGE_KEYS } from "../constants/storageKeys";
 
 export const DEFAULT_DURATION_MINUTES = 25;
+/** Idle setup: no duration chosen until the user picks one. */
+export const NO_SESSION_DURATION_SELECTED = 0;
 /** PRD: 5–120 dakika arası seans süreleri */
 export const SESSION_DURATION_OPTIONS = [5, 15, 25, 45, 60, 90, 120] as const;
 export const BACKGROUND_TOLERANCE_SECONDS = 20;
@@ -41,14 +44,14 @@ export const getStarCostInfo = (completedCount: number): StarCostInfo => {
 // Categories
 // ---------------------------------------------------------------------------
 export const CATEGORIES: Category[] = [
-  { id: "work",       key: "category.work",       emoji: "💼" },
-  { id: "reading",    key: "category.reading",     emoji: "📚" },
-  { id: "project",    key: "category.project",     emoji: "🛠" },
-  { id: "creativity", key: "category.creativity",  emoji: "🎨" },
-  { id: "sports",     key: "category.sports",      emoji: "🏃" },
-  { id: "meditation", key: "category.meditation",  emoji: "🧘" },
-  { id: "coding",     key: "category.coding",      emoji: "💻" },
-  { id: "general",    key: "category.general",     emoji: "✨" },
+  { id: "work", key: "category.work", icon: CATEGORY_ICON.work },
+  { id: "reading", key: "category.reading", icon: CATEGORY_ICON.reading },
+  { id: "project", key: "category.project", icon: CATEGORY_ICON.project },
+  { id: "creativity", key: "category.creativity", icon: CATEGORY_ICON.creativity },
+  { id: "sports", key: "category.sports", icon: CATEGORY_ICON.sports },
+  { id: "meditation", key: "category.meditation", icon: CATEGORY_ICON.meditation },
+  { id: "coding", key: "category.coding", icon: CATEGORY_ICON.coding },
+  { id: "general", key: "category.general", icon: CATEGORY_ICON.general },
 ];
 
 // ---------------------------------------------------------------------------

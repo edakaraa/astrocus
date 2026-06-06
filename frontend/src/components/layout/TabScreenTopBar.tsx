@@ -70,9 +70,11 @@ export const SubScreenTitleRow: React.FC<SubScreenTitleRowProps> = ({
       {title}
     </AppText>
     {rightMeta ? (
-      <AppText variant="caption" style={styles.rightMeta}>
-        {rightMeta}
-      </AppText>
+      <View style={styles.rightMetaSlot}>
+        <AppText variant="caption" style={styles.rightMeta}>
+          {rightMeta}
+        </AppText>
+      </View>
     ) : (
       <View style={styles.actionPlaceholder} />
     )}
@@ -207,9 +209,9 @@ const styles = StyleSheet.create({
   navRow: {
     alignItems: "center",
     flexDirection: "row",
-    gap: theme.spacing.md,
     justifyContent: "space-between",
     marginTop: theme.spacing.sm,
+    minHeight: theme.layout.topBarActionSize,
     width: "100%",
   },
   navRowFlush: {
@@ -217,10 +219,15 @@ const styles = StyleSheet.create({
   },
   screenTitle: {
     flex: 1,
+    marginHorizontal: theme.spacing.md,
     textAlign: "center",
   },
-  rightMeta: {
+  rightMetaSlot: {
+    alignItems: "flex-end",
+    justifyContent: "center",
     minWidth: theme.layout.topBarActionSize,
+  },
+  rightMeta: {
     textAlign: "right",
   },
 });

@@ -7,8 +7,10 @@ import { t } from "../../shared/i18n";
 import type { ConstellationProgress, StarWithProgress } from "../../shared/types";
 import { SurfaceCard } from "../SurfaceCard";
 import { AppText } from "../ui/AppText";
+import { AppIcon } from "../ui/AppIcon";
 import { StarCard } from "./StarCard";
 import { galaxyCardStyles as styles } from "./shared";
+import { getConstellationIcon } from "./constellationIcons";
 import { constellationLabel, type ConstellationProgressEnriched } from "../../services/constellationCatalog";
 
 export type ConstellationCardProps = {
@@ -39,7 +41,7 @@ export const ConstellationCard = React.memo(({ progress, totalStardust, onStarPr
     >
       <View style={styles.constHeader}>
         <View style={styles.constSymbolWrap}>
-          <MaterialCommunityIcons name="star-circle-outline" size={22} color={colors.primary} />
+          <AppIcon name={getConstellationIcon(constellation.id)} size={22} color={colors.primary} />
         </View>
         <View style={styles.constHeaderText}>
           <AppText variant="galaxyConstName">{astronomicalName}</AppText>
@@ -90,7 +92,6 @@ export const ConstellationCard = React.memo(({ progress, totalStardust, onStarPr
             totalStardust={totalStardust}
             isActiveConstellation={isActive}
             onPress={(s) => onStarPress(s, progress)}
-            cardIndex={idx}
           />
         ))}
       </ScrollView>

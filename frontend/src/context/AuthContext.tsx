@@ -5,6 +5,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { api } from "../shared/api";
@@ -14,8 +15,15 @@ import { supabase } from "../lib/supabase";
 import { asyncStorage, secureStorage } from "../shared/storage";
 import { STORAGE_KEYS } from "../shared/constants";
 import { resolveInitialLanguage } from "../shared/resolveLanguage";
-import { setAnalyticsUserId, trackEvent } from "../shared/analytics";
+import {
+  identifyAnalyticsUser,
+  resetAnalyticsUser,
+  trackOnboardingCompleted,
+  trackStarUnlocked,
+  type OnboardingMethod,
+} from "../lib/analytics";
 import { AuthMode, AuthPayload, CelebrationPayload, PendingSession, UnlockStarResult, User, UserConstellationRow } from "../shared/types";
+import { requestPushPermissionAndSaveToken } from "../lib/notifications";
 import { createDevDemoPayload, isDevDemoToken, matchesDevDemoCredentials } from "./auth/devDemo";
 
 export type AstrocusInfraRefs = {
@@ -23,9 +31,6 @@ export type AstrocusInfraRefs = {
   sessionSetPendingRef: React.MutableRefObject<((sessions: PendingSession[]) => void) | null>;
   uiSetLanguageRef: React.MutableRefObject<((language: User["language"]) => void) | null>;
   uiSetCelebrationRef: React.MutableRefObject<((state: CelebrationPayload) => void) | null>;
-  uiPatchCelebrationRef: React.MutableRefObject<
-    ((patch: Partial<NonNullable<CelebrationPayload>>) => void) | null
-  >;
 };
 
 export type AuthContextValue = {
@@ -79,6 +84,7 @@ export const AuthProvider = ({
   const [user, setUser] = useState<User | null>(null);
   const [constellationProgress, setConstellationProgress] = useState<UserConstellationRow[]>([]);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
+  const onboardingMethodRef = useRef<OnboardingMethod>("email");
 
   const apiUrl = useMemo(() => getApiUrl(), []);
 
@@ -86,7 +92,7 @@ export const AuthProvider = ({
     async (payload: AuthPayload) => {
       setToken(payload.token);
       setUser(payload.user);
-      setAnalyticsUserId(payload.user.id);
+      identifyAnalyticsUser(payload.user.id, { email: payload.user.email });
       setConstellationProgress(payload.constellationProgress ?? []);
       sessionHydrateRef.current?.(payload);
       await secureStorage.set(STORAGE_KEYS.authToken, payload.token);
@@ -94,6 +100,10 @@ export const AuthProvider = ({
         await asyncStorage.set(STORAGE_KEYS.demoAuthPayload, payload);
       }
       uiSetLanguageRef.current?.(payload.user.language);
+
+      if (!isDevDemoToken(payload.token)) {
+        void requestPushPermissionAndSaveToken();
+      }
     },
     [sessionHydrateRef, uiSetLanguageRef],
   );
@@ -143,9 +153,9 @@ export const AuthProvider = ({
       input: { email: string; password: string; username: string; displayName: string; galaxyName?: string },
       language: User["language"],
     ) => {
+      onboardingMethodRef.current = "email";
       const payload = await api.register(input, language);
       await applyAuthPayload(payload);
-      await trackEvent("signup_completed");
     },
     [applyAuthPayload],
   );
@@ -159,6 +169,7 @@ export const AuthProvider = ({
       if (!token || isDevDemoToken(token)) return null;
       const { result, payload } = await api.unlockStar(token, starId);
       await applyAuthPayload(payload);
+      trackStarUnlocked(starId, payload.unlockedStarIds.length);
       if (result.constellationCompleted) {
         uiSetCelebrationRef.current?.({
           stardustEarned: 0,
@@ -181,6 +192,7 @@ export const AuthProvider = ({
         setIsOnline(false);
         return;
       }
+      onboardingMethodRef.current = "email";
       const payload = await api.login(input, language);
       await applyAuthPayload(payload);
       setIsOnline(true);
@@ -189,12 +201,14 @@ export const AuthProvider = ({
   );
 
   const continueWithGoogle = useCallback(async () => {
+    onboardingMethodRef.current = "google";
     const payload = await api.continueWithGoogle();
     await applyAuthPayload(payload);
     setIsOnline(true);
   }, [applyAuthPayload]);
 
   const continueWithApple = useCallback(async () => {
+    onboardingMethodRef.current = "email";
     const payload = await api.continueWithApple();
     await applyAuthPayload(payload);
     setIsOnline(true);
@@ -217,7 +231,7 @@ export const AuthProvider = ({
       const payload = await api.startConstellation(constellationId);
       await applyAuthPayload(payload);
       await asyncStorage.set(STORAGE_KEYS.onboardingSeen, true);
-      await trackEvent("onboarding_completed", { constellation: constellationId });
+      trackOnboardingCompleted(onboardingMethodRef.current);
     },
     [applyAuthPayload, token, user],
   );
@@ -240,7 +254,7 @@ export const AuthProvider = ({
     }
     setToken(null);
     setUser(null);
-    setAnalyticsUserId(null);
+    resetAnalyticsUser();
     setConstellationProgress([]);
     await secureStorage.remove(STORAGE_KEYS.authToken);
     await asyncStorage.remove(STORAGE_KEYS.demoAuthPayload);
@@ -256,7 +270,6 @@ export const AuthProvider = ({
       /* session may already be invalid */
     }
     await logout();
-    await trackEvent("account_deleted");
   }, [logout, token]);
 
   const refreshUser = useCallback(async () => {

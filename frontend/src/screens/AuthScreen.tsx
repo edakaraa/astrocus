@@ -26,7 +26,9 @@ import { colors, fontFamilies, layout, spacing, typography } from "../shared/the
 import { isEmailConfirmationRequiredError } from "../lib/authErrors";
 import { oauthUserMessage } from "../lib/authErrors";
 import { isAppleSignInAvailable } from "../lib/appleAuth";
+import { api } from "../shared/api";
 import { t } from "../shared/i18n";
+import { validateUsername } from "../shared/username";
 
 const BG = colors.chineseBlack;
 
@@ -381,12 +383,32 @@ export const AuthScreen = () => {
         return;
       }
 
+      const usernameValidation = validateUsername(username);
+      if (!usernameValidation.ok) {
+        const messageKey =
+          usernameValidation.reason === "invalid"
+            ? "usernameInvalid"
+            : usernameValidation.reason === "tooShort"
+              ? "usernameTooShort"
+              : usernameValidation.reason === "tooLong"
+                ? "usernameTooLong"
+                : "usernameRequired";
+        presentAuthAlert(t(language, "appName"), t(language, messageKey));
+        return;
+      }
+
+      const usernameAvailable = await api.isUsernameAvailable(usernameValidation.normalized);
+      if (!usernameAvailable) {
+        presentAuthAlert(t(language, "appName"), t(language, "usernameTaken"));
+        return;
+      }
+
       setIsSubmitting(true);
       await register(
         {
           email,
           password,
-          username: username.trim(),
+          username: usernameValidation.normalized,
           displayName: fullName.trim(),
         },
         language,
@@ -401,10 +423,13 @@ export const AuthScreen = () => {
         }).then(() => setAuthMode("login"));
         return;
       }
-      presentAuthAlert(
-        t(language, "appName"),
-        error instanceof Error ? error.message : t(language, "errorGeneric"),
-      );
+      const message =
+        error instanceof Error && error.message === "username_taken"
+          ? t(language, "usernameTaken")
+          : error instanceof Error
+            ? error.message
+            : t(language, "errorGeneric");
+      presentAuthAlert(t(language, "appName"), message);
     } finally {
       setIsSubmitting(false);
     }

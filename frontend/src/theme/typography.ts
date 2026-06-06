@@ -378,7 +378,7 @@ export const typographyTokens = {
     fontWeight: "800",
   },
   galaxyNextPillText: {
-    color: warning,
+    color: textPrimary,
     fontFamily: fontFamilies.body,
     fontSize: 10,
     fontWeight: "800",

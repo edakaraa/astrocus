@@ -4,7 +4,10 @@
     "slug": "astrocus",
     "version": "1.0.0",
     "scheme": "astrocus",
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "icon": "./assets/brand/logo.png",
@@ -17,7 +20,15 @@
       "expo-localization",
       "expo-secure-store",
       "expo-notifications",
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "react-native",
+          "organization": "astrocus"
+        }
+      ]
     ],
     "ios": {
       "supportsTablet": true,

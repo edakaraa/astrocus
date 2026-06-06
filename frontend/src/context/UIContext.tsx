@@ -11,7 +11,7 @@ import React, {
 import { asyncStorage } from "../shared/storage";
 import { STORAGE_KEYS } from "../shared/constants";
 import { api } from "../shared/api";
-import { resolveInitialLanguage } from "../shared/resolveLanguage";
+import { languageFromDeviceLocale, resolveInitialLanguage } from "../shared/resolveLanguage";
 import type { CelebrationPayload, Language } from "../shared/types";
 import { useAuth } from "./AuthContext";
 import type { AstrocusInfraRefs } from "./AuthContext";
@@ -28,17 +28,16 @@ export type UIContextValue = {
 const UIContext = createContext<UIContextValue | null>(null);
 
 type UIProviderProps = PropsWithChildren<
-  Pick<AstrocusInfraRefs, "uiSetLanguageRef" | "uiSetCelebrationRef" | "uiPatchCelebrationRef">
+  Pick<AstrocusInfraRefs, "uiSetLanguageRef" | "uiSetCelebrationRef">
 >;
 
 export const UIProvider = ({
   children,
   uiSetLanguageRef,
   uiSetCelebrationRef,
-  uiPatchCelebrationRef,
 }: UIProviderProps) => {
   const { token, applyAuthPayload, setIsOnline } = useAuth();
-  const [language, setLanguageState] = useState<Language>("tr");
+  const [language, setLanguageState] = useState<Language>(languageFromDeviceLocale);
   const [celebration, setCelebration] = useState<CelebrationState>(null);
 
   useEffect(() => {
@@ -48,20 +47,14 @@ export const UIProvider = ({
     });
   }, [uiSetLanguageRef]);
 
-  const patchCelebration = useCallback((patch: Partial<NonNullable<CelebrationPayload>>) => {
-    setCelebration((prev) => (prev ? { ...prev, ...patch } : prev));
-  }, []);
-
   useLayoutEffect(() => {
     uiSetLanguageRef.current = setLanguageState;
     uiSetCelebrationRef.current = setCelebration;
-    uiPatchCelebrationRef.current = patchCelebration;
     return () => {
       uiSetLanguageRef.current = null;
       uiSetCelebrationRef.current = null;
-      uiPatchCelebrationRef.current = null;
     };
-  }, [patchCelebration, uiPatchCelebrationRef, uiSetCelebrationRef, uiSetLanguageRef]);
+  }, [uiSetCelebrationRef, uiSetLanguageRef]);
 
   const setLanguage = useCallback(
     async (nextLanguage: Language) => {

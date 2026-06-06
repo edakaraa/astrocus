@@ -2,7 +2,7 @@
   "name": "astrocus-backend",
   "version": "1.0.0",
   "private": true,
-  "description": "Astrocus API — Gemini LLM + Supabase admin",
+  "description": "Astrocus API — Supabase admin proxy",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -15,13 +15,14 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
+    "@sentry/node": "^10.56.0",
     "@supabase/supabase-js": "^2.105.4",
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "express": "^5.2.1",
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.1.0",
+    "posthog-node": "^5.36.3",
     "zod": "^3.25.76"
   },
   "devDependencies": {

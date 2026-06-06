@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import theme from "../../theme";
 import { AppText } from "../ui/AppText";
 import { Card } from "../ui/Card";
+import { AppIcon } from "../ui/AppIcon";
 import { getBadgeIcon } from "./badgeIcons";
 
 type BadgeItemProps = {
@@ -20,6 +21,7 @@ export const BadgeItem: React.FC<BadgeItemProps> = ({
   isUnlocked,
 }) => {
   const icon = getBadgeIcon(id);
+  const iconColor = isUnlocked ? theme.colors.accent : theme.colors.muted;
 
   return (
     <Card
@@ -36,9 +38,9 @@ export const BadgeItem: React.FC<BadgeItemProps> = ({
           />
         </View>
       ) : null}
-      <AppText variant="card" color={icon.color} style={styles.symbol}>
-        {icon.symbol}
-      </AppText>
+      <View style={styles.symbol}>
+        <AppIcon name={icon.icon} size={48} color={iconColor} />
+      </View>
       <AppText variant="card" style={styles.title}>
         {title}
       </AppText>
@@ -67,10 +69,9 @@ const styles = StyleSheet.create({
     top: theme.spacing.sm,
   },
   symbol: {
-    fontSize: 48,
-    lineHeight: 52,
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: theme.spacing.sm,
-    textAlign: "center",
   },
   title: {
     fontSize: 14,

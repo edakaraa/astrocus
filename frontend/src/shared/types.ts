@@ -1,10 +1,12 @@
 export type Language = "tr" | "en";
 export type AuthMode = "login" | "register";
 
+import type { AppIconName } from "./appIcons";
+
 export type Category = {
   id: string;
   key: string;
-  emoji: string;
+  icon: AppIconName;
 };
 
 // ---------------------------------------------------------------------------
@@ -150,6 +152,7 @@ export type PendingSession = {
   durationMinutes: number;
   startedAt: string;
   completedAt: string;
+  pauseCount?: number;
 };
 
 export type DailySummary = {
@@ -220,7 +223,6 @@ export type CelebrationPayload = {
   pendingSync?: boolean;
   unlockedStarId: string | null;
   newBadgeIds?: string[];
-  galacticAdvice?: string;
   /** Snapshot at completion time — sessionState is cleared before the modal renders */
   durationMinutes?: number;
   todayTotalMinutes?: number;

@@ -10,7 +10,7 @@ Son doğrulama: **2026-06-05**
 | 2 | Edge Function `generate-weekly-reports` | ✅ | ACTIVE v8 |
 | 3 | Haftalık rapor cron | ⬜ | `docs/weekly-reports-cron.md` |
 | 4 | Express API production deploy | ⬜ | `docs/backend-deploy.md` |
-| 5 | `GEMINI_API_KEY` production'da | ⬜ | `/health` → `gemini: true` |
+| 5 | `OPENROUTER_API_KEY` Supabase secret | ⬜ | `docs/weekly-reports-cron.md` |
 | 6 | `EXPO_PUBLIC_API_URL` production build | ⬜ | EAS secret |
 | 7 | CI yeşil | ⬜ | `.github/workflows/ci.yml` |
 | 8 | PostHog (veya analitik) | ⬜ | `EXPO_PUBLIC_POSTHOG_API_KEY` |

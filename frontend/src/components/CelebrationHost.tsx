@@ -30,14 +30,29 @@ export const CelebrationHost = () => {
 
   const streakForCelebration = celebration?.streakCount ?? user?.currentStreak ?? 0;
 
+  const isFirstSession = celebration?.newBadgeIds?.includes("first_step") ?? false;
+
+  const firstBadge = useMemo(() => {
+    if (!isFirstSession) {
+      return null;
+    }
+    const badge = BADGES.find((item) => item.id === "first_step");
+    if (!badge) {
+      return null;
+    }
+    const label = getBadgeLabel(badge, language);
+    return { id: badge.id, title: label.name, description: label.description };
+  }, [isFirstSession, language]);
+
   return (
     <CelebrationModal
       visible={Boolean(celebration)}
       stardustEarned={celebration?.stardustEarned ?? 0}
       pendingSync={celebration?.pendingSync}
+      isFirstSession={isFirstSession}
       unlockedStarLabel={unlockedStarLabel}
       newBadgeLabels={newBadgeLabels}
-      galacticAdvice={celebration?.galacticAdvice}
+      firstBadge={firstBadge}
       durationMinutes={celebration?.durationMinutes ?? sessionState.selectedDurationMinutes}
       currentStreak={streakForCelebration}
       todayTotalMinutes={celebration?.todayTotalMinutes ?? dailySummary.totalMinutes}

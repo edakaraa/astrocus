@@ -6,6 +6,7 @@ import { isDevDemoToken } from "../context/auth/devDemo";
 import { api } from "../shared/api";
 import { t } from "../shared/i18n";
 import { formatDuration, formatNumber } from "../shared/formatLocale";
+import { spacing } from "../shared/theme";
 import { BADGES } from "../shared/constants";
 import { getCategoryChartColor } from "../constants/categoryChartColors";
 import { STORAGE_KEYS } from "../constants/storageKeys";
@@ -19,7 +20,9 @@ import { WeeklyReportCard } from "../components/WeeklyReportCard";
 import { AppText } from "../components/ui/AppText";
 import { TabScreenScaffold } from "../components/layout/TabScreenScaffold";
 import { StatBox } from "../components/profile/StatBox";
+import { StardustMark } from "../components/ui/StardustMark";
 import { DailyGoalCard } from "../components/profile/DailyGoalCard";
+import { trackGoalCompleted } from "../lib/analytics";
 import { CategoryDistribution } from "../components/profile/CategoryDistribution";
 import { ProfileNavRow } from "../components/profile/ProfileNavRow";
 import { loadTodayDailyGoal, saveTodayDailyGoal } from "../lib/dailyGoalStorage";
@@ -30,6 +33,7 @@ export const ProfileScreen = () => {
   const {
     analyticsSummary,
     dailySummary,
+    dailyGoalToday,
     language,
     refreshAnalytics,
     sessions,
@@ -68,6 +72,14 @@ export const ProfileScreen = () => {
     void refreshTodayGoal();
   }, [refreshTodayGoal]);
 
+  useEffect(() => {
+    if (goalMinutes > 0 || !dailyGoalToday?.goalMinutes) {
+      return;
+    }
+    setGoalMinutes(dailyGoalToday.goalMinutes);
+    setPickerDefaultMinutes(dailyGoalToday.goalMinutes);
+  }, [dailyGoalToday, goalMinutes]);
+
   useFocusEffect(
     useCallback(() => {
       void refreshAnalytics();
@@ -96,6 +108,8 @@ export const ProfileScreen = () => {
       return;
     }
 
+    trackGoalCompleted("daily");
+
     if (token && !isDevDemoToken(token)) {
       try {
         const result = await api.claimDailyGoalReward();
@@ -120,14 +134,32 @@ export const ProfileScreen = () => {
   }, [refreshUser, token, updateProfile, user]);
 
   const categoryRows = useMemo(() => {
-    const rows = analyticsSummary?.categoryDistribution ?? [];
-    return rows.map((row) => ({
+    if (analyticsSummary?.categoryDistribution?.length) {
+      return analyticsSummary.categoryDistribution.map((row) => ({
+        name: t(language, `category_${row.categoryId}` as never),
+        minutes: row.minutes,
+        color: getCategoryChartColor(row.categoryId),
+        percentage: row.percentage,
+      }));
+    }
+
+    const total = dailySummary.totalMinutes;
+    if (total <= 0 || dailySummary.categoryBreakdown.length === 0) {
+      return [];
+    }
+
+    return dailySummary.categoryBreakdown.map((row) => ({
       name: t(language, `category_${row.categoryId}` as never),
       minutes: row.minutes,
       color: getCategoryChartColor(row.categoryId),
-      percentage: row.percentage,
+      percentage: Math.round((row.minutes / total) * 100),
     }));
-  }, [analyticsSummary?.categoryDistribution, language]);
+  }, [
+    analyticsSummary?.categoryDistribution,
+    dailySummary.categoryBreakdown,
+    dailySummary.totalMinutes,
+    language,
+  ]);
 
   if (!user) {
     return null;
@@ -158,11 +190,13 @@ export const ProfileScreen = () => {
         <AppText variant="title" style={styles.username}>
           {user.username || t(language, "explorerName")}
         </AppText>
-        <AppText variant="caption" style={styles.stardustLine}>
-          {`${t(language, "profileTotalStardust")}: `}
+        <View style={styles.stardustLine}>
+          <AppText variant="caption">
+            {`${t(language, "profileTotalStardust")}: `}
+          </AppText>
+          <StardustMark size={12} />
           <AppText variant="numericCompact">{formatNumber(language, user.totalStardust)}</AppText>
-          {" ✦"}
-        </AppText>
+        </View>
         <View style={styles.statsRow}>
           <StatBox value={formatDuration(language, totalFocusedMinutes)} label={t(language, "totalFocus")} />
           <StatBox value={formatNumber(language, sessions.length)} label={t(language, "totalSessions")} />
@@ -247,6 +281,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   stardustLine: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xxs,
+    justifyContent: "center",
     marginTop: theme.spacing.xs,
   },
   statsRow: {

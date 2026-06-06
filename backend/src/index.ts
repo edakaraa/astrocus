@@ -1,4 +1,6 @@
 import "./loadEnv";
+import { attachExpressErrorHandler, initMonitoring } from "./lib/monitoring";
+import { initProductAnalytics, shutdownProductAnalytics } from "./lib/productAnalytics";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -6,8 +8,10 @@ import rateLimit from "express-rate-limit";
 import analyticsRoutes from "./routes/analytics.routes";
 import starsRoutes from "./routes/stars.routes";
 import accountRoutes from "./routes/account.routes";
-import aiRoutes from "./routes/ai.routes";
 import { supabaseAdmin } from "./lib/supabaseAdmin";
+
+initMonitoring();
+initProductAnalytics();
 
 const app = express();
 const port = Number(process.env.PORT) || 4000;
@@ -30,20 +34,11 @@ const defaultLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const aiLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Too many AI requests", code: "rate_limited" },
-});
-
 app.use(defaultLimiter);
 
 app.get("/health", async (_req, res) => {
   const checks: Record<string, boolean> = {
     supabase: false,
-    gemini: Boolean(process.env.GEMINI_API_KEY?.trim()),
   };
 
   try {
@@ -64,11 +59,12 @@ app.get("/health", async (_req, res) => {
 app.use("/analytics", analyticsRoutes);
 app.use("/stars", starsRoutes);
 app.use("/account", accountRoutes);
-app.use("/ai", aiLimiter, aiRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Not found" });
 });
+
+attachExpressErrorHandler(app);
 
 const host = process.env.HOST?.trim() || "0.0.0.0";
 
@@ -77,8 +73,10 @@ const server = app.listen(port, host, () => {
 });
 
 const shutdown = () => {
-  server.close(() => {
-    process.exit(0);
+  void shutdownProductAnalytics().finally(() => {
+    server.close(() => {
+      process.exit(0);
+    });
   });
 };
 

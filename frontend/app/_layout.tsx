@@ -1,13 +1,20 @@
+import { bindSentryToSupabaseAuth, initSentry, wrapRootWithSentry } from "../src/lib/errorTracking";
+import { posthog, trackScreen } from "../src/lib/analytics";
+import { PostHogProvider } from "posthog-react-native";
+
+initSentry();
+bindSentryToSupabaseAuth();
+
 import * as WebBrowser from "expo-web-browser";
 
 // OAuth dönüşü — provider yüklenmeden önce (Expo Go Android cold start)
 WebBrowser.maybeCompleteAuthSession();
 import "../src/lib/oauthLinking";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { Text, TextInput } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { Stack, useRouter } from "expo-router";
+import { Stack, useNavigationContainerRef, useRouter } from "expo-router";
 import * as Linking from "expo-linking";
 import { StatusBar } from "expo-status-bar";
 import { MAX_FONT_SCALE } from "../src/shared/responsive";
@@ -50,14 +57,74 @@ import {
   useAstrocusInfrastructureRefs,
 } from "../src/context/AppContext";
 import { CelebrationHost } from "../src/components/CelebrationHost";
-import { initMonitoring } from "../src/lib/monitoring";
 import { loadSkyCatalog } from "../src/services/skyCatalog";
 import { colors } from "../src/shared/theme";
 
 import { isOAuthReturnUrl, peekOAuthReturnUrl } from "../src/lib/oauthLinking";
+import { setupNotificationResponseHandler } from "../src/lib/notifications";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import { useDeepLink } from "../src/hooks/useDeepLink";
 import { loadAuthPayloadFromSession } from "../src/shared/api";
 import { useAppContext } from "../src/context/AppContext";
+
+type NavigationRouteState = {
+  index?: number;
+  routes: Array<{ name?: string; state?: NavigationRouteState }>;
+};
+
+const resolveActiveRouteName = (
+  navigationRef: ReturnType<typeof useNavigationContainerRef>,
+): string | undefined => {
+  if (!navigationRef.isReady()) {
+    return undefined;
+  }
+
+  const route = navigationRef.getCurrentRoute();
+  if (!route?.name) {
+    return undefined;
+  }
+
+  let name = route.name;
+  let state = route.state as NavigationRouteState | undefined;
+
+  while (state?.routes?.length) {
+    const index = state.index ?? state.routes.length - 1;
+    const nested = state.routes[index];
+    if (nested?.name) {
+      name = nested.name;
+    }
+    state = nested?.state;
+  }
+
+  return name;
+};
+
+/** PostHog $screen — Expo Router navigation ref state changes. */
+const PostHogScreenTracker = () => {
+  const navigationRef = useNavigationContainerRef();
+  const lastRouteRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!posthog) {
+      return;
+    }
+
+    const trackCurrentScreen = () => {
+      const routeName = resolveActiveRouteName(navigationRef);
+      if (!routeName || routeName === lastRouteRef.current) {
+        return;
+      }
+      lastRouteRef.current = routeName;
+      trackScreen(routeName);
+    };
+
+    trackCurrentScreen();
+    const unsubscribe = navigationRef.addListener("state", trackCurrentScreen);
+    return unsubscribe;
+  }, [navigationRef]);
+
+  return null;
+};
 
 /** Cold start: exp://…/auth/callback ile acilinca Metro'da gorunur. */
 const OAuthColdStartProbe = () => {
@@ -132,11 +199,35 @@ const AuthEmailDeepLinkHandler = () => {
   return null;
 };
 
-export default function RootLayout() {
+const isExpoGo = () => Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+/** Push notification tap → deep link into app routes. */
+const NotificationResponseHandler = () => {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (__DEV__ && isExpoGo()) {
+      return;
+    }
+
+    let subscription: { remove: () => void } | null = null;
+
+    void setupNotificationResponseHandler(router).then((listener) => {
+      subscription = listener;
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [router]);
+
+  return null;
+};
+
+function RootLayoutInner() {
   const refs = useAstrocusInfrastructureRefs();
 
   useEffect(() => {
-    initMonitoring();
     void loadSkyCatalog().catch((error) => {
       if (__DEV__) {
         console.warn("[Astrocus] sky catalog preload failed:", error);
@@ -163,8 +254,10 @@ export default function RootLayout() {
         <NotificationProvider>
           <SessionProvider {...refs}>
             <UIProvider {...refs}>
+              <PostHogScreenTracker />
               <OAuthColdStartProbe />
               <AuthEmailDeepLinkHandler />
+              <NotificationResponseHandler />
               <CelebrationHost />
               <StatusBar style="light" />
               <Stack
@@ -178,5 +271,19 @@ export default function RootLayout() {
         </NotificationProvider>
       </AuthProvider>
     </GestureHandlerRootView>
+  );
+}
+
+const SentryRootLayout = wrapRootWithSentry(RootLayoutInner);
+
+export default function RootLayout() {
+  if (!posthog) {
+    return <SentryRootLayout />;
+  }
+
+  return (
+    <PostHogProvider client={posthog} autocapture={false}>
+      <SentryRootLayout />
+    </PostHogProvider>
   );
 }

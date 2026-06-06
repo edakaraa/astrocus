@@ -15,3 +15,6 @@ site_url = "http://localhost:8081"
 
 [functions.generate-weekly-reports]
 verify_jwt = false
+
+[functions.send-daily-quote]
+verify_jwt = false

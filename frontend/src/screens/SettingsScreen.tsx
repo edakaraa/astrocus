@@ -1,9 +1,10 @@
-import React, { useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet } from "react-native";
+import React, { useCallback, useMemo, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { SubScreenScaffold, SubScreenScrollLayout } from "../components/layout/SubScreenScaffold";
 import { SubScreenTopBar } from "../components/layout/TabScreenTopBar";
 import { toastTone, useAppContext } from "../context/AppContext";
+import { formatSessionSaveError } from "../shared/api";
 import { PRESET_AVATARS, resolveAvatarId } from "../shared/constants";
 import { t, type TranslationKey } from "../shared/i18n";
 import { formatNumber } from "../shared/formatLocale";
@@ -17,7 +18,9 @@ import { SettingsNavLink } from "../components/settings/SettingsNavLink";
 import { SettingsRow } from "../components/settings/SettingsRow";
 import { useSettingsSpacing } from "../components/settings/settingsSpacing";
 import { OfflineSyncButton } from "../components/settings/OfflineSyncButton";
+import { UsernameSettingsBlock } from "../components/settings/UsernameSettingsBlock";
 import { useResponsive } from "../shared/responsive";
+import { layout } from "../shared/theme";
 import theme from "../theme";
 
 export const SettingsScreen = () => {
@@ -25,7 +28,8 @@ export const SettingsScreen = () => {
   const spacing = useSettingsSpacing();
   const { scale, isCompact } = useResponsive();
   const avatarSize = scale(isCompact ? 48 : 52);
-  const avatarOptionSize = scale(isCompact ? 52 : 56);
+  const avatarOptionSize = Math.max(scale(isCompact ? 52 : 56), layout.touchTargetMin);
+  const [pendingAvatarId, setPendingAvatarId] = useState<string | null>(null);
 
   const cardStyle = useMemo(
     () => ({
@@ -64,13 +68,22 @@ export const SettingsScreen = () => {
   const pendingCount = pendingSessions.length;
   const hasPending = pendingCount > 0;
 
+  const handleAvatarSelect = useCallback(
+    (avatarId: string) => {
+      setPendingAvatarId(avatarId);
+      void updateProfile({ avatar: avatarId }).finally(() => {
+        setPendingAvatarId((current) => (current === avatarId ? null : current));
+      });
+    },
+    [updateProfile],
+  );
+
   const handleSync = async () => {
     if (!hasPending) {
       return;
     }
     try {
       await syncOfflineSessions();
-      void refreshAnalytics();
       showToast({
         title: t(language, "toastSuccess"),
         subtitle: t(language, "syncSuccess"),
@@ -79,7 +92,7 @@ export const SettingsScreen = () => {
     } catch (error) {
       void showAlert({
         title: t(language, "toastErrorGeneric"),
-        message: error instanceof Error ? error.message : t(language, "syncFailed"),
+        message: error instanceof Error ? formatSessionSaveError(error) : t(language, "syncFailed"),
         confirmLabel: t(language, "ok"),
         icon: toastTone.error.icon,
       });
@@ -110,30 +123,51 @@ export const SettingsScreen = () => {
             <SettingsDivider />
 
             <SettingsBlock
+              title={t(language, "usernameChangeTitle")}
+              caption={t(language, "usernameChangeCaption")}
+            >
+              <UsernameSettingsBlock currentUsername={user.username} userId={user.id} />
+            </SettingsBlock>
+
+            <SettingsDivider />
+
+            <SettingsBlock
               title={t(language, "avatar")}
               caption={t(language, "avatarSwipeHint")}
             >
               <ScrollView
                 horizontal
+                nestedScrollEnabled
                 showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
                 contentContainerStyle={styles.avatarScroll}
               >
                 {PRESET_AVATARS.map((preset) => {
-                  const selected = resolveAvatarId(user.avatar) === preset.id;
+                  const activeAvatar = pendingAvatarId ?? user.avatar;
+                  const selected = resolveAvatarId(activeAvatar) === preset.id;
                   return (
-                    <Pressable
+                    <TouchableOpacity
                       accessibilityRole="button"
                       accessibilityLabel={`${t(language, preset.labelKey as TranslationKey)} ${t(language, "selectAvatarA11y")}`}
+                      accessibilityState={{ selected }}
+                      activeOpacity={0.75}
+                      delayPressIn={0}
+                      hitSlop={layout.hitSlop}
                       key={preset.id}
                       style={[
                         styles.avatarOption,
                         avatarOptionStyle,
                         selected ? styles.avatarOptionActive : null,
                       ]}
-                      onPress={() => updateProfile({ avatar: preset.id })}
+                      onPress={() => handleAvatarSelect(preset.id)}
                     >
-                      <UserAvatar avatar={preset.id} size={avatarSize} style={styles.avatarImage} />
-                    </Pressable>
+                      <UserAvatar
+                        avatar={preset.id}
+                        size={avatarSize}
+                        style={styles.avatarImage}
+                        decorative
+                      />
+                    </TouchableOpacity>
                   );
                 })}
               </ScrollView>
@@ -205,6 +239,7 @@ const styles = StyleSheet.create({
   },
   avatarScroll: {
     gap: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
   },
   avatarOption: {
     alignItems: "center",
@@ -212,6 +247,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 2,
     justifyContent: "center",
+    minHeight: layout.touchTargetMin,
+    minWidth: layout.touchTargetMin,
   },
   avatarOptionActive: {
     borderColor: theme.colors.accent,

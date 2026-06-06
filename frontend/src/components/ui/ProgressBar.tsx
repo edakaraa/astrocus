@@ -6,9 +6,11 @@ import theme from "../../theme";
 type ProgressBarProps = {
   progress: number;
   height?: number;
+  /** Kategori rengi — verilmezse accent gradient kullanılır. */
+  color?: string;
 };
 
-export const ProgressBar: React.FC<ProgressBarProps> = ({ progress, height = 8 }) => {
+export const ProgressBar: React.FC<ProgressBarProps> = ({ progress, height = 8, color }) => {
   const clamped = Math.min(Math.max(progress, 0), 1);
   const widthAnim = useRef(new Animated.Value(clamped)).current;
 
@@ -28,12 +30,21 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ progress, height = 8 }
   return (
     <View style={[styles.track, { height, borderRadius: theme.radii.sm }]}>
       <Animated.View style={[styles.fillWrap, { width: fillWidth, height }]}>
-        <LinearGradient
-          colors={[theme.colors.accent, theme.colors.surface]}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={[styles.fill, { height, borderRadius: theme.radii.sm }]}
-        />
+        {color ? (
+          <View
+            style={[
+              styles.fill,
+              { height, borderRadius: theme.radii.sm, backgroundColor: color },
+            ]}
+          />
+        ) : (
+          <LinearGradient
+            colors={[theme.colors.accent, theme.colors.surface]}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={[styles.fill, { height, borderRadius: theme.radii.sm }]}
+          />
+        )}
       </Animated.View>
     </View>
   );

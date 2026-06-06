@@ -8,6 +8,8 @@ type UserAvatarProps = {
   size?: number;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
+  /** When true, touches pass through to a parent pressable (e.g. avatar picker). */
+  decorative?: boolean;
 };
 
 export const UserAvatar = ({
@@ -15,6 +17,7 @@ export const UserAvatar = ({
   size = 48,
   style,
   accessibilityLabel,
+  decorative = false,
 }: UserAvatarProps) => {
   const resolvedId = resolveAvatarId(avatar);
   const label = accessibilityLabel ?? `Avatar ${resolvedId}`;
@@ -31,13 +34,16 @@ export const UserAvatar = ({
         { width: size, height: size, borderRadius: size / 2 },
         style,
       ]}
-      accessibilityRole="image"
-      accessibilityLabel={label}
+      pointerEvents={decorative ? "none" : "auto"}
+      accessibilityRole={decorative ? undefined : "image"}
+      accessibilityLabel={decorative ? undefined : label}
+      importantForAccessibility={decorative ? "no-hide-descendants" : "auto"}
     >
       <Image
         source={{ uri }}
         style={{ width: size, height: size, borderRadius: size / 2 }}
         resizeMode="cover"
+        pointerEvents="none"
       />
     </View>
   );

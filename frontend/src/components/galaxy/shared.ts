@@ -1,7 +1,10 @@
 import { StyleSheet } from "react-native";
 import { colors, radii, spacing } from "../../shared/theme";
 
-export const CELESTIAL_VARIANTS = ["galaxy", "star", "planet"] as const;
+/** Gökyüzü vurguları — accent + warmOffWhite (turuncu warning yerine). */
+const GALAXY_HIGHLIGHT_BORDER = "rgba(232,228,192,0.38)";
+const GALAXY_HIGHLIGHT_BG = "rgba(131,135,195,0.16)";
+const GALAXY_NEXT_CARD_BORDER = "rgba(131,135,195,0.36)";
 
 export const galaxyCardStyles = StyleSheet.create({
   constellationCard: {
@@ -18,7 +21,7 @@ export const galaxyCardStyles = StyleSheet.create({
     backgroundColor: "rgba(10,30,20,0.60)",
   },
   constellationCardNext: {
-    borderColor: "rgba(255,209,102,0.28)",
+    borderColor: GALAXY_NEXT_CARD_BORDER,
     backgroundColor: "rgba(18,16,40,0.90)",
   },
   constellationCardLocked: {
@@ -34,7 +37,9 @@ export const galaxyCardStyles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(131,135,195,0.14)",
+    backgroundColor: "rgba(131, 135, 195, 0.08)",
+    borderColor: "rgba(131, 135, 195, 0.14)",
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -54,10 +59,10 @@ export const galaxyCardStyles = StyleSheet.create({
     paddingVertical: 4,
   },
   nextPill: {
-    backgroundColor: "rgba(255,209,102,0.12)",
+    backgroundColor: GALAXY_HIGHLIGHT_BG,
     borderRadius: radii.pill,
     borderWidth: 1,
-    borderColor: "rgba(255,209,102,0.35)",
+    borderColor: GALAXY_HIGHLIGHT_BORDER,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
@@ -114,20 +119,23 @@ export const galaxyCardStyles = StyleSheet.create({
     borderColor: "rgba(131,135,195,0.28)",
   },
   starCardAffordable: {
-    borderColor: colors.warning,
+    borderColor: GALAXY_HIGHLIGHT_BORDER,
     borderWidth: 1.5,
+  },
+  starCardAffordableGlow: {
+    backgroundColor: "rgba(131, 135, 195, 0.14)",
   },
   starCardPressed: {
     opacity: 0.72,
   },
   starGlow: {
     position: "absolute",
-    top: -20,
-    left: -20,
-    right: -20,
-    bottom: -20,
+    top: -16,
+    left: -16,
+    right: -16,
+    bottom: -16,
     borderRadius: 999,
-    backgroundColor: "rgba(131,135,195,0.10)",
+    backgroundColor: "rgba(131, 135, 195, 0.08)",
   },
   statusPill: {
     alignItems: "center",
@@ -140,7 +148,7 @@ export const galaxyCardStyles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.05)",
   },
   pillAffordable: {
-    backgroundColor: "rgba(255,209,102,0.10)",
+    backgroundColor: GALAXY_HIGHLIGHT_BG,
   },
   pillLocked: {
     backgroundColor: "rgba(255,255,255,0.04)",

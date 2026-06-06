@@ -1,15 +1,19 @@
 import theme from "../theme";
 
-/** Category bar/dot colors — single map for analytics charts. */
+/**
+ * Kategori dağılımı — ana paletten türetilmiş pastel tonlar.
+ * Kaynak: ube, success, warning, badge*, americanBlue, cadetGrey.
+ */
 export const CATEGORY_CHART_COLORS: Record<string, string> = {
-  work: theme.colors.accent,
-  reading: theme.colors.textSecondary,
-  project: theme.colors.textPrimary,
-  creativity: theme.colors.badgeLeo,
-  sports: theme.colors.badgeDiscipline,
-  meditation: theme.colors.badgePisces,
-  coding: theme.colors.muted,
-  general: theme.colors.textSecondary,
+  work: "#AEB2E8",
+  reading: "#9FDEC4",
+  project: "#E8B898",
+  creativity: "#F5E09A",
+  sports: "#F0A4A4",
+  meditation: "#9ECFEE",
+  coding: "#8FAEDB",
+  general: "#C4C8DA",
+  learning: "#B8A8E8",
 };
 
 export const getCategoryChartColor = (categoryId: string): string =>
