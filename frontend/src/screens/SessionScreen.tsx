@@ -186,7 +186,7 @@ export const SessionScreen = () => {
   const isCustomDuration =
     hasDurationSelected &&
     !(DURATION_OPTIONS as readonly number[]).includes(selectedDurationMinutes) &&
-    !QUICK_PRESET_MINUTES.includes(selectedDurationMinutes);
+    !(QUICK_PRESET_MINUTES as readonly number[]).includes(selectedDurationMinutes);
 
   const focusCategories = useMemo(
     () =>

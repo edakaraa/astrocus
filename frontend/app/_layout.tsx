@@ -72,6 +72,11 @@ type NavigationRouteState = {
   routes: Array<{ name?: string; state?: NavigationRouteState }>;
 };
 
+type NavRoute = {
+  name?: string;
+  state?: NavigationRouteState;
+};
+
 const resolveActiveRouteName = (
   navigationRef: ReturnType<typeof useNavigationContainerRef>,
 ): string | undefined => {
@@ -79,13 +84,13 @@ const resolveActiveRouteName = (
     return undefined;
   }
 
-  const route = navigationRef.getCurrentRoute();
+  const route = navigationRef.getCurrentRoute() as NavRoute | undefined;
   if (!route?.name) {
     return undefined;
   }
 
   let name = route.name;
-  let state = route.state as NavigationRouteState | undefined;
+  let state = route.state;
 
   while (state?.routes?.length) {
     const index = state.index ?? state.routes.length - 1;

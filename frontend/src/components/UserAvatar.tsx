@@ -43,7 +43,6 @@ export const UserAvatar = ({
         source={{ uri }}
         style={{ width: size, height: size, borderRadius: size / 2 }}
         resizeMode="cover"
-        pointerEvents="none"
       />
     </View>
   );
