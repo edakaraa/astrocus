@@ -1,4 +1,3 @@
-import { DAILY_GOAL_STARDUST_REWARD } from "../shared/stardustEconomy";
 import { typographyTokens, type TypographyVariant } from "./typography";
 
 const textPrimary = "#E8E4C0";
@@ -65,7 +64,6 @@ const theme = {
     starSizeHeroMin: 3,
     starSizeHeroMax: 5,
     rewardToastDurationMs: 3000,
-    dailyGoalStardustReward: DAILY_GOAL_STARDUST_REWARD,
   },
 } as const;
 

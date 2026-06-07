@@ -1,15 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Keyboard, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Slider } from "@miblanchard/react-native-slider";
-import { toastTone, useAppContext } from "../../context/AppContext";
+import { useAppContext } from "../../context/AppContext";
 import {
   clampDailyGoalMinutes,
   normalizeDailyGoalMinutes,
   parseDailyGoalInput,
 } from "../../lib/dailyGoalStorage";
-import { formatNumber } from "../../shared/formatLocale";
-import { formatTranslation, t } from "../../shared/i18n";
-import { DAILY_GOAL_STARDUST_REWARD } from "../../shared/stardustEconomy";
+import { t } from "../../shared/i18n";
 import { colors, layout, numericTypography } from "../../shared/theme";
 import theme from "../../theme";
 import { AppText } from "../ui/AppText";
@@ -24,6 +22,8 @@ type DailyGoalCardProps = {
   pickerDefaultMinutes: number;
   elapsedMinutes: number;
   sessionCount: number;
+  /** Server or local storage — today's reward already claimed. */
+  rewardClaimed: boolean;
   onConfirmGoal: (minutes: number) => void;
   onGoalReached?: () => void;
 };
@@ -33,10 +33,11 @@ export const DailyGoalCard: React.FC<DailyGoalCardProps> = ({
   pickerDefaultMinutes,
   elapsedMinutes,
   sessionCount,
+  rewardClaimed,
   onConfirmGoal,
   onGoalReached,
 }) => {
-  const { language, showToast } = useAppContext();
+  const { language } = useAppContext();
   const rewardedRef = useRef(false);
   const inputRef = useRef<TextInput>(null);
   const [draftMinutes, setDraftMinutes] = useState(pickerDefaultMinutes);
@@ -67,19 +68,12 @@ export const DailyGoalCard: React.FC<DailyGoalCardProps> = ({
   }, [draftMinutes, isEditingMinutes]);
 
   useEffect(() => {
-    if (!goalReached || rewardedRef.current) {
+    if (!goalReached || rewardClaimed || rewardedRef.current) {
       return;
     }
     rewardedRef.current = true;
-    showToast({
-      title: formatTranslation(language, "dailyGoalRewardToast", {
-        amount: formatNumber(language, DAILY_GOAL_STARDUST_REWARD),
-      }),
-      ...toastTone.trophy,
-      placement: "bottom",
-    });
     onGoalReached?.();
-  }, [goalReached, language, onGoalReached, showToast]);
+  }, [goalReached, rewardClaimed, onGoalReached]);
 
   const commitDraftInput = () => {
     const parsed = parseDailyGoalInput(inputValue);

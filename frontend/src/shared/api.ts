@@ -20,9 +20,8 @@ import {
 } from "../lib/authErrors";
 import { signInWithApple } from "../lib/appleAuth";
 import { getAuthEmailRedirectUri } from "../lib/authRedirect";
-import { getOAuthRedirectUri, signInWithGoogle } from "../lib/oauth";
+import { signInWithGoogle } from "../lib/oauth";
 import { getDateKey } from "../context/session/dateKey";
-import { DAILY_GOAL_STARDUST_REWARD } from "./stardustEconomy";
 import { isFocusedDurationPlausible } from "../context/session/duration";
 import { createDailySummary } from "../context/session/stardust";
 import { t } from "./i18n";
@@ -924,13 +923,9 @@ export const api = {
     }
   },
 
-  async claimDailyGoalReward(
-    timezone = getDeviceTimeZone(),
-    bonusAmount = DAILY_GOAL_STARDUST_REWARD,
-  ): Promise<DailyGoalClaimResult> {
+  async claimDailyGoalReward(timezone = getDeviceTimeZone()): Promise<DailyGoalClaimResult> {
     const { data, error } = await supabase.rpc("claim_daily_goal_reward", {
       p_timezone: timezone,
-      p_bonus_amount: bonusAmount,
     });
     if (error) {
       if (/claim_daily_goal_reward|schema cache/i.test(error.message)) {

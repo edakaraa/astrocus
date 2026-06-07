@@ -25,6 +25,7 @@ import {
 import { AuthMode, AuthPayload, CelebrationPayload, PendingSession, UnlockStarResult, User, UserConstellationRow } from "../shared/types";
 import { requestPushPermissionAndSaveToken } from "../lib/notifications";
 import { createDevDemoPayload, isDevDemoToken, matchesDevDemoCredentials } from "./auth/devDemo";
+import { useGoogleAuthSetup } from "../lib/useGoogleAuthSetup";
 
 export type AstrocusInfraRefs = {
   sessionHydrateRef: React.MutableRefObject<((payload: AuthPayload) => void) | null>;
@@ -78,6 +79,8 @@ export const AuthProvider = ({
   uiSetLanguageRef,
   uiSetCelebrationRef,
 }: AuthProviderProps) => {
+  useGoogleAuthSetup();
+
   const [isReady, setIsReady] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [token, setToken] = useState<string | null>(null);

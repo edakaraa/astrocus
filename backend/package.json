@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Astrocus API — Supabase admin proxy",
+  "author": "Eda Kara",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -36,7 +37,6 @@
     "vitest": "^3.1.4"
   },
   "keywords": [],
-  "author": "",
   "license": "ISC",
   "type": "commonjs"
 }

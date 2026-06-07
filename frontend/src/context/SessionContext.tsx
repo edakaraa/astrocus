@@ -9,12 +9,13 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { AppState, AppStateStatus } from "react-native";
+import { AppState, AppStateStatus, Platform } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
 import {
   PRESET_AVATARS,
   BACKGROUND_TOLERANCE_SECONDS,
   CATEGORIES,
+  FOCUS_SESSION_NOTIFICATION_UPDATE_SECONDS,
   STORAGE_KEYS,
   STARS,
 } from "../shared/constants";
@@ -27,7 +28,13 @@ import {
   trackSessionCompleted,
   trackStreakIncreased,
 } from "../lib/analytics";
-import { cancelScheduledNotification, scheduleBackgroundWarning } from "../shared/notifications";
+import {
+  cancelScheduledNotification,
+  scheduleBackgroundWarning,
+  startFocusSessionNotification,
+  stopFocusSessionNotification,
+  updateFocusSessionNotification,
+} from "../shared/notifications";
 import {
   AnalyticsSummary,
   AuthPayload,
@@ -116,6 +123,12 @@ export const SessionProvider = ({
   const scheduledNotificationRef = useRef<string | null>(null);
   const completionSnapshotRef = useRef<SessionCompletionSnapshot | null>(null);
   const finalizingRef = useRef(false);
+  const sessionStateRef = useRef(sessionState);
+  sessionStateRef.current = sessionState;
+
+  const isActiveFocusSession =
+    sessionState.status === "running" || sessionState.status === "paused";
+  const notificationLanguage = user?.language ?? "tr";
 
   const refreshAnalytics = useCallback(async () => {
     if (!token || !apiUrl?.trim() || isDevDemoToken(token)) {
@@ -176,10 +189,39 @@ export const SessionProvider = ({
       setPendingSessions([]);
       setSessionState(createGuestSessionState());
       void cancelScheduledNotification(scheduledNotificationRef.current);
+      void stopFocusSessionNotification();
       backgroundedAtRef.current = null;
       scheduledNotificationRef.current = null;
     }
   }, [isReady, token]);
+
+  useEffect(() => {
+    if (Platform.OS !== "android") {
+      return;
+    }
+
+    if (!isActiveFocusSession) {
+      void stopFocusSessionNotification();
+      return;
+    }
+
+    const synced = syncFocusTimer(sessionStateRef.current, Date.now());
+    void startFocusSessionNotification(synced.remainingSeconds, notificationLanguage);
+
+    const intervalId = setInterval(() => {
+      const current = sessionStateRef.current;
+      if (current.status !== "running" && current.status !== "paused") {
+        return;
+      }
+      const nextSynced = syncFocusTimer(current, Date.now());
+      void updateFocusSessionNotification(nextSynced.remainingSeconds, notificationLanguage);
+    }, FOCUS_SESSION_NOTIFICATION_UPDATE_SECONDS * 1000);
+
+    return () => {
+      clearInterval(intervalId);
+      void stopFocusSessionNotification();
+    };
+  }, [isActiveFocusSession, notificationLanguage]);
 
   useEffect(() => {
     if (sessionState.status !== "running") {
@@ -455,6 +497,7 @@ export const SessionProvider = ({
 
   const resetSession = useCallback(() => {
     void cancelScheduledNotification(scheduledNotificationRef.current);
+    void stopFocusSessionNotification();
     backgroundedAtRef.current = null;
     scheduledNotificationRef.current = null;
     completionSnapshotRef.current = null;
@@ -469,6 +512,7 @@ export const SessionProvider = ({
    */
   const cancelSession = useCallback(async () => {
     void cancelScheduledNotification(scheduledNotificationRef.current);
+    void stopFocusSessionNotification();
     backgroundedAtRef.current = null;
     scheduledNotificationRef.current = null;
 

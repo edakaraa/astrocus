@@ -77,14 +77,16 @@ export const requestPushPermissionAndSaveToken = async (): Promise<void> => {
       { onConflict: "id" },
     );
 
-    if (error) {
+    if (error && __DEV__) {
       console.warn("[Astrocus] expo_push_token save failed:", error.message);
     }
   } catch (error) {
-    console.warn(
-      "[Astrocus] push registration failed:",
-      error instanceof Error ? error.message : error,
-    );
+    if (__DEV__) {
+      console.warn(
+        "[Astrocus] push registration failed:",
+        error instanceof Error ? error.message : error,
+      );
+    }
   }
 };
 
@@ -117,10 +119,12 @@ export const setupNotificationResponseHandler = async (
       }
     });
   } catch (error) {
-    console.warn(
-      "[Astrocus] notification response handler setup failed:",
-      error instanceof Error ? error.message : error,
-    );
+    if (__DEV__) {
+      console.warn(
+        "[Astrocus] notification response handler setup failed:",
+        error instanceof Error ? error.message : error,
+      );
+    }
     return null;
   }
 };

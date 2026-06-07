@@ -30,3 +30,11 @@ Thumbs.db
 .vscode/
 .idea/
 .cursor/
+
+# Mobil imzalama & Firebase (asla commit etmeyin)
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist

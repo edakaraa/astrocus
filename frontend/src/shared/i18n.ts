@@ -295,7 +295,8 @@ const translations = {
     stardustInfoPartialBody:
       "Seçtiğin sürenin en az yarısını (minimum 5 dk) odaklandıysan dakika başına {rate} ✦ alırsın; bonus uygulanmaz.",
     stardustInfoDailyGoalTitle: "Günlük hedef",
-    stardustInfoDailyGoalBody: "Günlük odak hedefini tamamladığında günde bir kez +{amount} ✦.",
+    stardustInfoDailyGoalBody:
+      "Günlük odak hedefini tamamladığında günde bir kez hedefinizin 3 katı ✦ kazanırsınız (en az 75 ✦).",
     stardustInfoUnlockTitle: "Yıldız açma",
     stardustInfoUnlockCatalog: "Her yıldızın kataloğunda sabit bir maliyeti vardır.",
     stardustInfoUnlockTierEasy: "Kolay kademe (0–{max} tamamlanmış takımyıldız): yıldız başına {cost} ✦.",
@@ -713,7 +714,8 @@ const translations = {
     stardustInfoPartialBody:
       "If you focused at least half your chosen duration (minimum 5 min), you earn {rate} ✦ per minute with no bonuses.",
     stardustInfoDailyGoalTitle: "Daily goal",
-    stardustInfoDailyGoalBody: "Meet your daily focus goal once per day for +{amount} ✦.",
+    stardustInfoDailyGoalBody:
+      "Meet your daily focus goal once per day for 3× your goal in ✦ (minimum 75 ✦).",
     stardustInfoUnlockTitle: "Unlocking stars",
     stardustInfoUnlockCatalog: "Each star has a fixed catalog cost.",
     stardustInfoUnlockTierEasy: "Easy tier (0–{max} constellations completed): {cost} ✦ per star.",

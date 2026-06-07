@@ -8,6 +8,12 @@
       "ios",
       "android"
     ],
+    "updates": {
+      "url": "https://u.expo.dev/936918de-b53c-4d70-8d4c-110698d13797"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "icon": "./assets/brand/logo.png",
@@ -33,14 +39,46 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.astrocus.app",
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "icon": "./assets/brand/logo.png"
     },
     "android": {
       "package": "com.astrocus.app",
+      "permissions": [
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_DATA_SYNC",
+        "POST_NOTIFICATIONS"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/brand/logo.png",
-        "backgroundColor": "#0A1123"
-      }
-    }
+        "backgroundColor": "#0A1123",
+        "monochromeImage": "./assets/brand/logo.png"
+      },
+      "notification": {
+        "icon": "./assets/brand/notification-icon.png",
+        "color": "#0A1123",
+        "androidMode": "default"
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "astrocus"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+"extra": {
+  "eas": {
+    "projectId": "936918de-b53c-4d70-8d4c-110698d13797"
+  },
+  "googleWebClientId": "",
+  "googleAndroidClientId": "",
+  "googleIosClientId": ""
+}
   }
 }

@@ -72,6 +72,21 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
         isDev,
       ),
+      googleWebClientId:
+        process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() ??
+        process.env.GOOGLE_WEB_CLIENT_ID?.trim() ??
+        (config.extra as { googleWebClientId?: string } | undefined)?.googleWebClientId ??
+        "",
+      googleAndroidClientId:
+        process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim() ??
+        process.env.GOOGLE_ANDROID_CLIENT_ID?.trim() ??
+        (config.extra as { googleAndroidClientId?: string } | undefined)?.googleAndroidClientId ??
+        "",
+      googleIosClientId:
+        process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() ??
+        process.env.GOOGLE_IOS_CLIENT_ID?.trim() ??
+        (config.extra as { googleIosClientId?: string } | undefined)?.googleIosClientId ??
+        "",
       appEnv,
     },
   };

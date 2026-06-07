@@ -4,7 +4,7 @@ import { getSupabaseConfig } from "./supabaseConfig";
 
 const config = getSupabaseConfig();
 
-if (!config) {
+if (!config && __DEV__) {
   console.warn(
     "[Astrocus] EXPO_PUBLIC_SUPABASE_URL veya EXPO_PUBLIC_SUPABASE_ANON_KEY eksik. Supabase özellikleri devre dışı kalır.",
   );

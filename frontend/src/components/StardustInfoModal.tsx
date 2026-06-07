@@ -7,7 +7,6 @@ import { formatNumber } from "../shared/formatLocale";
 import { t } from "../shared/i18n";
 import { useModalLayout } from "../shared/responsive";
 import {
-  DAILY_GOAL_STARDUST_REWARD,
   STARDUST_NO_PAUSE_BONUS,
   STARDUST_PER_MINUTE,
   STARDUST_STREAK_BONUS_MAX,
@@ -119,12 +118,7 @@ export const StardustInfoModal: React.FC<StardustInfoModalProps> = ({ visible, o
               </InfoSection>
 
               <InfoSection title={t(language, "stardustInfoDailyGoalTitle")}>
-                <BulletRow>
-                  {t(language, "stardustInfoDailyGoalBody").replace(
-                    "{amount}",
-                    formatNumber(language, DAILY_GOAL_STARDUST_REWARD),
-                  )}
-                </BulletRow>
+                <BulletRow>{t(language, "stardustInfoDailyGoalBody")}</BulletRow>
               </InfoSection>
 
               <InfoSection title={t(language, "stardustInfoUnlockTitle")}>

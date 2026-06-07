@@ -1,6 +1,7 @@
 /**
  * Single source of truth for stardust earning and unlock economy.
- * Keep in sync with migrations `024_stardust_economy_rebalance.sql` and `025_stardust_tier_soften.sql`.
+ * Keep in sync with migrations `024_stardust_economy_rebalance.sql`, `025_stardust_tier_soften.sql`,
+ * and `026_dynamic_daily_goal_reward.sql`.
  */
 
 /** Base reward for completed focus sessions (✦ per focused minute). */
@@ -13,8 +14,9 @@ export const STARDUST_STREAK_BONUS_MAX = 0.5;
 /** +10% when the session completes without using pause. */
 export const STARDUST_NO_PAUSE_BONUS = 0.1;
 
-/** One-time bonus when the daily focus goal is met. */
-export const DAILY_GOAL_STARDUST_REWARD = 250;
+/** Daily goal bonus: 3 ✦ per goal minute, minimum 75 ✦. Keep in sync with `026_dynamic_daily_goal_reward.sql`. */
+export const calculateDailyGoalReward = (goalMinutes: number): number =>
+  Math.max(75, goalMinutes * 3);
 
 /** Dynamic star pricing tiers (completed constellation count). */
 export const STAR_COST_EASY = 500; // 0–3 completed (~50 dk)

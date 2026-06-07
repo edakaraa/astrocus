@@ -1,7 +1,6 @@
 import { CATEGORY_ICON } from "./appIcons";
 import { Category, Language, Star } from "./types";
 import {
-  DAILY_GOAL_STARDUST_REWARD,
   STARDUST_PER_MINUTE,
   STAR_COST_EASY,
   STAR_COST_MASTERY,
@@ -10,7 +9,7 @@ import {
 } from "./stardustEconomy";
 
 export {
-  DAILY_GOAL_STARDUST_REWARD,
+  calculateDailyGoalReward,
   STARDUST_PER_MINUTE,
   STARDUST_STREAK_BONUS_MAX,
   STARDUST_STREAK_BONUS_PER_DAY,
@@ -34,6 +33,8 @@ export const NO_SESSION_DURATION_SELECTED = 0;
 export const SESSION_DURATION_OPTIONS = [5, 15, 25, 45, 60, 90, 120] as const;
 export const BACKGROUND_TOLERANCE_SECONDS = 20;
 export const WARNING_THRESHOLD_SECONDS = 10;
+/** Throttle Android lock-screen ongoing notification updates during focus sessions. */
+export const FOCUS_SESSION_NOTIFICATION_UPDATE_SECONDS = 5;
 export const PAUSE_LIMIT = 1;
 /** Erken bitirmede kısmi ödül eşiği: en az 5 dk veya planlanan sürenin %50'si */
 export const MIN_PARTIAL_STARDUST_MINUTES = 5;

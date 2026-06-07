@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
-import { useAppContext } from "../context/AppContext";
+import { toastTone, useAppContext } from "../context/AppContext";
 import { isDevDemoToken } from "../context/auth/devDemo";
 import { api } from "../shared/api";
-import { t } from "../shared/i18n";
+import { formatTranslation, t } from "../shared/i18n";
 import { formatDuration, formatNumber } from "../shared/formatLocale";
 import { spacing } from "../shared/theme";
 import { BADGES } from "../shared/constants";
@@ -22,7 +22,7 @@ import { TabScreenScaffold } from "../components/layout/TabScreenScaffold";
 import { StatBox } from "../components/profile/StatBox";
 import { StardustInfoButton } from "../components/StardustInfoButton";
 import { StardustMark } from "../components/ui/StardustMark";
-import { DAILY_GOAL_STARDUST_REWARD } from "../shared/stardustEconomy";
+import { calculateDailyGoalReward } from "../shared/stardustEconomy";
 import { DailyGoalCard } from "../components/profile/DailyGoalCard";
 import { trackGoalCompleted } from "../lib/analytics";
 import { CategoryDistribution } from "../components/profile/CategoryDistribution";
@@ -45,11 +45,13 @@ export const ProfileScreen = () => {
     user,
     earnedBadgeIds,
     unlockedStarIds,
+    showToast,
   } = useAppContext();
 
   const [weeklyReportOpen, setWeeklyReportOpen] = useState(false);
   const [goalMinutes, setGoalMinutes] = useState(0);
   const [pickerDefaultMinutes, setPickerDefaultMinutes] = useState<number>(0);
+  const [demoRewardClaimedToday, setDemoRewardClaimedToday] = useState(false);
 
   const {
     report: weeklyReport,
@@ -91,6 +93,34 @@ export const ProfileScreen = () => {
     }, [refreshAnalytics, refetchWeeklyReport, refreshTodayGoal]),
   );
 
+  useEffect(() => {
+    if (token && !isDevDemoToken(token)) {
+      return;
+    }
+    const todayKey = getDateKey(new Date().toISOString());
+    void asyncStorage.get(STORAGE_KEYS.dailyGoalRewardDate, "").then((lastReward) => {
+      setDemoRewardClaimedToday(lastReward === todayKey);
+    });
+  }, [token]);
+
+  const rewardClaimedToday =
+    token && !isDevDemoToken(token)
+      ? Boolean(dailyGoalToday?.rewardClaimed)
+      : demoRewardClaimedToday;
+
+  const showDailyGoalRewardToast = useCallback(
+    (minutes: number) => {
+      showToast({
+        title: formatTranslation(language, "dailyGoalRewardToast", {
+          amount: formatNumber(language, calculateDailyGoalReward(minutes)),
+        }),
+        ...toastTone.trophy,
+        placement: "bottom",
+      });
+    },
+    [language, showToast],
+  );
+
   const handleGoalConfirmed = useCallback(
     async (minutes: number) => {
       const saved = await saveTodayDailyGoal(minutes, token);
@@ -110,12 +140,17 @@ export const ProfileScreen = () => {
       return;
     }
 
-    trackGoalCompleted("daily");
-
     if (token && !isDevDemoToken(token)) {
+      if (dailyGoalToday?.rewardClaimed) {
+        return;
+      }
       try {
-        const result = await api.claimDailyGoalReward(undefined, DAILY_GOAL_STARDUST_REWARD);
+        const result = await api.claimDailyGoalReward();
         if (result.claimed) {
+          trackGoalCompleted("daily");
+          showDailyGoalRewardToast(goalMinutes);
+        }
+        if (result.claimed || result.alreadyClaimed) {
           await refreshUser();
         }
       } catch {
@@ -129,11 +164,23 @@ export const ProfileScreen = () => {
     if (lastReward === todayKey) {
       return;
     }
+    trackGoalCompleted("daily");
     await asyncStorage.set(STORAGE_KEYS.dailyGoalRewardDate, todayKey);
+    setDemoRewardClaimedToday(true);
+    const reward = calculateDailyGoalReward(goalMinutes);
+    showDailyGoalRewardToast(goalMinutes);
     await updateProfile({
-      totalStardust: user.totalStardust + DAILY_GOAL_STARDUST_REWARD,
+      totalStardust: user.totalStardust + reward,
     });
-  }, [refreshUser, token, updateProfile, user]);
+  }, [
+    dailyGoalToday?.rewardClaimed,
+    goalMinutes,
+    refreshUser,
+    showDailyGoalRewardToast,
+    token,
+    updateProfile,
+    user,
+  ]);
 
   const categoryRows = useMemo(() => {
     if (analyticsSummary?.categoryDistribution?.length) {
@@ -224,6 +271,7 @@ export const ProfileScreen = () => {
         pickerDefaultMinutes={pickerDefaultMinutes}
         elapsedMinutes={dailySummary.totalMinutes}
         sessionCount={dailySummary.completedSessions}
+        rewardClaimed={rewardClaimedToday}
         onConfirmGoal={(minutes) => void handleGoalConfirmed(minutes)}
         onGoalReached={() => void handleGoalReached()}
       />

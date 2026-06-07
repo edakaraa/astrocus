@@ -120,7 +120,7 @@ export const CustomDurationSheet = ({
 
 const styles = StyleSheet.create({
   backdrop: {
-    backgroundColor: "rgba(5, 7, 23, 0.72)",
+    backgroundColor: "rgba(5, 8, 18, 0.92)",
     flex: 1,
     justifyContent: "flex-end",
   },
