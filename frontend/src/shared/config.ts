@@ -1,6 +1,9 @@
 import Constants from "expo-constants";
-
-const DEFAULT_API_PORT = 4000;
+import {
+  DEFAULT_API_PORT,
+  isLocalDevApiUrl,
+  PRODUCTION_API_URL,
+} from "./apiUrlResolver";
 
 /** Metro'nun LAN IP'si (fiziksel cihazda 127.0.0.1 yerine kullanılır). */
 export const getMetroLanHost = (): string | null => {
@@ -25,12 +28,19 @@ export const isExpoTunnelHost = (): boolean => {
  */
 export const getApiUrl = (): string => {
   const configured = (Constants.expoConfig?.extra?.apiUrl as string | undefined)?.trim() ?? "";
+  const appEnv = Constants.expoConfig?.extra?.appEnv;
+  const preferProductionApi = appEnv === "production" || !__DEV__;
+
   if (!configured) {
-    return `http://127.0.0.1:${DEFAULT_API_PORT}`;
+    return preferProductionApi ? PRODUCTION_API_URL : `http://127.0.0.1:${DEFAULT_API_PORT}`;
   }
 
   if (/^https:\/\//i.test(configured)) {
     return configured.replace(/\/$/, "");
+  }
+
+  if (preferProductionApi && isLocalDevApiUrl(configured)) {
+    return PRODUCTION_API_URL;
   }
 
   let url = configured;

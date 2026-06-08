@@ -7,8 +7,11 @@ import type { Language } from "./types";
 export const FOCUS_SESSION_NOTIFICATION_BG = "#0A1123";
 
 export const FOCUS_SESSION_ONGOING_ID = "focus-session-ongoing";
+export const FOCUS_SESSION_COMPLETE_ID = "focus-session-complete";
+export const FOCUS_SESSION_WARNING_ID = "focus-session-warning";
 
 const FOCUS_SESSION_ONGOING_CHANNEL = "focus-session-ongoing";
+const FOCUS_SESSION_COMPLETE_CHANNEL = "focus-session-complete";
 
 /**
  * Expo Go (SDK 53+) Android: `expo-notifications` import edilince console.error atar → kırmızı ekran.
@@ -19,6 +22,7 @@ const canUseNotifications = !isRunningInExpoGo();
 
 let handlerInstalled = false;
 let ongoingChannelReady = false;
+let completeChannelReady = false;
 
 type NotificationsModule = typeof import("expo-notifications");
 
@@ -27,12 +31,17 @@ const installNotificationHandler = (Notifications: NotificationsModule) => {
     return;
   }
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldPlaySound: false,
-      shouldSetBadge: false,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
+    handleNotification: async (notification) => {
+      const id = notification.request.identifier;
+      const isOngoingFocus = id === FOCUS_SESSION_ONGOING_ID;
+      const isSessionComplete = id === FOCUS_SESSION_COMPLETE_ID;
+      return {
+        shouldPlaySound: isSessionComplete,
+        shouldSetBadge: false,
+        shouldShowBanner: !isOngoingFocus,
+        shouldShowList: !isOngoingFocus,
+      };
+    },
   });
   handlerInstalled = true;
 };
@@ -45,6 +54,21 @@ const loadNotifications = async (): Promise<NotificationsModule | null> => {
   const Notifications = await import("expo-notifications");
   installNotificationHandler(Notifications);
   return Notifications;
+};
+
+export const ensureNotificationPermission = async (): Promise<boolean> => {
+  const Notifications = await loadNotifications();
+  if (!Notifications) {
+    return false;
+  }
+
+  const { status: existing } = await Notifications.getPermissionsAsync();
+  if (existing === "granted") {
+    return true;
+  }
+
+  const { status } = await Notifications.requestPermissionsAsync();
+  return status === "granted";
 };
 
 /** Ongoing lock-screen notification — Android only; tries in __DEV__ / Expo Go when permitted. */
@@ -73,6 +97,17 @@ export const formatRemainingTime = (seconds: number, language: Language = "tr"):
 const focusSessionNotificationTitle = (language: Language = "tr"): string =>
   language === "en" ? "⏱ Focus Session" : "⏱ Odak Seansı";
 
+const focusSessionCompletedTitle = (language: Language = "tr"): string =>
+  language === "en" ? "🎉 Focus Session Complete!" : "🎉 Odak Seansı Tamamlandı!";
+
+const focusSessionCompletedBody = (
+  plannedDurationMinutes: number,
+  language: Language = "tr",
+): string =>
+  language === "en"
+    ? `You focused for ${plannedDurationMinutes} minutes. Amazing!`
+    : `${plannedDurationMinutes} dakika odaklandın. Harikasın!`;
+
 const ensureOngoingChannel = async (Notifications: NotificationsModule): Promise<void> => {
   if (ongoingChannelReady) {
     return;
@@ -80,7 +115,7 @@ const ensureOngoingChannel = async (Notifications: NotificationsModule): Promise
 
   await Notifications.setNotificationChannelAsync(FOCUS_SESSION_ONGOING_CHANNEL, {
     name: "Odak Seansı Durumu",
-    importance: Notifications.AndroidImportance.LOW,
+    importance: Notifications.AndroidImportance.DEFAULT,
     sound: null,
     vibrationPattern: null,
     showBadge: false,
@@ -91,12 +126,35 @@ const ensureOngoingChannel = async (Notifications: NotificationsModule): Promise
   ongoingChannelReady = true;
 };
 
+const ensureCompleteChannel = async (Notifications: NotificationsModule): Promise<void> => {
+  if (completeChannelReady) {
+    return;
+  }
+
+  await Notifications.setNotificationChannelAsync(FOCUS_SESSION_COMPLETE_CHANNEL, {
+    name: "Odak Seansı Tamamlandı",
+    importance: Notifications.AndroidImportance.HIGH,
+    sound: "default",
+    vibrationPattern: [0, 200, 120, 200],
+    lightColor: "#7B61FF",
+  });
+  completeChannelReady = true;
+};
+
 const presentFocusSessionNotification = async (
   remainingSeconds: number,
   language: Language = "tr",
 ): Promise<void> => {
   const Notifications = await loadAndroidNotifications();
   if (!Notifications) {
+    return;
+  }
+
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status !== "granted") {
+    if (__DEV__) {
+      console.warn("[notifications] No permission for ongoing notification");
+    }
     return;
   }
 
@@ -139,6 +197,97 @@ export const updateFocusSessionNotification = async (
   await presentFocusSessionNotification(remainingSeconds, language);
 };
 
+/** Schedules a one-shot alert when the focus session ends while the screen is locked. */
+export const scheduleFocusSessionCompletedNotification = async (
+  remainingSeconds: number,
+  plannedDurationMinutes: number,
+  language: Language = "tr",
+): Promise<string | null> => {
+  const hasPermission = await ensureNotificationPermission();
+  if (!hasPermission) {
+    if (__DEV__) {
+      console.warn("[notifications] No permission for completion notification");
+    }
+    return null;
+  }
+
+  const Notifications = await loadNotifications();
+  if (!Notifications || remainingSeconds <= 0) {
+    return null;
+  }
+
+  if (Platform.OS === "android") {
+    await ensureCompleteChannel(Notifications);
+  }
+
+  return Notifications.scheduleNotificationAsync({
+    identifier: FOCUS_SESSION_COMPLETE_ID,
+    content: {
+      title: focusSessionCompletedTitle(language),
+      body: focusSessionCompletedBody(plannedDurationMinutes, language),
+      sound: true,
+      autoDismiss: false,
+      data: { type: "focus-session-complete" },
+      ...(Platform.OS === "android" && {
+        color: "#7B61FF",
+        channelId: FOCUS_SESSION_COMPLETE_CHANNEL,
+      }),
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: remainingSeconds,
+      ...(Platform.OS === "android" && {
+        channelId: FOCUS_SESSION_COMPLETE_CHANNEL,
+      }),
+    },
+  });
+};
+
+export const cancelFocusSessionCompletedNotification = async (): Promise<void> => {
+  const Notifications = await loadNotifications();
+  if (!Notifications) {
+    return;
+  }
+
+  await Notifications.cancelScheduledNotificationAsync(FOCUS_SESSION_COMPLETE_ID);
+  await Notifications.dismissNotificationAsync(FOCUS_SESSION_COMPLETE_ID);
+};
+
+const isFocusSessionCompleteNotification = (
+  identifier: string,
+  data: Record<string, unknown> | undefined,
+): boolean =>
+  identifier === FOCUS_SESSION_COMPLETE_ID || data?.type === "focus-session-complete";
+
+/** Tap on lock-screen completion alert → sync session and show in-app celebration. */
+export const setupFocusSessionCompleteTapHandler = async (
+  onTap: () => void,
+): Promise<{ remove: () => void } | null> => {
+  const Notifications = await loadNotifications();
+  if (!Notifications) {
+    return null;
+  }
+
+  const handleResponse = (response: {
+    notification: { request: { identifier: string; content: { data?: Record<string, unknown> } } };
+  }) => {
+    const { identifier, content } = response.notification.request;
+    if (isFocusSessionCompleteNotification(identifier, content.data)) {
+      onTap();
+    }
+  };
+
+  const lastResponse = await Notifications.getLastNotificationResponseAsync();
+  if (lastResponse) {
+    const { identifier, content } = lastResponse.notification.request;
+    if (isFocusSessionCompleteNotification(identifier, content.data)) {
+      onTap();
+    }
+  }
+
+  return Notifications.addNotificationResponseReceivedListener(handleResponse);
+};
+
 export const stopFocusSessionNotification = async (): Promise<void> => {
   if (Platform.OS !== "android") {
     return;
@@ -152,13 +301,28 @@ export const stopFocusSessionNotification = async (): Promise<void> => {
   await Notifications.dismissNotificationAsync(FOCUS_SESSION_ONGOING_ID);
 };
 
-export const scheduleBackgroundWarning = async (message: string): Promise<string | null> => {
+let warningChannelReady = false;
+
+/**
+ * Schedules the "geri dön" background warning.
+ * @param backgroundedAt  Epoch ms when the `background` event fired. Used to subtract
+ *                        elapsed detection time so the notification fires exactly
+ *                        WARNING_THRESHOLD_SECONDS from when the app left the foreground.
+ */
+export const scheduleBackgroundWarning = async (
+  message: string,
+  backgroundedAt?: number,
+): Promise<string | null> => {
   const Notifications = await loadNotifications();
-  if (!Notifications) {
+  if (!Notifications) return null;
+
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status !== "granted") {
+    if (__DEV__) console.warn("[notifications] permission not granted:", status);
     return null;
   }
 
-  if (Platform.OS === "android") {
+  if (Platform.OS === "android" && !warningChannelReady) {
     await Notifications.setNotificationChannelAsync("focus-session", {
       name: "Odak Seansı",
       importance: Notifications.AndroidImportance.HIGH,
@@ -166,20 +330,28 @@ export const scheduleBackgroundWarning = async (message: string): Promise<string
       vibrationPattern: [0, 250, 250, 250],
       lightColor: "#7B61FF",
     });
+    warningChannelReady = true;
   }
 
+  // Subtract elapsed time so the alert fires WARNING_THRESHOLD_SECONDS after the app
+  // actually went to background, not after we finish detecting it.
+  const elapsedSeconds = backgroundedAt ? (Date.now() - backgroundedAt) / 1000 : 0;
+  const triggerSeconds = Math.max(2, Math.ceil(WARNING_THRESHOLD_SECONDS - elapsedSeconds));
+
   return Notifications.scheduleNotificationAsync({
+    identifier: FOCUS_SESSION_WARNING_ID,
     content: {
       title: "Odak Seansı",
       body: message,
       sound: true,
       ...(Platform.OS === "android" && {
         color: "#7B61FF",
+        channelId: "focus-session",
       }),
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-      seconds: WARNING_THRESHOLD_SECONDS,
+      seconds: triggerSeconds,
       ...(Platform.OS === "android" && {
         channelId: "focus-session",
       }),

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 import type { Language, WeeklyReport, WeeklyReportStats } from "../shared/types";
+import { personalizeWeeklyReport } from "../shared/weeklyReportPersonalize";
 
 type WeeklyReportRow = {
   id: string;
@@ -25,7 +26,11 @@ const mapRow = (row: WeeklyReportRow): WeeklyReport => ({
   createdAt: row.created_at,
 });
 
-export function useWeeklyReport(userId: string | undefined, language: Language) {
+export function useWeeklyReport(
+  userId: string | undefined,
+  language: Language,
+  currentUsername?: string | null,
+) {
   const [report, setReport] = useState<WeeklyReport | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -45,7 +50,7 @@ export function useWeeklyReport(userId: string | undefined, language: Language) 
       .limit(1)
       .maybeSingle();
 
-    if (error && !/relation.*weekly_reports|schema cache/i.test(error.message)) {
+    if (error && __DEV__ && !/relation.*weekly_reports|schema cache/i.test(error.message)) {
       console.warn("[useWeeklyReport]", error.message);
     }
 
@@ -57,9 +62,16 @@ export function useWeeklyReport(userId: string | undefined, language: Language) 
     void refetch();
   }, [refetch]);
 
-  const reportText = report?.reportText[language] ?? null;
-  const weekLabel =
-    language === "tr" ? report?.stats.week_label_tr ?? null : report?.stats.week_label_en ?? null;
+  const displayReport = useMemo(
+    () => (report ? personalizeWeeklyReport(report, currentUsername) : null),
+    [currentUsername, report],
+  );
 
-  return { report, reportText, weekLabel, loading, refetch };
+  const reportText = displayReport?.reportText[language] ?? null;
+  const weekLabel =
+    language === "tr"
+      ? displayReport?.stats.week_label_tr ?? null
+      : displayReport?.stats.week_label_en ?? null;
+
+  return { report: displayReport, reportText, weekLabel, loading, refetch };
 }

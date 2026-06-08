@@ -1,4 +1,6 @@
+import Constants from "expo-constants";
 import { getApiUrl } from "../shared/config";
+import { isLocalDevApiUrl } from "../shared/apiUrlResolver";
 
 const parseApiError = async (response: Response): Promise<string> => {
   const text = await response.text();
@@ -14,10 +16,24 @@ const parseApiError = async (response: Response): Promise<string> => {
   }
 };
 
-const networkHint = (apiUrl: string): string =>
-  `API'ye ulaşılamadı (${apiUrl}). ` +
-  "Backend çalışıyor olmalı (backend: npm run dev). " +
-  "Telefon bilgisayarla aynı Wi‑Fi'de olmalı; Expo tunnel yalnızca Metro içindir, API'yi tünellemez.";
+const networkHint = (apiUrl: string): string => {
+  const appEnv = Constants.expoConfig?.extra?.appEnv;
+  const isReleaseBuild = appEnv === "production" || !__DEV__;
+
+  if (isReleaseBuild || !isLocalDevApiUrl(apiUrl)) {
+    return (
+      `API'ye ulaşılamadı (${apiUrl}). ` +
+      "İnternet bağlantınızı kontrol edin; sorun sürerse daha sonra tekrar deneyin."
+    );
+  }
+
+  return (
+    `API'ye ulaşılamadı (${apiUrl}). ` +
+    "Backend çalışıyor olmalı (backend: npm run dev). " +
+    "Telefon bilgisayarla aynı Wi‑Fi'de olmalı; Expo tunnel yalnızca Metro içindir, API'yi tünellemez. " +
+    "Yerel backend kullanmıyorsanız .env içinde EXPO_PUBLIC_API_URL=https://astrocus.up.railway.app yapıp Metro'yu yeniden başlatın."
+  );
+};
 
 /**
  * POST /account/delete — service role ile auth.users silinir.

@@ -46,10 +46,6 @@ import {
   Outfit_800ExtraBold,
 } from "@expo-google-fonts/outfit";
 import {
-  SpaceMono_400Regular,
-  SpaceMono_700Bold,
-} from "@expo-google-fonts/space-mono";
-import {
   AuthProvider,
   SessionProvider,
   UIProvider,
@@ -245,8 +241,6 @@ function RootLayoutInner() {
     Outfit_700Bold,
     DMSans_500Medium,
     DMSans_400Regular,
-    SpaceMono_700Bold,
-    SpaceMono_400Regular,
   });
 
   if (!fontsLoaded) {

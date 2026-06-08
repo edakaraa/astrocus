@@ -1,0 +1,49 @@
+﻿{
+  "id": "aa1e327d-0db1-43bd-9b18-d44b74f46446",
+  "status": "ERRORED",
+  "platform": "ANDROID",
+  "error": {
+    "errorCode": "EAS_BUILD_UNKNOWN_GRADLE_ERROR",
+    "message": "Gradle build failed with unknown error. See logs for the \"Run gradlew\" phase for more information."
+  },
+  "artifacts": {},
+  "fingerprint": {
+    "id": "019ea391-f21a-7b62-b445-fe7e5b42050f",
+    "hash": "bc486676a02bb6c8b5e6d1502ea7a3d91cf89f4b"
+  },
+  "initiatingActor": {
+    "id": "c8ab03ea-7b98-4acf-97a0-8dbc5e756fa6",
+    "displayName": "edajim"
+  },
+  "logFiles": [
+    "https://storage.googleapis.com/eas-workflows-production/logs/936918de-b53c-4d70-8d4c-110698d13797/aa1e327d-0db1-43bd-9b18-d44b74f46446/2026-06-07T19%3A33%3A34Z-88a87cbb-3aec-489f-a5c0-378048762c13.txt?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Credential=www-production%40exponentjs.iam.gserviceaccount.com%2F20260607%2Fauto%2Fstorage%2Fgoog4_request&X-Goog-Date=20260607T194033Z&X-Goog-Expires=900&X-Goog-SignedHeaders=host&X-Goog-Signature=c7609b929624a7199643e363f47a9604f58161fa6b706745161f0779046d38adea41bb1499ac7db864c19c56e5cd942669e93e046d47e085b360662185d0bccd1c08de511185fa3e7fe9b9166eb16c5ccd0880788e097c5787d982038ceced61e5ad58d138c25d8f7f545e5c08bcb70b598fc6c01231158355420b385f39c289104f7f8bc87e815967a412e4e640e4ae376c3223be5aa1807f2eab369a81e02d1f95035c9b7013e24263d31e58aa7be39c084831b2fe7ac4de0dc80b118ef8eaa0e3e567ba877048641f175887c4bc1992814e1a8423345dfe80bbaa2115aaf1d8d0c2bf6350cbdea0a62036c05ed3b531513bc250b33b5b400c1d4c9d07bdf5"
+  ],
+  "project": {
+    "id": "936918de-b53c-4d70-8d4c-110698d13797",
+    "name": "astrocus",
+    "slug": "astrocus",
+    "ownerAccount": {
+      "id": "c0e41d3a-9e81-493e-8e5a-ea691209a7d8",
+      "name": "edajim"
+    }
+  },
+  "distribution": "INTERNAL",
+  "buildProfile": "preview",
+  "sdkVersion": "54.0.0",
+  "appVersion": "1.0.0",
+  "appBuildVersion": "1",
+  "runtimeVersion": "1.0.0",
+  "gitCommitHash": "5287aab5b916edc66e07d4b2fcdb4345af237b81",
+  "gitCommitMessage": "son d├╝zenlemeler yap─▒ld─▒.",
+  "priority": "NORMAL",
+  "createdAt": "2026-06-07T19:33:33.749Z",
+  "updatedAt": "2026-06-07T19:36:13.259Z",
+  "completedAt": "2026-06-07T19:36:13.038Z",
+  "expirationDate": "2026-06-21T19:33:33.799Z",
+  "isForIosSimulator": false,
+  "metrics": {
+    "buildWaitTime": 300,
+    "buildQueueTime": 4871,
+    "buildDuration": 154118
+  }
+}

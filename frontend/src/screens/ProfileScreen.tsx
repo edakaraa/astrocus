@@ -58,7 +58,7 @@ export const ProfileScreen = () => {
     reportText: weeklyReportText,
     loading: weeklyReportLoading,
     refetch: refetchWeeklyReport,
-  } = useWeeklyReport(user?.id, language);
+  } = useWeeklyReport(user?.id, language, user?.username);
 
   const refreshTodayGoal = useCallback(async () => {
     if (!user) {

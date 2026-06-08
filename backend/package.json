@@ -10,7 +10,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "deploy:auth-email": "node supabase/scripts/deploy-auth-email-config.mjs"
   },
   "engines": {
     "node": ">=20"

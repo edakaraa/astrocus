@@ -14,6 +14,7 @@ import { starDisplayName, starUnlockCost } from "../../services/constellationCat
 
 export type StarCardProps = {
   star: StarWithProgress;
+  unlockOrder: number;
   isNextToUnlock: boolean;
   totalStardust: number;
   isActiveConstellation: boolean;
@@ -23,13 +24,14 @@ export type StarCardProps = {
 export const StarCard = React.memo(
   ({
     star,
+    unlockOrder,
     isNextToUnlock,
     totalStardust,
     isActiveConstellation,
     onPress,
   }: StarCardProps) => {
     const { language } = useAppContext();
-    const unlockCost = starUnlockCost(star);
+    const unlockCost = starUnlockCost(unlockOrder);
     const canAfford = totalStardust >= unlockCost;
     const tappable = isActiveConstellation && isNextToUnlock && canAfford;
     const remaining = Math.max(unlockCost - totalStardust, 0);

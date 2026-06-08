@@ -3,5 +3,9 @@
 .env.production
 .env.*
 !.env.example
+eas.json.local
 *.jks
 *.keystore
+*.pem
+*.p8
+credentials.json

@@ -30,3 +30,9 @@ export const createSupabaseUserClient = (accessToken: string) =>
     auth: { autoRefreshToken: false, persistSession: false },
     realtime: { transport: wsTransport },
   });
+
+export const createSupabaseAnonClient = () =>
+  createClient(url, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+    realtime: { transport: wsTransport },
+  });

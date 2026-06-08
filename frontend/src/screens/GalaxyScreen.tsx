@@ -136,7 +136,7 @@ export const GalaxyScreen = () => {
         return;
       }
 
-      const starCost = starUnlockCost(star);
+      const starCost = starUnlockCost(constellation.unlockOrder);
       if (totalStardust < starCost) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         const need = starCost - totalStardust;
@@ -165,7 +165,7 @@ export const GalaxyScreen = () => {
         } else {
           showToast({
             title: `${starDisplayName(star, language)} ${t(language, "toastStarUnlocked")}`,
-            subtitle: `${formatNumber(language, starUnlockCost(star))} ${t(language, "toastStardustSpent")}`,
+            subtitle: `${formatNumber(language, starUnlockCost(constellation.unlockOrder))} ${t(language, "toastStardustSpent")}`,
             ...toastTone.star,
           });
         }

@@ -1,5 +1,6 @@
 import { t } from "../shared/i18n";
 import type { Language } from "../shared/types";
+import { sanitizeAuthErrorMessage } from "./sanitizeAuthError";
 
 /** Kayıt sonrası oturum yok — e-posta doğrulaması bekleniyor (hata değil). */
 export class EmailConfirmationRequiredError extends Error {
@@ -58,11 +59,21 @@ export const mapSupabaseAuthError = (
     return t(language, "rateLimited");
   }
 
+  if (
+    m.includes("error sending confirmation email") ||
+    m.includes("error sending email") ||
+    m.includes("failed to send email") ||
+    m.includes("email address could not be sent")
+  ) {
+    return t(language, "emailConfirmationFailed");
+  }
+
   if (m.includes("database error") || m.includes("db error")) {
     return t(language, "databaseError");
   }
 
-  return message;
+  const sanitized = sanitizeAuthErrorMessage(message);
+  return sanitized || t(language, "requestFailed");
 };
 
 export type OAuthErrorCode = "cancelled" | "config" | "connection" | "unsupported" | "unknown";
@@ -94,13 +105,16 @@ export const oauthUserMessage = (
     if (error.code === "unsupported") {
       return { title, message: error.message };
     }
-    return { title, message: error.message };
+    const sanitized = sanitizeAuthErrorMessage(error.message);
+    return { title, message: sanitized || t(language, "oauthFailed") };
   }
   if (error instanceof Error && /cancel/i.test(error.message)) {
     return { title, message: t(language, "oauthCancelled") };
   }
+  const raw = error instanceof Error ? error.message : "";
+  const sanitized = sanitizeAuthErrorMessage(raw);
   return {
     title,
-    message: error instanceof Error ? error.message : t(language, "oauthFailed"),
+    message: sanitized || t(language, "oauthFailed"),
   };
 };

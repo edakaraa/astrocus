@@ -5,8 +5,6 @@ export const fontFamilies = {
   displayBold: "Outfit_700Bold",
   body: "DMSans_500Medium",
   bodyRegular: "DMSans_400Regular",
-  mono: "SpaceMono_700Bold",
-  monoRegular: "SpaceMono_400Regular",
 } as const;
 
 const textPrimary = "#E8E4C0";

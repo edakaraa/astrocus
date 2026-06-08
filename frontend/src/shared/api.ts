@@ -951,6 +951,8 @@ export const api = {
   },
 
   async signOut(): Promise<void> {
+    const { signOutFromGoogle } = await import("../lib/googleSignIn");
+    await signOutFromGoogle();
     await supabase.auth.signOut();
   },
 };

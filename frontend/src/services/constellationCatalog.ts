@@ -6,6 +6,7 @@ import type {
   StarWithProgress,
   UserConstellationRow,
 } from "../shared/types";
+import { getStarCostForUnlockOrder } from "../shared/stardustEconomy";
 
 export type ConstellationSortBucket = "completed" | "active" | "next" | "locked";
 
@@ -30,7 +31,8 @@ export const starDisplayDescription = (
   language: Language,
 ) => (language === "en" && star.descriptionEn ? star.descriptionEn : star.description);
 
-export const starUnlockCost = (star: { requiredStardust: number }): number => star.requiredStardust;
+export const starUnlockCost = (unlockOrder: number): number =>
+  getStarCostForUnlockOrder(unlockOrder).costPerStar;
 
 export const getConstellationById = (catalog: SkyCatalogInput, id: string): Constellation | undefined =>
   catalog.constellations.find((c) => c.id === id);

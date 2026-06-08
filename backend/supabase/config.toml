@@ -11,7 +11,39 @@ major_version = 17
 
 [auth]
 enabled = true
-site_url = "http://localhost:8081"
+# Production site URL — config push uzak projeye yazar; yerel için `supabase start` ayrı çalışır.
+site_url = "https://astrocus.up.railway.app"
+additional_redirect_urls = [
+  "astrocus://auth/callback",
+  "astrocus://**",
+  "exp://**",
+  "astrocus://reset-password",
+  "astrocus://verify-email",
+  "astrocus://verify-success",
+  "astrocus://",
+  "https://astrocus.up.railway.app/auth/mobile-redirect",
+  "https://astrocus.up.railway.app/auth/mobile-redirect?*",
+]
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+otp_length = 6
+# E-posta doğrulama ve şifre sıfırlama bağlantıları — 15 dakika
+otp_expiry = 900
+max_frequency = "1m0s"
+
+[auth.email.template.confirmation]
+subject = "Astrocus — E-postanı doğrula"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Astrocus — Şifre sıfırlama"
+content_path = "./supabase/templates/recovery.html"
 
 [functions.generate-weekly-reports]
 verify_jwt = false

@@ -88,6 +88,7 @@ export const ConstellationCard = React.memo(({ progress, totalStardust, onStarPr
           <StarCard
             key={star.id}
             star={star}
+            unlockOrder={unlockOrder}
             isNextToUnlock={idx === nextStarIndex}
             totalStardust={totalStardust}
             isActiveConstellation={isActive}

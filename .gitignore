@@ -9,6 +9,16 @@ backend/node_modules/
 !.env.example
 **/.env
 !**/.env.example
+**/.env.local
+**/eas.json.local
+
+# Kimlik bilgileri & imzalama (asla commit etmeyin)
+*.pem
+*.p8
+credentials.json
+service-account*.json
+**/google-services.json
+**/GoogleService-Info.plist
 
 # Expo & React Native Build Dosyaları
 .expo/
@@ -31,10 +41,8 @@ Thumbs.db
 .idea/
 .cursor/
 
-# Mobil imzalama & Firebase (asla commit etmeyin)
+# Mobil imzalama (asla commit etmeyin)
 *.jks
 *.keystore
 *.p12
 *.mobileprovision
-google-services.json
-GoogleService-Info.plist

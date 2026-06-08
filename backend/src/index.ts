@@ -8,6 +8,7 @@ import rateLimit from "express-rate-limit";
 import analyticsRoutes from "./routes/analytics.routes";
 import starsRoutes from "./routes/stars.routes";
 import accountRoutes from "./routes/account.routes";
+import authRoutes from "./routes/auth.routes";
 import { supabaseAdmin } from "./lib/supabaseAdmin";
 
 initMonitoring();
@@ -67,6 +68,7 @@ app.get("/health", async (_req, res) => {
   });
 });
 
+app.use("/auth", authRoutes);
 app.use("/analytics", analyticsRoutes);
 app.use("/stars", starsRoutes);
 app.use("/account", accountRoutes);

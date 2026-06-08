@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <title>Astrocus — Şifre sıfırlama</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0A1123;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#0A1123;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;background-color:#3A3E6C;border:1px solid #5A5E8C;border-radius:20px;overflow:hidden;">
+          <tr>
+            <td style="padding:32px 28px 8px;text-align:center;">
+              <p style="margin:0;font-size:28px;line-height:1.2;font-weight:800;letter-spacing:-0.4px;color:#E8E4C0;">Astrocus</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:8px 28px 0;">
+              <h1 style="margin:0 0 12px;font-size:22px;line-height:1.35;font-weight:700;color:#E8E4C0;">Şifreni sıfırla</h1>
+              <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#959BB5;">
+                Hesabın için şifre sıfırlama talebi aldık. Yeni bir şifre belirlemek için aşağıdaki düğmeye tıkla.
+              </p>
+              <p style="margin:0 0 24px;font-size:14px;line-height:1.5;color:#8A8CAC;">
+                Hesap: <span style="color:#E8E4C0;">{{ .Email }}</span>
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:0 28px 24px;">
+              <a href="{{ .SiteURL }}/auth/verify?token_hash={{ .TokenHash }}&amp;type=recovery&amp;path=reset-password" style="display:inline-block;padding:14px 28px;background-color:#8387C3;color:#0A1123;text-decoration:none;font-size:15px;font-weight:700;border-radius:16px;">
+                Şifremi sıfırla
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 28px 28px;">
+              <p style="margin:0;font-size:13px;line-height:1.6;color:#959BB5;">
+                Bu bağlantı <strong style="color:#E8E4C0;">15 dakika</strong> geçerlidir. Süre dolduysa Astrocus uygulamasından yeni bir sıfırlama e-postası isteyebilirsin.
+              </p>
+            </td>
+          </tr>
+        </table>
+        <p style="margin:20px 0 0;font-size:12px;line-height:1.5;color:#8A8CAC;">
+          Bu isteği sen yapmadıysan bu e-postayı yok sayabilirsin; şifren değişmeyecektir.
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

@@ -4,10 +4,23 @@ import { getMetroLanHost, isExpoTunnelHost } from "../shared/config";
 import { getOAuthRedirectUri } from "./oauth";
 
 const SCHEME = "astrocus";
+const PRODUCTION_API_URL = "https://astrocus.up.railway.app";
 
 export type AuthEmailRedirectPath = "reset-password" | "verify-success";
 
 const isExpoGo = () => Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+
+/** Production native build: Supabase → HTTPS köprü → astrocus:// deep link. */
+const getMobileAuthBridgeUri = (path: AuthEmailRedirectPath): string | null => {
+  if (isExpoGo()) {
+    return null;
+  }
+  const apiUrl = (process.env.EXPO_PUBLIC_API_URL?.trim() || PRODUCTION_API_URL).replace(/\/$/, "");
+  if (!apiUrl.startsWith("https://")) {
+    return null;
+  }
+  return `${apiUrl}/auth/mobile-redirect?path=${path}`;
+};
 
 const replaceLoopbackWithLan = (uri: string): string => {
   if (isExpoTunnelHost()) {
@@ -29,6 +42,11 @@ export const getAuthEmailRedirectUri = (path: AuthEmailRedirectPath): string => 
 
   if (fromEnv?.includes("://")) {
     return replaceLoopbackWithLan(fromEnv);
+  }
+
+  const bridgeUri = getMobileAuthBridgeUri(path);
+  if (bridgeUri) {
+    return bridgeUri;
   }
 
   if (isExpoGo()) {

@@ -4,6 +4,7 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { requireSupabaseConfig } from "./supabaseConfig";
 import { OAuthError } from "./authErrors";
+import { sanitizeAuthErrorMessage } from "./sanitizeAuthError";
 
 export const isAppleSignInAvailable = async (): Promise<boolean> => {
   if (Platform.OS !== "ios") {
@@ -64,7 +65,8 @@ export const signInWithApple = async (): Promise<Session> => {
   });
 
   if (error || !data.session) {
-    throw new OAuthError(error?.message ?? "Oturum oluşturulamadı.", "connection");
+    const detail = sanitizeAuthErrorMessage(error?.message ?? "");
+    throw new OAuthError(detail || "Oturum oluşturulamadı.", "connection");
   }
 
   return data.session;

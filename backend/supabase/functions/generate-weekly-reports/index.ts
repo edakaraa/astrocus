@@ -260,7 +260,7 @@ export const buildWeeklyStats = (
   const personal_record_broken = total_minutes > 0 && total_minutes > historicalMax;
 
   return {
-    user_name: profile.display_name?.trim() || profile.username || "Explorer",
+    user_name: profile.username?.trim() || profile.display_name?.trim() || "Explorer",
     week_label_tr: formatWeekLabel(weekStart, "tr-TR"),
     week_label_en: formatWeekLabel(weekStart, "en-US"),
     total_minutes,

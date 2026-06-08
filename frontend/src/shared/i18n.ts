@@ -64,10 +64,10 @@ const translations = {
     passwordResetSent: "Şifre sıfırlama bağlantısı e-postana gönderildi.",
     passwordResetSentTitle: "E-posta gönderildi",
     passwordResetSentMessage:
-      "Şifre sıfırlama bağlantısı e-postana gönderildi. Gelen kutunu ve spam klasörünü kontrol et.",
+      "Şifre sıfırlama bağlantısı e-postana gönderildi. Gelen kutunu ve spam klasörünü kontrol et. Bağlantı 15 dakika geçerlidir.",
     emailConfirmationTitle: "E-postanı doğrula",
     emailConfirmationMessage:
-      "{email} adresine doğrulama bağlantısı gönderdik. Gelen kutusu ve spam klasörünü kontrol et; onayladıktan sonra giriş yap.",
+      "{email} adresine doğrulama bağlantısı gönderdik. Gelen kutusu ve spam klasörünü kontrol et; onayladıktan sonra giriş yap. Bağlantı 15 dakika geçerlidir.",
     resetPasswordTitle: "Yeni şifre belirle",
     resetPasswordSubtitle: "Hesabın için güçlü bir şifre seç.",
     resetPasswordSubmit: "Şifreyi güncelle",
@@ -78,11 +78,14 @@ const translations = {
     verifySuccessSubtitle: "Hesabın hazır. Astrocus yolculuğuna devam edebilirsin.",
     verifySuccessContinue: "Devam et",
     requestFailed: "İstek başarısız.",
-    emailConfirmationSent: "adresine doğrulama bağlantısı gönderdik. Gelen kutusu ve spam klasörünü kontrol et; onayladıktan sonra giriş yap.",
+    emailConfirmationSent:
+      "adresine doğrulama bağlantısı gönderdik. Gelen kutusu ve spam klasörünü kontrol et; onayladıktan sonra giriş yap. Bağlantı 15 dakika geçerlidir.",
     goToLogin: "Girişe geç",
     loginFailed: "Giriş yapılamadı.",
     registerFailed: "Kayıt tamamlanamadı. Lütfen tekrar dene.",
     emailNotConfirmed: "E-postanı doğrulaman gerekiyor. Gelen kutusu ve spam klasörünü kontrol et.",
+    emailConfirmationFailed:
+      "Doğrulama e-postası gönderilemedi. Biraz bekleyip tekrar dene; sorun sürerse farklı bir e-posta adresi dene.",
     invalidCredentials: "E-posta veya şifre hatalı.",
     signupDisabled: "Yeni kayıt şu an kapalı. Daha sonra tekrar dene.",
     rateLimited: "Çok fazla deneme. Biraz bekleyip tekrar dene.",
@@ -104,7 +107,9 @@ const translations = {
       "Seçtiğin takımyıldız hemen açılır. Diğer 12 takımyıldız yıldız sayısına göre sırayla açılır; bir takımyıldızdaki tüm yıldızlar bitmeden sonraki açılmaz.",
     onboardingSelectConstellation: "İlk Takımyıldızını Seç",
     onboardingSelectStar: "İlk yıldızını seç",
-    onboardingConstellationHint: "Her yıldızın maliyeti katalogda belirlenir. 25 dakika odak = {exampleEarn} ✦ kazanç.",
+    onboardingStardustSectionTitle: "Yıldız Tozu",
+    onboardingStardustEarnLine:
+      "Tamamlanan odak seanslarında dakika başına {rate} kazanırsın (25 dk odak ≈ {exampleEarn}).",
     onboardingStart: "Başla",
     onboardingSkip: "Atla",
     onboardingPhase1Title: "Her şey bir\nodakla başlar",
@@ -297,12 +302,12 @@ const translations = {
     stardustInfoDailyGoalTitle: "Günlük hedef",
     stardustInfoDailyGoalBody:
       "Günlük odak hedefini tamamladığında günde bir kez hedefinizin 3 katı ✦ kazanırsınız (en az 75 ✦).",
-    stardustInfoUnlockTitle: "Yıldız açma",
-    stardustInfoUnlockCatalog: "Her yıldızın kataloğunda sabit bir maliyeti vardır.",
-    stardustInfoUnlockTierEasy: "Kolay kademe (0–{max} tamamlanmış takımyıldız): yıldız başına {cost} ✦.",
-    stardustInfoUnlockTierMedium:
-      "Orta kademe ({min}–{max} tamamlanmış): yıldız başına {cost} ✦.",
-    stardustInfoUnlockTierMastery: "Ustalık kademesi ({min}+ tamamlanmış): yıldız başına {cost} ✦.",
+    stardustInfoUnlockTitle: "Yıldız açma maliyetleri",
+    stardustInfoUnlockIntro:
+      "Her takımyıldızdaki tüm yıldızlar aynı maliyete sahiptir. Sıra, yolculuğundaki açılış sırasına göre belirlenir.",
+    stardustInfoUnlockTierEasy: "İlk 4 takımyıldız (başlangıç + sıradaki 3): yıldız başına {cost} ✦.",
+    stardustInfoUnlockTierMedium: "Sonraki 4 takımyıldız (5–8. sıra): yıldız başına {cost} ✦.",
+    stardustInfoUnlockTierMastery: "Kalan takımyıldızlar (9. sıra ve sonrası): yıldız başına {cost} ✦.",
     minutes: "dakika",
     category: "Kategori",
     todayFocused: "Bugün odaklandığın süre",
@@ -482,10 +487,10 @@ const translations = {
     passwordResetSent: "Password reset link sent to your email.",
     passwordResetSentTitle: "Email sent",
     passwordResetSentMessage:
-      "We sent a password reset link to your email. Check your inbox and spam folder.",
+      "We sent a password reset link to your email. Check your inbox and spam folder. The link expires in 15 minutes.",
     emailConfirmationTitle: "Verify your email",
     emailConfirmationMessage:
-      "We sent a confirmation link to {email}. Check your inbox and spam folder, then sign in after confirming.",
+      "We sent a confirmation link to {email}. Check your inbox and spam folder, then sign in after confirming. The link expires in 15 minutes.",
     resetPasswordTitle: "Set a new password",
     resetPasswordSubtitle: "Choose a strong password for your account.",
     resetPasswordSubmit: "Update password",
@@ -497,11 +502,13 @@ const translations = {
     verifySuccessContinue: "Continue",
     requestFailed: "Request failed.",
     emailConfirmationSent:
-      "We sent a confirmation link to your inbox. Check spam, then sign in after confirming.",
+      "We sent a confirmation link to your inbox. Check spam, then sign in after confirming. The link expires in 15 minutes.",
     goToLogin: "Go to login",
     loginFailed: "Could not sign in.",
     registerFailed: "Registration failed. Please try again.",
     emailNotConfirmed: "Confirm your email first. Check inbox and spam.",
+    emailConfirmationFailed:
+      "We couldn't send the confirmation email. Wait a moment and try again, or use a different email address.",
     invalidCredentials: "Invalid email or password.",
     signupDisabled: "Sign-ups are currently disabled. Try again later.",
     rateLimited: "Too many attempts. Wait a moment and try again.",
@@ -523,7 +530,9 @@ const translations = {
       "Your chosen constellation opens immediately. The other 12 unlock in order by star count; finish every star before the next constellation opens.",
     onboardingSelectConstellation: "Choose Your First Constellation",
     onboardingSelectStar: "Choose your first star",
-    onboardingConstellationHint: "Each star has a catalog cost. 25 minutes of focus = {exampleEarn} ✦ earned.",
+    onboardingStardustSectionTitle: "Stardust",
+    onboardingStardustEarnLine:
+      "Completed focus sessions earn {rate} per minute (25 min focus ≈ {exampleEarn}).",
     onboardingStart: "Start",
     onboardingSkip: "Skip",
     onboardingPhase1Title: "Everything begins\nwith focus",
@@ -716,12 +725,12 @@ const translations = {
     stardustInfoDailyGoalTitle: "Daily goal",
     stardustInfoDailyGoalBody:
       "Meet your daily focus goal once per day for 3× your goal in ✦ (minimum 75 ✦).",
-    stardustInfoUnlockTitle: "Unlocking stars",
-    stardustInfoUnlockCatalog: "Each star has a fixed catalog cost.",
-    stardustInfoUnlockTierEasy: "Easy tier (0–{max} constellations completed): {cost} ✦ per star.",
-    stardustInfoUnlockTierMedium:
-      "Medium tier ({min}–{max} completed): {cost} ✦ per star.",
-    stardustInfoUnlockTierMastery: "Mastery tier ({min}+ completed): {cost} ✦ per star.",
+    stardustInfoUnlockTitle: "Star unlock costs",
+    stardustInfoUnlockIntro:
+      "Every star in a constellation costs the same. The tier depends on that constellation's position in your journey.",
+    stardustInfoUnlockTierEasy: "First 4 constellations (starter + next 3): {cost} ✦ per star.",
+    stardustInfoUnlockTierMedium: "Next 4 constellations (positions 5–8): {cost} ✦ per star.",
+    stardustInfoUnlockTierMastery: "Remaining constellations (position 9+): {cost} ✦ per star.",
     minutes: "minutes",
     category: "Category",
     todayFocused: "Today's focused time",

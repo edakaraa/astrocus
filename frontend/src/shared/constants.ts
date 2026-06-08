@@ -20,6 +20,7 @@ export {
   STAR_COST_TIER_THRESHOLDS,
   formatBonusPercent,
   formatStreakBonusPercent,
+  getStarCostForUnlockOrder,
   getStarCostInfo,
 } from "./stardustEconomy";
 export type { StarCostInfo, StarCostTier } from "./stardustEconomy";
@@ -33,8 +34,6 @@ export const NO_SESSION_DURATION_SELECTED = 0;
 export const SESSION_DURATION_OPTIONS = [5, 15, 25, 45, 60, 90, 120] as const;
 export const BACKGROUND_TOLERANCE_SECONDS = 20;
 export const WARNING_THRESHOLD_SECONDS = 10;
-/** Throttle Android lock-screen ongoing notification updates during focus sessions. */
-export const FOCUS_SESSION_NOTIFICATION_UPDATE_SECONDS = 5;
 export const PAUSE_LIMIT = 1;
 /** Erken bitirmede kısmi ödül eşiği: en az 5 dk veya planlanan sürenin %50'si */
 export const MIN_PARTIAL_STARDUST_MINUTES = 5;

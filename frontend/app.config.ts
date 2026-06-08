@@ -1,6 +1,21 @@
 import type { ExpoConfig, ConfigContext } from "expo/config";
+import fs from "node:fs";
 import path from "node:path";
 import { loadProjectEnv } from "@expo/env";
+// Gradle/expo-constants Node CJS ile çalışır; .ts import edilemez.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { resolveBuildApiUrl } = require("./apiUrlResolver.cjs") as {
+  resolveBuildApiUrl: (isDev: boolean, fromEnv?: string) => string;
+};
+
+const webClientIdToIosUrlScheme = (webClientId: string): string | null => {
+  const trimmed = webClientId.trim();
+  const suffix = ".apps.googleusercontent.com";
+  if (!trimmed.endsWith(suffix)) {
+    return null;
+  }
+  return `com.googleusercontent.apps.${trimmed.slice(0, -suffix.length)}`;
+};
 
 // app.config.ts değerlendirilirken .env bazen henüz yüklenmemiş olabilir.
 const frontendRoot = path.resolve(__dirname);
@@ -11,23 +26,11 @@ if (!process.env.EXPO_PUBLIC_SUPABASE_URL?.trim()) {
   loadProjectEnv(projectRoot, { force: true, silent: true });
 }
 
-const resolveApiUrl = (isDev: boolean): string => {
-  const fromEnv = process.env.EXPO_PUBLIC_API_URL?.trim();
-  if (fromEnv) {
-    return fromEnv;
-  }
-  if (isDev) {
-    return "http://localhost:4000";
-  }
-  throw new Error("EXPO_PUBLIC_API_URL production ortamında tanımlanmalıdır.");
-};
-
-const requireEnv = (key: string, value: string | undefined, isDev: boolean): string => {
+// EAS CLI ilk config değerlendirmesinde EXPO_NO_DOTENV=1 kullanır; Dashboard env henüz yüklenmemiş olabilir.
+// Bu yüzden eksik değerlerde throw etmiyoruz — ikinci geçişte EAS env enjekte edilir; runtime'da supabaseConfig kontrol eder.
+const resolveEnv = (key: string, value: string | undefined): string => {
   const trimmed = value?.trim();
   if (!trimmed) {
-    if (!isDev) {
-      throw new Error(`[Astrocus] ${key} production ortamında zorunludur.`);
-    }
     console.warn(`[Astrocus] ${key} tanımlı değil.`);
     return "";
   }
@@ -35,15 +38,41 @@ const requireEnv = (key: string, value: string | undefined, isDev: boolean): str
 };
 
 export default ({ config }: ConfigContext): ExpoConfig => {
-  const isDev = process.env.APP_ENV !== "production";
+  // Yalnızca APP_ENV=development açıkça development sayılır; EAS production'da varsayılan production.
+  const isDev = process.env.APP_ENV === "development";
   const appEnv: "development" | "production" = isDev ? "development" : "production";
 
-  const plugins = (config.plugins ?? []).filter((entry) => {
+  const plugins = [...(config.plugins ?? [])];
+  const hasNotificationsPlugin = plugins.some((entry) => {
     const name = typeof entry === "string" ? entry : entry[0];
-    return name !== "expo-notifications";
+    return name === "expo-notifications";
   });
-  if (!isDev) {
+  if (!hasNotificationsPlugin) {
     plugins.push("expo-notifications");
+  }
+
+  const googleWebClientId =
+    process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() ??
+    process.env.GOOGLE_WEB_CLIENT_ID?.trim() ??
+    "";
+  const googleIosUrlScheme = webClientIdToIosUrlScheme(googleWebClientId);
+  const hasGoogleSignInPlugin = plugins.some((entry) => {
+    const name = typeof entry === "string" ? entry : entry[0];
+    return name === "@react-native-google-signin/google-signin";
+  });
+  if (!hasGoogleSignInPlugin && googleIosUrlScheme) {
+    plugins.push([
+      "@react-native-google-signin/google-signin",
+      { iosUrlScheme: googleIosUrlScheme },
+    ]);
+  }
+
+  const googleServicesFile = path.join(frontendRoot, "google-services.json");
+  const hasGoogleServices = fs.existsSync(googleServicesFile);
+  if (!hasGoogleServices && !isDev) {
+    console.warn(
+      "[Astrocus] frontend/google-services.json eksik — Android push (FCM) calismaz. docs/fcm-android-setup.md",
+    );
   }
 
   return {
@@ -59,19 +88,16 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     android: {
       ...config.android,
       usesCleartextTraffic: isDev,
+      ...(hasGoogleServices ? { googleServicesFile: "./google-services.json" } : {}),
     },
     extra: {
       ...config.extra,
       eas: {
         projectId: "936918de-b53c-4d70-8d4c-110698d13797",
       },
-      apiUrl: resolveApiUrl(isDev),
-      supabaseUrl: requireEnv("EXPO_PUBLIC_SUPABASE_URL", process.env.EXPO_PUBLIC_SUPABASE_URL, isDev),
-      supabaseAnonKey: requireEnv(
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY",
-        process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
-        isDev,
-      ),
+      apiUrl: resolveBuildApiUrl(isDev, process.env.EXPO_PUBLIC_API_URL),
+      supabaseUrl: resolveEnv("EXPO_PUBLIC_SUPABASE_URL", process.env.EXPO_PUBLIC_SUPABASE_URL),
+      supabaseAnonKey: resolveEnv("EXPO_PUBLIC_SUPABASE_ANON_KEY", process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY),
       googleWebClientId:
         process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() ??
         process.env.GOOGLE_WEB_CLIENT_ID?.trim() ??

@@ -16,5 +16,6 @@ export const supabase = createClient(config?.url ?? "https://placeholder.invalid
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    flowType: "pkce",
   },
 });

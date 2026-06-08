@@ -14,7 +14,6 @@ import {
   STAR_COST_EASY,
   STAR_COST_MASTERY,
   STAR_COST_MEDIUM,
-  STAR_COST_TIER_THRESHOLDS,
   formatBonusPercent,
 } from "../shared/stardustEconomy";
 import { colors, radii, spacing } from "../shared/theme";
@@ -122,22 +121,24 @@ export const StardustInfoModal: React.FC<StardustInfoModalProps> = ({ visible, o
               </InfoSection>
 
               <InfoSection title={t(language, "stardustInfoUnlockTitle")}>
-                <BulletRow>{t(language, "stardustInfoUnlockCatalog")}</BulletRow>
+                <BulletRow>{t(language, "stardustInfoUnlockIntro")}</BulletRow>
                 <BulletRow>
-                  {t(language, "stardustInfoUnlockTierEasy")
-                    .replace("{cost}", formatNumber(language, STAR_COST_EASY))
-                    .replace("{max}", String(STAR_COST_TIER_THRESHOLDS.medium - 1))}
+                  {t(language, "stardustInfoUnlockTierEasy").replace(
+                    "{cost}",
+                    formatNumber(language, STAR_COST_EASY),
+                  )}
                 </BulletRow>
                 <BulletRow>
-                  {t(language, "stardustInfoUnlockTierMedium")
-                    .replace("{cost}", formatNumber(language, STAR_COST_MEDIUM))
-                    .replace("{min}", String(STAR_COST_TIER_THRESHOLDS.medium))
-                    .replace("{max}", String(STAR_COST_TIER_THRESHOLDS.mastery - 1))}
+                  {t(language, "stardustInfoUnlockTierMedium").replace(
+                    "{cost}",
+                    formatNumber(language, STAR_COST_MEDIUM),
+                  )}
                 </BulletRow>
                 <BulletRow>
-                  {t(language, "stardustInfoUnlockTierMastery")
-                    .replace("{cost}", formatNumber(language, STAR_COST_MASTERY))
-                    .replace("{min}", String(STAR_COST_TIER_THRESHOLDS.mastery))}
+                  {t(language, "stardustInfoUnlockTierMastery").replace(
+                    "{cost}",
+                    formatNumber(language, STAR_COST_MASTERY),
+                  )}
                 </BulletRow>
               </InfoSection>
 

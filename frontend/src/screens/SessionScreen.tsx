@@ -31,7 +31,6 @@ import { TabScreenScaffold } from "../components/layout/TabScreenScaffold";
 import { FocusSectionCard } from "../components/session/FocusSectionCard";
 import { UniverseMessageCard } from "../components/session/UniverseMessageCard";
 import { WeekDayStars } from "../components/session/WeekDayStars";
-import { StardustInfoButton } from "../components/StardustInfoButton";
 import { AppText } from "../components/ui/AppText";
 import { AppIcon } from "../components/ui/AppIcon";
 import { PillChip } from "../components/ui/PillChip";
@@ -125,7 +124,7 @@ export const SessionScreen = () => {
     weekLabel: weeklyReportWeekLabel,
     loading: weeklyReportLoading,
     refetch: refetchWeeklyReport,
-  } = useWeeklyReport(user?.id, language);
+  } = useWeeklyReport(user?.id, language, user?.username);
 
   useFocusEffect(
     useCallback(() => {
@@ -478,14 +477,11 @@ export const SessionScreen = () => {
               {t(language, "todayFocusLabel")}
             </AppText>
           </View>
-          <View style={styles.stardustHintRow}>
-            <AppText variant="caption" style={styles.stardustHintText} maxFontSizeMultiplier={MAX_FONT_SCALE}>
-              {formatTranslation(language, "stardustPerMinute", {
-                rate: formatNumber(language, STARDUST_PER_MINUTE),
-              })}
-            </AppText>
-            <StardustInfoButton size={15} />
-          </View>
+          <AppText variant="caption" style={styles.stardustHintText} maxFontSizeMultiplier={MAX_FONT_SCALE}>
+            {formatTranslation(language, "stardustPerMinute", {
+              rate: formatNumber(language, STARDUST_PER_MINUTE),
+            })}
+          </AppText>
         </SurfaceCard>
 
         <FocusSectionCard title={t(language, "quickStartTitle")} sectionLabelSize={sectionLabelSize}>

@@ -1,3 +1,4 @@
+import { isRunningInExpoGo } from "expo";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
@@ -339,6 +340,8 @@ export const AuthScreen = () => {
   }, []);
 
   const isLogin = authMode === "login";
+  const googleSignInAvailable = !isRunningInExpoGo();
+  const showSocialLogin = isLogin && (googleSignInAvailable || appleAvailable);
 
   const presentAuthAlert = useCallback(
     (title: string, message: string, icon?: keyof typeof MaterialCommunityIcons.glyphMap) => {
@@ -652,7 +655,7 @@ export const AuthScreen = () => {
         disabled={isSubmitting}
       />
 
-      {isLogin ? (
+      {showSocialLogin ? (
         <>
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
@@ -660,14 +663,16 @@ export const AuthScreen = () => {
             <View style={styles.dividerLine} />
           </View>
 
-          <AuthButton
-            label={isGoogleLoading ? t(language, "googleConnecting") : t(language, "continueWithGoogle")}
-            onPress={handleGoogleLogin}
-            disabled={isGoogleLoading || isAppleLoading}
-            loading={isGoogleLoading}
-            variant="google"
-            metrics={metrics}
-          />
+          {googleSignInAvailable ? (
+            <AuthButton
+              label={isGoogleLoading ? t(language, "googleConnecting") : t(language, "continueWithGoogle")}
+              onPress={handleGoogleLogin}
+              disabled={isGoogleLoading || isAppleLoading}
+              loading={isGoogleLoading}
+              variant="google"
+              metrics={metrics}
+            />
+          ) : null}
 
           {appleAvailable ? (
             <AuthButton
