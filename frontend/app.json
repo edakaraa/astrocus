@@ -55,7 +55,10 @@
       "permissions": [
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_DATA_SYNC",
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "SCHEDULE_EXACT_ALARM",
+        "USE_EXACT_ALARM",
+        "WAKE_LOCK"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/brand/logo.png",

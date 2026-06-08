@@ -16,6 +16,7 @@ export interface WeeklyStats {
   best_day_en: string | null;
   best_day_minutes: number | null;
   peak_hour_range: string | null;
+  /** Longest consecutive focus-day run within the reported week (UTC calendar days). */
   current_streak: number;
   longest_streak: number;
   personal_record_broken: boolean;
@@ -189,6 +190,30 @@ const sumWeekMinutesFromSessions = (
   return total;
 };
 
+/** Longest run of consecutive UTC days with ≥1 session, within [weekStart, weekStart+6]. */
+export const computeLongestStreakInWeek = (
+  weekSessions: SessionRow[],
+  weekStart: Date,
+): number => {
+  const byDay = sumMinutesByUtcDay(weekSessions);
+  let longest = 0;
+  let current = 0;
+
+  for (let i = 0; i < 7; i += 1) {
+    const day = new Date(weekStart);
+    day.setUTCDate(day.getUTCDate() + i);
+    const key = toDateKeyUtc(day);
+    if ((byDay.get(key) ?? 0) > 0) {
+      current += 1;
+      longest = Math.max(longest, current);
+    } else {
+      current = 0;
+    }
+  }
+
+  return longest;
+};
+
 export const buildWeeklyStats = (
   profile: ProfileRow,
   weekSessions: SessionRow[],
@@ -258,6 +283,7 @@ export const buildWeeklyStats = (
     : 0;
   const historicalMax = Math.max(priorMaxWeekMinutes, sessionHistoryMax);
   const personal_record_broken = total_minutes > 0 && total_minutes > historicalMax;
+  const weekLongestStreak = computeLongestStreakInWeek(weekSessions, weekStart);
 
   return {
     user_name: profile.username?.trim() || profile.display_name?.trim() || "Explorer",
@@ -270,7 +296,7 @@ export const buildWeeklyStats = (
     best_day_en,
     best_day_minutes: bestMinutes > 0 ? bestMinutes : null,
     peak_hour_range: computePeakHourRange(weekSessions),
-    current_streak: profile.streak_count,
+    current_streak: weekLongestStreak,
     longest_streak: profile.longest_streak,
     personal_record_broken,
     vs_last_week_minutes,
@@ -307,6 +333,8 @@ Rules:
 - Each language: 2-4 sentences, max 110 words per language.
 - Warm cosmic metaphor; no emojis; no bullet points; no markdown.
 - Use ONLY numbers and facts present in the user JSON payload.
+- current_streak = longest consecutive focus days within the reported week (not all-time).
+- longest_streak = all-time personal best streak days.
 - Address the user by user_name in each language naturally.
 - Mention week_label_tr in the Turkish text and week_label_en in the English text.
 
@@ -368,8 +396,8 @@ const FALLBACKS: Record<WeeklyStats["user_type"], (stats: WeeklyStats) => Report
     const name = stats.user_name;
     const mins = stats.total_minutes;
     return {
-      tr: `${name}, ${stats.week_label_tr} haftasında ${mins} dakikalık derin bir uçuş! ${stats.current_streak} günlük serin parlıyor${stats.personal_record_broken ? " ve haftalık rekorunu kırdın" : ""}. Yıldızlar seninle.`,
-      en: `${name}, a deep ${mins}-minute flight during ${stats.week_label_en}! Your ${stats.current_streak}-day streak shines${stats.personal_record_broken ? " and you set a weekly record" : ""}. The stars are with you.`,
+      tr: `${name}, ${stats.week_label_tr} haftasında ${mins} dakikalık derin bir uçuş!${stats.current_streak > 0 ? ` En uzun serin ${stats.current_streak} gün` : ""}${stats.personal_record_broken ? " ve haftalık rekorunu kırdın" : ""}. Yıldızlar seninle.`,
+      en: `${name}, a deep ${mins}-minute flight during ${stats.week_label_en}!${stats.current_streak > 0 ? ` Your longest run was ${stats.current_streak} days` : ""}${stats.personal_record_broken ? " and you set a weekly record" : ""}. The stars are with you.`,
     };
   },
 };

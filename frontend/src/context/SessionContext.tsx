@@ -29,11 +29,14 @@ import {
 } from "../lib/analytics";
 import { isFocusSessionScreenLock } from "../lib/deviceScreen";
 import {
+  FOCUS_SESSION_WARNING_ID,
   cancelFocusSessionCompletedNotification,
   cancelScheduledNotification,
+  dismissNotification,
   ensureNotificationPermission,
   scheduleBackgroundWarning,
   scheduleFocusSessionCompletedNotification,
+  scheduleSessionFailedNotification,
   setupFocusSessionCompleteTapHandler,
   startFocusSessionNotification,
   stopFocusSessionNotification,
@@ -183,6 +186,10 @@ export const SessionProvider = ({
         return;
       }
 
+      if (screenLockedSessionRef.current) {
+        return;
+      }
+
       if (forceRestart) {
         clearOngoingNotificationInterval();
       }
@@ -191,36 +198,42 @@ export const SessionProvider = ({
         return;
       }
 
-      ongoingNotificationIntervalRef.current = setInterval(() => {
-        const current = sessionStateRef.current;
-        if (current.status !== "running" && current.status !== "paused") {
-          clearOngoingNotificationInterval();
-          return;
+      void (async () => {
+        try {
+          const { isFocusTimerServiceAvailable } = await import("astrocus-focus-timer");
+          if (isFocusTimerServiceAvailable()) {
+            return;
+          }
+        } catch {
+          /* fallback interval below */
         }
 
-        if (backgroundedAtRef.current) {
-          return;
-        }
-
-        const synced = syncFocusTimer(current, Date.now());
-        if (current.status === "running" && synced.remainingSeconds <= 0) {
-          if (screenLockedSessionRef.current) {
-            void updateFocusSessionNotification(0, notificationLanguage);
+        ongoingNotificationIntervalRef.current = setInterval(() => {
+          const current = sessionStateRef.current;
+          if (current.status !== "running" && current.status !== "paused") {
+            clearOngoingNotificationInterval();
             return;
           }
 
-          clearOngoingNotificationInterval();
-          void cancelFocusSessionCompletedNotification();
-          scheduledSessionCompleteRef.current = null;
-          const completed = completeFocusTimer(synced);
-          completionSnapshotRef.current =
-            buildCompletionSnapshot(completed, Date.now(), true) ?? null;
-          setSessionState(completed);
-          return;
-        }
+          if (backgroundedAtRef.current || screenLockedSessionRef.current) {
+            return;
+          }
 
-        void updateFocusSessionNotification(synced.remainingSeconds, notificationLanguage);
-      }, intervalMs);
+          const synced = syncFocusTimer(current, Date.now());
+          if (current.status === "running" && synced.remainingSeconds <= 0) {
+            clearOngoingNotificationInterval();
+            void cancelFocusSessionCompletedNotification();
+            scheduledSessionCompleteRef.current = null;
+            const completed = completeFocusTimer(synced);
+            completionSnapshotRef.current =
+              buildCompletionSnapshot(completed, Date.now(), true) ?? null;
+            setSessionState(completed);
+            return;
+          }
+
+          void updateFocusSessionNotification(synced.remainingSeconds, notificationLanguage);
+        }, intervalMs);
+      })();
     },
     [clearOngoingNotificationInterval, notificationLanguage],
   );
@@ -264,14 +277,8 @@ export const SessionProvider = ({
     if (Platform.OS === "android") {
       clearOngoingNotificationInterval();
       await startFocusSessionNotification(synced.remainingSeconds, notificationLanguage);
-      startOngoingNotificationInterval(1000, true);
     }
-  }, [
-    clearBackgroundFailTimeout,
-    clearOngoingNotificationInterval,
-    notificationLanguage,
-    startOngoingNotificationInterval,
-  ]);
+  }, [clearBackgroundFailTimeout, clearOngoingNotificationInterval, notificationLanguage]);
 
   const enterAppBackgroundAwayMode = useCallback(async () => {
     if (__DEV__) {
@@ -315,9 +322,11 @@ export const SessionProvider = ({
 
       void cancelScheduledNotification(scheduledNotificationRef.current);
       scheduledNotificationRef.current = null;
+      void dismissNotification(FOCUS_SESSION_WARNING_ID);
       backgroundedAtRef.current = null;
       setSessionState((state) => failFocusSession(state));
       void stopFocusSessionNotification();
+      void scheduleSessionFailedNotification(notificationLanguage);
     }, BACKGROUND_TOLERANCE_SECONDS * 1000);
   }, [clearBackgroundFailTimeout, clearOngoingNotificationInterval, notificationLanguage]);
 
@@ -661,9 +670,9 @@ export const SessionProvider = ({
 
   useEffect(() => {
     const resolveLockOrAway = async (): Promise<"lock" | "away" | "abort"> => {
-      for (let attempt = 0; attempt < 4; attempt += 1) {
+      for (let attempt = 0; attempt < 6; attempt += 1) {
         if (attempt > 0) {
-          await new Promise((resolve) => setTimeout(resolve, 300));
+          await new Promise((resolve) => setTimeout(resolve, 200));
         }
         if (AppState.currentState === "active") {
           return "abort";
@@ -671,7 +680,7 @@ export const SessionProvider = ({
         if (sessionStateRef.current.status !== "running") {
           return "abort";
         }
-        if (await isFocusSessionScreenLock(attempt >= 2)) {
+        if (await isFocusSessionScreenLock()) {
           return "lock";
         }
       }
@@ -683,7 +692,6 @@ export const SessionProvider = ({
         clearTimeout(backgroundCheckTimeoutRef.current);
       }
 
-      // Keyguard'ın tam oturması için kısa gecikme — Forest/Focus uygulamalarındaki pattern
       backgroundCheckTimeoutRef.current = setTimeout(() => {
         backgroundCheckTimeoutRef.current = null;
         void (async () => {
@@ -700,7 +708,7 @@ export const SessionProvider = ({
           }
           await enterAppBackgroundAwayMode();
         })();
-      }, 200);
+      }, 150);
     };
 
     const handleAppState = (nextState: AppStateStatus) => {
@@ -781,8 +789,10 @@ export const SessionProvider = ({
         backgroundedAtRef.current = null;
 
         if (elapsed >= BACKGROUND_TOLERANCE_SECONDS) {
+          void dismissNotification(FOCUS_SESSION_WARNING_ID);
           setSessionState((state) => failFocusSession(state));
           void stopFocusSessionNotification();
+          void scheduleSessionFailedNotification(notificationLanguage);
           return;
         }
 

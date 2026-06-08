@@ -188,6 +188,7 @@ export type WeeklyReportStats = {
   best_day_en: string | null;
   best_day_minutes: number | null;
   peak_hour_range: string | null;
+  /** Longest consecutive focus-day run within the reported week. */
   current_streak: number;
   longest_streak: number;
   personal_record_broken: boolean;

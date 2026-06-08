@@ -3,6 +3,7 @@ import { isRunningInExpoGo } from "expo";
 type ScreenDetectorModule = {
   isScreenLocked: () => Promise<boolean>;
   isScreenOff: () => Promise<boolean>;
+  isScreenUnavailable: () => Promise<boolean>;
 };
 
 let detectorCache: ScreenDetectorModule | null | undefined;
@@ -12,7 +13,11 @@ const isScreenDetectorModule = (value: unknown): value is ScreenDetectorModule =
     return false;
   }
   const mod = value as ScreenDetectorModule;
-  return typeof mod.isScreenLocked === "function" && typeof mod.isScreenOff === "function";
+  return (
+    typeof mod.isScreenLocked === "function" &&
+    typeof mod.isScreenOff === "function" &&
+    typeof mod.isScreenUnavailable === "function"
+  );
 };
 
 const resolveScreenDetector = (mod: unknown): ScreenDetectorModule | null => {
@@ -47,36 +52,19 @@ const loadScreenDetector = async (): Promise<ScreenDetectorModule | null> => {
       detectorCache = detector;
       return detector;
     }
-    if (__DEV__) {
-      console.warn("[deviceScreen] expo-screen-detector import succeeded but API is missing");
-    }
-  } catch (error) {
-    if (__DEV__) {
-      console.warn(
-        "[deviceScreen] expo-screen-detector dynamic import failed:",
-        error instanceof Error ? error.message : error,
-      );
-    }
+  } catch {
+    /* fall through */
   }
 
   try {
-    // Some production bundles resolve the native module via require but not import().
     const mod = require("expo-screen-detector") as unknown;
     const detector = tryLoad(mod);
     if (detector) {
       detectorCache = detector;
       return detector;
     }
-    if (__DEV__) {
-      console.warn("[deviceScreen] expo-screen-detector require succeeded but API is missing");
-    }
-  } catch (error) {
-    if (__DEV__) {
-      console.warn(
-        "[deviceScreen] expo-screen-detector require failed:",
-        error instanceof Error ? error.message : error,
-      );
-    }
+  } catch {
+    /* unavailable */
   }
 
   detectorCache = null;
@@ -84,26 +72,16 @@ const loadScreenDetector = async (): Promise<ScreenDetectorModule | null> => {
 };
 
 /**
- * True when the device keyguard is engaged (power-button lock).
- * Returns false in Expo Go or when the native module is unavailable.
+ * Power-button lock or display off — session should continue (Forest / Pomodoro pattern).
  */
-export const isDeviceScreenLocked = async (): Promise<boolean> => {
+export const isFocusSessionScreenLock = async (): Promise<boolean> => {
   const detector = await loadScreenDetector();
   if (!detector) {
     return false;
   }
 
-  return detector.isScreenLocked();
-};
-
-/**
- * Distinguish power-button lock from switching to another app (screen stays on).
- * Strict: keyguard + display off. Lenient (later retries): keyguard only.
- */
-export const isFocusSessionScreenLock = async (lenient = false): Promise<boolean> => {
-  const detector = await loadScreenDetector();
-  if (!detector) {
-    return false;
+  if (await detector.isScreenUnavailable()) {
+    return true;
   }
 
   const [locked, off] = await Promise.all([
@@ -111,9 +89,12 @@ export const isFocusSessionScreenLock = async (lenient = false): Promise<boolean
     detector.isScreenOff(),
   ]);
 
-  if (locked && off) {
-    return true;
-  }
+  return locked || off;
+};
 
-  return lenient && locked;
+/**
+ * App switched away while the display is still on — 20s background tolerance applies.
+ */
+export const isFocusSessionAppSwitchAway = async (): Promise<boolean> => {
+  return !(await isFocusSessionScreenLock());
 };

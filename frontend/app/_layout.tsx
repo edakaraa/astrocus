@@ -58,6 +58,7 @@ import { colors } from "../src/shared/theme";
 
 import { isOAuthReturnUrl, peekOAuthReturnUrl } from "../src/lib/oauthLinking";
 import { setupNotificationResponseHandler } from "../src/lib/notifications";
+import { bootstrapNotificationChannels } from "../src/shared/notifications";
 import Constants, { ExecutionEnvironment } from "expo-constants";
 import { useDeepLink } from "../src/hooks/useDeepLink";
 import { loadAuthPayloadFromSession } from "../src/shared/api";
@@ -234,6 +235,7 @@ function RootLayoutInner() {
         console.warn("[Astrocus] sky catalog preload failed:", error);
       }
     });
+    void bootstrapNotificationChannels();
   }, []);
 
   const [fontsLoaded] = useFonts({

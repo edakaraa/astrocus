@@ -1,0 +1,12 @@
+{
+  "name": "astrocus-focus-timer",
+  "version": "1.0.0",
+  "description": "Android foreground service with lock-screen countdown for focus sessions",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "peerDependencies": {
+    "expo": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}
