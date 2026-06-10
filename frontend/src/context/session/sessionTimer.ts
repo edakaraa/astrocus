@@ -8,7 +8,7 @@ export type SessionCompletionSnapshot = {
   categoryId: string;
   pauseCount: number;
   startedAt: string;
-  /** Wall-clock instant when the snapshot was taken (timer end / cancel). */
+  /** Wall-clock instant when active focus ended (not late unlock / sync time). */
   completedAt: string;
   /** True when the countdown reached zero (not early cancel). */
   completedNaturally: boolean;
@@ -24,10 +24,12 @@ export type FocusTimerState = {
   focusedSeconds: number;
   pauseCount: number;
   startedAt: string | null;
-  /** Wall-clock ms when the current running segment began (null while paused). */
+  /** Wall-clock ms when the current running segment began (null while paused or frozen). */
   runningSinceMs: number | null;
   /** Focus seconds fully accumulated before the current running segment. */
   accumulatedFocusSeconds: number;
+  /** Set when status becomes completed — exact wall-clock focus end. */
+  focusEndedAtMs: number | null;
 };
 
 export const createIdleFocusTimerState = (
@@ -44,6 +46,7 @@ export const createIdleFocusTimerState = (
   startedAt: null,
   runningSinceMs: null,
   accumulatedFocusSeconds: 0,
+  focusEndedAtMs: null,
 });
 
 const plannedSecondsOf = (state: FocusTimerState): number =>
@@ -78,8 +81,49 @@ export const syncFocusTimer = (state: FocusTimerState, nowMs = Date.now()): Focu
   };
 };
 
-export const completeFocusTimer = (state: FocusTimerState): FocusTimerState => {
+/**
+ * Consolidate elapsed focus into accumulatedFocusSeconds and reset the running anchor.
+ * Call after every sync/tick so multiple code paths cannot double-count wall time.
+ */
+export const materializeFocusTimer = (state: FocusTimerState, nowMs = Date.now()): FocusTimerState => {
+  const synced = syncFocusTimer(state, nowMs);
+
+  if (synced.status !== "running" || synced.runningSinceMs === null) {
+    return synced;
+  }
+
+  return {
+    ...synced,
+    accumulatedFocusSeconds: synced.focusedSeconds,
+    runningSinceMs: nowMs,
+  };
+};
+
+/** Wall-clock instant when the active focus segment actually reached the planned duration. */
+export const computeFocusEndedAtMs = (state: FocusTimerState, nowMs = Date.now()): number => {
   const plannedSeconds = plannedSecondsOf(state);
+  const synced = syncFocusTimer(state, nowMs);
+
+  if (plannedSeconds <= 0 || synced.focusedSeconds < plannedSeconds) {
+    return nowMs;
+  }
+
+  const secondsIntoSegment = plannedSeconds - state.accumulatedFocusSeconds;
+  if (state.runningSinceMs !== null && secondsIntoSegment > 0) {
+    return state.runningSinceMs + secondsIntoSegment * 1000;
+  }
+
+  if (state.startedAt) {
+    return new Date(state.startedAt).getTime() + plannedSeconds * 1000;
+  }
+
+  return nowMs;
+};
+
+export const completeFocusTimer = (state: FocusTimerState, nowMs = Date.now()): FocusTimerState => {
+  const plannedSeconds = plannedSecondsOf(state);
+  const focusEndedAtMs = computeFocusEndedAtMs(state, nowMs);
+
   return {
     ...state,
     status: "completed",
@@ -87,10 +131,11 @@ export const completeFocusTimer = (state: FocusTimerState): FocusTimerState => {
     focusedSeconds: plannedSeconds,
     accumulatedFocusSeconds: plannedSeconds,
     runningSinceMs: null,
+    focusEndedAtMs,
   };
 };
 
-/** Heartbeat tick — safe to call every second; uses wall clock, not interval drift. */
+/** Heartbeat tick — wall clock with per-tick materialization (no interval drift or double count). */
 export const heartbeatTick = (state: FocusTimerState, nowMs = Date.now()): FocusTimerState => {
   if (state.status !== "running") {
     return state;
@@ -98,10 +143,47 @@ export const heartbeatTick = (state: FocusTimerState, nowMs = Date.now()): Focus
 
   const synced = syncFocusTimer(state, nowMs);
   if (synced.remainingSeconds <= 0) {
-    return completeFocusTimer(synced);
+    return completeFocusTimer(synced, nowMs);
   }
 
-  return synced;
+  return materializeFocusTimer(synced, nowMs);
+};
+
+/**
+ * Freeze the wall clock while the app is away (not screen lock).
+ * Status stays "running" but background seconds do not count toward focus.
+ */
+/** Running segment paused for app-switch away (not user pause). */
+export const isFocusTimerFrozenForAway = (state: FocusTimerState): boolean =>
+  state.status === "running" && state.runningSinceMs === null;
+
+export const freezeFocusTimer = (state: FocusTimerState, nowMs = Date.now()): FocusTimerState => {
+  if (state.status !== "running") {
+    return state;
+  }
+
+  const synced = syncFocusTimer(state, nowMs);
+  if (isFocusTimerFrozenForAway(synced)) {
+    return synced;
+  }
+
+  return {
+    ...synced,
+    runningSinceMs: null,
+    accumulatedFocusSeconds: synced.focusedSeconds,
+  };
+};
+
+/** Resume wall clock after returning from app-switch away (not pause). */
+export const unfreezeFocusTimer = (state: FocusTimerState, nowMs = Date.now()): FocusTimerState => {
+  if (state.status !== "running" || !isFocusTimerFrozenForAway(state)) {
+    return state;
+  }
+
+  return {
+    ...state,
+    runningSinceMs: nowMs,
+  };
 };
 
 export const startFocusSession = (state: FocusTimerState, nowMs = Date.now()): FocusTimerState => {
@@ -122,6 +204,7 @@ export const startFocusSession = (state: FocusTimerState, nowMs = Date.now()): F
     runningSinceMs: nowMs,
     pauseCount: 0,
     startedAt: new Date(nowMs).toISOString(),
+    focusEndedAtMs: null,
   };
 };
 
@@ -145,10 +228,12 @@ export const resumeFocusSession = (state: FocusTimerState, nowMs = Date.now()): 
     return state;
   }
 
+  const synced = syncFocusTimer(state, nowMs);
   return {
-    ...state,
+    ...synced,
     status: "running",
     runningSinceMs: nowMs,
+    accumulatedFocusSeconds: synced.focusedSeconds,
   };
 };
 
@@ -168,8 +253,8 @@ export const buildCompletionSnapshot = (
     return null;
   }
 
-  const synced =
-    state.status === "completed" ? state : syncFocusTimer(state, nowMs);
+  const synced = state.status === "completed" ? state : syncFocusTimer(state, nowMs);
+  const endedAtMs = state.focusEndedAtMs ?? nowMs;
 
   return {
     plannedDurationMinutes: state.plannedDurationMinutes,
@@ -177,17 +262,13 @@ export const buildCompletionSnapshot = (
     categoryId: state.selectedCategoryId,
     pauseCount: state.pauseCount,
     startedAt: state.startedAt,
-    completedAt: new Date(nowMs).toISOString(),
+    completedAt: new Date(endedAtMs).toISOString(),
     completedNaturally,
   };
 };
 
 /** Active focus minutes to persist — never above the planned session length. */
 export const snapshotFocusedMinutes = (snapshot: SessionCompletionSnapshot): number => {
-  if (snapshot.completedNaturally) {
-    return snapshot.plannedDurationMinutes;
-  }
-
   const focusedMinutes = Math.floor(Math.max(0, snapshot.focusedSeconds) / 60);
   return Math.min(snapshot.plannedDurationMinutes, Math.max(0, focusedMinutes));
 };

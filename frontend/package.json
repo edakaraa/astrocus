@@ -13,7 +13,10 @@
     "android:release": "powershell -ExecutionPolicy Bypass -File ./scripts/build-release-apk.ps1",
     "android:bundle": "powershell -ExecutionPolicy Bypass -File ./scripts/build-release-apk.ps1 -Bundle",
     "ios": "expo run:ios",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:session-timer": "npx tsx --test src/context/session/sessionTimer.test.ts",
+    "test:focus-notifications": "npx tsx --test src/context/session/focusSessionNotifications.test.ts",
+    "test:session": "npx tsx --test src/context/session/sessionTimer.test.ts src/context/session/focusSessionNotifications.test.ts src/context/session/focusBackground.test.ts"
   },
   "repository": {
     "type": "git",
@@ -69,6 +72,7 @@
     "@babel/core": "^7.28.4",
     "@types/react": "~19.1.10",
     "babel-preset-expo": "~54.0.10",
+    "tsx": "^4.20.3",
     "typescript": "^5.9.3"
   }
 }

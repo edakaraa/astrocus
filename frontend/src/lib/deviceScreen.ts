@@ -73,15 +73,13 @@ const loadScreenDetector = async (): Promise<ScreenDetectorModule | null> => {
 
 /**
  * Power-button lock or display off — session should continue (Forest / Pomodoro pattern).
+ * Do not treat `isScreenUnavailable` alone as lock: on many devices it is true during
+ * app-switch background transitions while the keyguard is still off.
  */
 export const isFocusSessionScreenLock = async (): Promise<boolean> => {
   const detector = await loadScreenDetector();
   if (!detector) {
     return false;
-  }
-
-  if (await detector.isScreenUnavailable()) {
-    return true;
   }
 
   const [locked, off] = await Promise.all([

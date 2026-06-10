@@ -102,19 +102,19 @@ export const formatRemainingTime = (seconds: number, language: Language = "tr"):
   return language === "en" ? `${clock} remaining` : `${clock} kaldı`;
 };
 
+export const FOCUS_SESSION_ROUTE = "/(tabs)/session" as const;
+
+const focusSessionBrandTitle = (): string => "Astrocus";
+
 const focusSessionNotificationTitle = (language: Language = "tr"): string =>
   language === "en" ? "Focus session" : "Odak seansı";
 
-const focusSessionCompletedTitle = (language: Language = "tr"): string =>
-  language === "en" ? "Focus session complete!" : "Odak seansı tamamlandı!";
+import { buildFocusSessionCelebrationBody } from "../context/session/focusSessionNotifications";
 
-const focusSessionCompletedBody = (
-  plannedDurationMinutes: number,
-  language: Language = "tr",
-): string =>
-  language === "en"
-    ? `You focused for ${plannedDurationMinutes} minutes. Amazing!`
-    : `${plannedDurationMinutes} dakika odaklandın. Harikasın!`;
+export { buildFocusSessionCelebrationBody };
+
+const focusSessionCompletedTitle = (language: Language = "tr"): string =>
+  language === "en" ? "🎉 Session complete!" : "🎉 Seans tamamlandı!";
 
 const focusSessionFailedTitle = (language: Language = "tr"): string =>
   language === "en" ? "Focus session lost" : "Odak seansı kaybedildi";
@@ -124,6 +124,14 @@ const focusSessionFailedBody = (seconds: number, language: Language = "tr"): str
     ? `You left the app for more than ${seconds} seconds.`
     : `Uygulamadan ${seconds} saniyeden fazla uzak kaldın.`;
 
+export const focusSessionAwayWarningTitle = (language: Language = "tr"): string =>
+  language === "en" ? "⚠️ Focus session at risk!" : "⚠️ Odak seansın tehlikede!";
+
+export const focusSessionAwayWarningBody = (language: Language = "tr"): string =>
+  language === "en"
+    ? "Return within 10 seconds or the session will end."
+    : "Geri dönmezsen 10 saniye içinde seans sona erer.";
+
 const ensureOngoingChannel = async (Notifications: NotificationsModule): Promise<void> => {
   if (ongoingChannelReady) {
     return;
@@ -131,7 +139,7 @@ const ensureOngoingChannel = async (Notifications: NotificationsModule): Promise
 
   await Notifications.setNotificationChannelAsync(FOCUS_SESSION_ONGOING_CHANNEL, {
     name: "Odak Seansı Durumu",
-    importance: Notifications.AndroidImportance.LOW,
+    importance: Notifications.AndroidImportance.HIGH,
     sound: null,
     vibrationPattern: null,
     showBadge: false,
@@ -191,14 +199,18 @@ const presentFocusSessionNotificationFallback = async (
 
   await ensureOngoingChannel(Notifications);
 
+  const sessionLabel = focusSessionNotificationTitle(language);
+  const remainingLabel = formatRemainingTime(remainingSeconds, language);
+
   await Notifications.scheduleNotificationAsync({
     identifier: FOCUS_SESSION_ONGOING_ID,
     content: {
-      title: focusSessionNotificationTitle(language),
-      body: formatRemainingTime(remainingSeconds, language),
+      title: focusSessionBrandTitle(),
+      subtitle: sessionLabel,
+      body: remainingLabel,
       sticky: true,
       autoDismiss: false,
-      priority: Notifications.AndroidNotificationPriority.LOW,
+      priority: Notifications.AndroidNotificationPriority.HIGH,
       ...(Platform.OS === "android" && {
         color: FOCUS_SESSION_NOTIFICATION_BG,
         channelId: FOCUS_SESSION_ONGOING_CHANNEL,
@@ -211,18 +223,30 @@ const presentFocusSessionNotificationFallback = async (
 const presentFocusTimerService = async (
   remainingSeconds: number,
   language: Language = "tr",
+  mode: "start" | "update" = "start",
 ): Promise<boolean> => {
   if (Platform.OS !== "android" || remainingSeconds <= 0) {
     return false;
   }
 
   try {
-    const { startFocusTimerNotification } = await import("astrocus-focus-timer");
+    const focusTimer = await import("astrocus-focus-timer");
     const endTimeMs = Date.now() + remainingSeconds * 1000;
-    return await startFocusTimerNotification(
+    const sessionTitle = focusSessionNotificationTitle(language);
+    const sessionSubtitle = formatRemainingTime(remainingSeconds, language);
+
+    if (mode === "update" && focusTimer.isFocusTimerServiceAvailable()) {
+      return await focusTimer.updateFocusTimerNotification(
+        endTimeMs,
+        sessionTitle,
+        sessionSubtitle,
+      );
+    }
+
+    return await focusTimer.startFocusTimerNotification(
       endTimeMs,
-      focusSessionNotificationTitle(language),
-      formatRemainingTime(remainingSeconds, language),
+      sessionTitle,
+      sessionSubtitle,
     );
   } catch {
     return false;
@@ -247,14 +271,56 @@ export const updateFocusSessionNotification = async (
   remainingSeconds: number,
   language: Language = "tr",
 ): Promise<void> => {
-  if (Platform.OS !== "android") {
+  if (Platform.OS !== "android" || remainingSeconds <= 0) {
     return;
   }
 
-  const started = await presentFocusTimerService(remainingSeconds, language);
+  const started = await presentFocusTimerService(remainingSeconds, language, "update");
   if (!started) {
     await presentFocusSessionNotificationFallback(remainingSeconds, language);
   }
+};
+
+/** Immediate celebration notification when JS timer completes (not lock-screen scheduled). */
+export const presentFocusSessionCompletedNotification = async (input: {
+  durationMinutes: number;
+  stardustEarned: number;
+  language: Language;
+}): Promise<void> => {
+  const hasPermission = await ensureNotificationPermission();
+  if (!hasPermission) {
+    return;
+  }
+
+  const Notifications = await loadNotifications();
+  if (!Notifications) {
+    return;
+  }
+
+  if (Platform.OS === "android") {
+    await ensureCompleteChannel(Notifications);
+  }
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: FOCUS_SESSION_COMPLETE_ID,
+    content: {
+      title: focusSessionCompletedTitle(input.language),
+      body: buildFocusSessionCelebrationBody(
+        input.durationMinutes,
+        input.stardustEarned,
+        input.language,
+      ),
+      sound: true,
+      autoDismiss: false,
+      data: { type: "focus-session-complete", route: FOCUS_SESSION_ROUTE },
+      ...(Platform.OS === "android" && {
+        color: "#7B61FF",
+        channelId: FOCUS_SESSION_COMPLETE_CHANNEL,
+        priority: Notifications.AndroidNotificationPriority.HIGH,
+      }),
+    },
+    trigger: null,
+  });
 };
 
 export const scheduleFocusSessionCompletedNotification = async (
@@ -280,10 +346,14 @@ export const scheduleFocusSessionCompletedNotification = async (
     identifier: FOCUS_SESSION_COMPLETE_ID,
     content: {
       title: focusSessionCompletedTitle(language),
-      body: focusSessionCompletedBody(plannedDurationMinutes, language),
+      body: buildFocusSessionCelebrationBody(
+        plannedDurationMinutes,
+        plannedDurationMinutes * 10,
+        language,
+      ),
       sound: true,
       autoDismiss: false,
-      data: { type: "focus-session-complete" },
+      data: { type: "focus-session-complete", route: FOCUS_SESSION_ROUTE },
       ...(Platform.OS === "android" && {
         color: "#7B61FF",
         channelId: FOCUS_SESSION_COMPLETE_CHANNEL,
@@ -349,7 +419,7 @@ const isFocusSessionCompleteNotification = (
   identifier === FOCUS_SESSION_COMPLETE_ID || data?.type === "focus-session-complete";
 
 export const setupFocusSessionCompleteTapHandler = async (
-  onTap: () => void,
+  onTap: (route?: string) => void,
 ): Promise<{ remove: () => void } | null> => {
   const Notifications = await loadNotifications();
   if (!Notifications) {
@@ -361,7 +431,8 @@ export const setupFocusSessionCompleteTapHandler = async (
   }) => {
     const { identifier, content } = response.notification.request;
     if (isFocusSessionCompleteNotification(identifier, content.data)) {
-      onTap();
+      const route = typeof content.data?.route === "string" ? content.data.route : undefined;
+      onTap(route);
     }
   };
 
@@ -369,7 +440,8 @@ export const setupFocusSessionCompleteTapHandler = async (
   if (lastResponse) {
     const { identifier, content } = lastResponse.notification.request;
     if (isFocusSessionCompleteNotification(identifier, content.data)) {
-      onTap();
+      const route = typeof content.data?.route === "string" ? content.data.route : undefined;
+      onTap(route);
     }
   }
 
@@ -396,9 +468,44 @@ export const stopFocusSessionNotification = async (): Promise<void> => {
   await Notifications.dismissNotificationAsync(FOCUS_SESSION_ONGOING_ID);
 };
 
+/** Immediate away warning at the 10s mark (foreground JS timeout). */
+export const presentFocusSessionAwayWarning = async (
+  language: Language = "tr",
+): Promise<void> => {
+  const Notifications = await loadNotifications();
+  if (!Notifications) {
+    return;
+  }
+
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status !== "granted") {
+    return;
+  }
+
+  if (Platform.OS === "android") {
+    await ensureAlertChannel(Notifications);
+  }
+
+  await Notifications.scheduleNotificationAsync({
+    identifier: FOCUS_SESSION_WARNING_ID,
+    content: {
+      title: focusSessionAwayWarningTitle(language),
+      body: focusSessionAwayWarningBody(language),
+      sound: true,
+      data: { type: "focus-session-warning" },
+      ...(Platform.OS === "android" && {
+        color: "#7B61FF",
+        channelId: FOCUS_SESSION_ALERT_CHANNEL,
+      }),
+    },
+    trigger: null,
+  });
+};
+
 export const scheduleBackgroundWarning = async (
   message: string,
   backgroundedAt?: number,
+  language: Language = "tr",
 ): Promise<string | null> => {
   const Notifications = await loadNotifications();
   if (!Notifications) return null;
@@ -418,9 +525,10 @@ export const scheduleBackgroundWarning = async (
   return Notifications.scheduleNotificationAsync({
     identifier: FOCUS_SESSION_WARNING_ID,
     content: {
-      title: "Odak Seansı",
-      body: message,
+      title: focusSessionAwayWarningTitle(language),
+      body: message || focusSessionAwayWarningBody(language),
       sound: true,
+      data: { type: "focus-session-warning" },
       ...(Platform.OS === "android" && {
         color: "#7B61FF",
         channelId: FOCUS_SESSION_ALERT_CHANNEL,
