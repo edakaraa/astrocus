@@ -30,15 +30,17 @@ import {
 } from "../lib/analytics";
 import { isFocusSessionScreenLock } from "../lib/deviceScreen";
 import {
+  FOCUS_SESSION_FAILED_ID,
   FOCUS_SESSION_WARNING_ID,
   cancelFocusSessionCompletedNotification,
   cancelScheduledNotification,
   dismissNotification,
   ensureNotificationPermission,
-  presentFocusSessionAwayWarning,
   presentFocusSessionCompletedNotification,
+  scheduleBackgroundWarning,
   scheduleFocusSessionCompletedNotification,
   scheduleSessionFailedNotification,
+  scheduleSessionFailedNotificationDelayed,
   setupFocusSessionCompleteTapHandler,
   startFocusSessionNotification,
   stopFocusSessionNotification,
@@ -81,11 +83,7 @@ import {
 import { persistLocalDailyGoal } from "../lib/dailyGoalStorage";
 import { mergeSessionsWithPending } from "./session/offlineSessions";
 import { shouldQueueSessionAfterSaveFailure } from "./session/offlineQueue";
-import {
-  clearFocusBackgroundAwayTimeouts,
-  scheduleFocusBackgroundAwayTimeouts,
-  shouldResumeAwaySession,
-} from "./session/focusBackgroundAway";
+import { shouldResumeAwaySession } from "./session/focusBackgroundAway";
 import { onFocusSessionTimerCompleted } from "./session/focusSessionNotifications";
 import { createDailySummary, estimateSessionCelebration } from "./session/stardust";
 
@@ -150,12 +148,13 @@ export const SessionProvider = ({
   const scheduledSessionCompleteRef = useRef<string | null>(null);
   const screenLockedSessionRef = useRef(false);
   const backgroundCheckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const backgroundWarningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const backgroundFailTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const backgroundWarningTimeoutRef = useRef<string | null>(null);
+  const backgroundFailTimeoutRef = useRef<string | null>(null);
   const ongoingNotificationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const completionSnapshotRef = useRef<SessionCompletionSnapshot | null>(null);
   const completionNotificationSentRef = useRef(false);
   const finalizingRef = useRef(false);
+  const finalizationStartedRef = useRef(false);
   const sessionStateRef = useRef(sessionState);
   sessionStateRef.current = sessionState;
   const prevAppStateRef = useRef<AppStateStatus>(AppState.currentState);
@@ -170,17 +169,16 @@ export const SessionProvider = ({
   }, []);
 
   const clearBackgroundWarningTimeout = useCallback(() => {
-    if (backgroundWarningTimeoutRef.current) {
-      clearTimeout(backgroundWarningTimeoutRef.current);
-      backgroundWarningTimeoutRef.current = null;
-    }
+    const scheduledId = backgroundWarningTimeoutRef.current;
+    backgroundWarningTimeoutRef.current = null;
+    void cancelScheduledNotification(scheduledId);
   }, []);
 
   const clearBackgroundFailTimeout = useCallback(() => {
-    if (backgroundFailTimeoutRef.current) {
-      clearTimeout(backgroundFailTimeoutRef.current);
-      backgroundFailTimeoutRef.current = null;
-    }
+    const scheduledId = backgroundFailTimeoutRef.current;
+    backgroundFailTimeoutRef.current = null;
+    void cancelScheduledNotification(scheduledId);
+    void dismissNotification(FOCUS_SESSION_FAILED_ID);
   }, []);
 
   const clearBackgroundAwayTimeouts = useCallback(() => {
@@ -239,6 +237,7 @@ export const SessionProvider = ({
       if (options?.unfreezeAway) {
         clearBackgroundAwayTimeouts();
         void dismissNotification(FOCUS_SESSION_WARNING_ID);
+        void dismissNotification(FOCUS_SESSION_FAILED_ID);
       }
 
       setSessionState((state) => {
@@ -344,10 +343,6 @@ export const SessionProvider = ({
   );
 
   const enterScreenLockMode = useCallback(async () => {
-    if (__DEV__) {
-      console.log("[SessionContext] enterScreenLockMode called");
-    }
-
     if (screenLockedSessionRef.current) {
       return;
     }
@@ -357,8 +352,6 @@ export const SessionProvider = ({
     void dismissNotification(FOCUS_SESSION_WARNING_ID);
 
     if (backgroundedAtRef.current) {
-      void cancelScheduledNotification(scheduledNotificationRef.current);
-      scheduledNotificationRef.current = null;
       backgroundedAtRef.current = null;
     }
 
@@ -387,10 +380,6 @@ export const SessionProvider = ({
   }, [clearBackgroundAwayTimeouts, clearOngoingNotificationInterval, notificationLanguage]);
 
   const enterAppBackgroundAwayMode = useCallback(async () => {
-    if (__DEV__) {
-      console.log("[SessionContext] enterAppBackgroundAwayMode called");
-    }
-
     if (backgroundedAtRef.current || screenLockedSessionRef.current) {
       return;
     }
@@ -405,40 +394,21 @@ export const SessionProvider = ({
 
     setSessionState((state) => freezeFocusTimer(state, sessionMonotonicNowMs()));
 
-    backgroundedAtRef.current = new Date().toISOString();
+    const backgroundedAtMs = Date.now();
+    backgroundedAtRef.current = new Date(backgroundedAtMs).toISOString();
 
     clearBackgroundAwayTimeouts();
-    const awayTimeouts = scheduleFocusBackgroundAwayTimeouts({
-      onWarning: () => {
-        backgroundWarningTimeoutRef.current = null;
-        if (!backgroundedAtRef.current) {
-          return;
-        }
-        if (sessionStateRef.current.status !== "running") {
-          return;
-        }
-        void presentFocusSessionAwayWarning(notificationLanguage);
-      },
-      onFail: () => {
-        backgroundFailTimeoutRef.current = null;
-        if (!backgroundedAtRef.current) {
-          return;
-        }
-        if (sessionStateRef.current.status !== "running") {
-          return;
-        }
 
-        void cancelScheduledNotification(scheduledNotificationRef.current);
-        scheduledNotificationRef.current = null;
-        void dismissNotification(FOCUS_SESSION_WARNING_ID);
-        backgroundedAtRef.current = null;
-        setSessionState((state) => failFocusSession(state));
-        void stopFocusSessionNotification();
-        void scheduleSessionFailedNotification(notificationLanguage);
-      },
-    });
-    backgroundWarningTimeoutRef.current = awayTimeouts.warningTimeoutId;
-    backgroundFailTimeoutRef.current = awayTimeouts.failTimeoutId;
+    backgroundWarningTimeoutRef.current = await scheduleBackgroundWarning(
+      "",
+      backgroundedAtMs,
+      notificationLanguage,
+    );
+    backgroundFailTimeoutRef.current = await scheduleSessionFailedNotificationDelayed(
+      BACKGROUND_TOLERANCE_SECONDS,
+      backgroundedAtMs,
+      notificationLanguage,
+    );
   }, [clearBackgroundAwayTimeouts, clearOngoingNotificationInterval, notificationLanguage]);
 
   const isActiveFocusSession =
@@ -686,6 +656,8 @@ export const SessionProvider = ({
           unlockedStarIds,
           earnedBadgeIds,
         );
+        setPendingSessions([]);
+        void asyncStorage.set(STORAGE_KEYS.pendingSessions, []);
         await applyAuthPayload(response.payload);
         void refreshAnalytics();
         uiSetCelebrationRef.current?.({
@@ -780,6 +752,11 @@ export const SessionProvider = ({
       return;
     }
 
+    if (finalizationStartedRef.current) {
+      return;
+    }
+    finalizationStartedRef.current = true;
+
     const snapshot =
       completionSnapshotRef.current ??
       buildCompletionSnapshot(
@@ -800,6 +777,12 @@ export const SessionProvider = ({
   }, [finalizeSession, notifyFocusSessionCompleted, sessionState.status]);
 
   useEffect(() => {
+    if (sessionState.status === "idle") {
+      finalizationStartedRef.current = false;
+    }
+  }, [sessionState.status]);
+
+  useEffect(() => {
     const resolveLockOrAway = async (): Promise<"lock" | "away" | "abort"> => {
       for (let attempt = 0; attempt < 6; attempt += 1) {
         if (attempt > 0) {
@@ -811,8 +794,13 @@ export const SessionProvider = ({
         if (sessionStateRef.current.status !== "running") {
           return "abort";
         }
-        if (await isFocusSessionScreenLock()) {
-          return "lock";
+        try {
+          const isScreenLock = await isFocusSessionScreenLock();
+          if (isScreenLock) {
+            return "lock";
+          }
+        } catch {
+          // retry
         }
       }
       return "away";
@@ -827,9 +815,6 @@ export const SessionProvider = ({
         backgroundCheckTimeoutRef.current = null;
         void (async () => {
           const outcome = await resolveLockOrAway();
-          if (__DEV__) {
-            console.log("[SessionContext] resolveLockOrAway:", outcome);
-          }
           if (outcome === "abort") {
             return;
           }
@@ -864,7 +849,14 @@ export const SessionProvider = ({
 
       if (shouldScheduleLockOrAway) {
         backgroundEventTimeRef.current = Date.now();
-        scheduleLockOrAwayCheck();
+        void (async () => {
+          const isScreenLock = await isFocusSessionScreenLock();
+          if (isScreenLock) {
+            await enterScreenLockMode();
+            return;
+          }
+          await enterAppBackgroundAwayMode();
+        })();
       }
 
       if (
@@ -888,6 +880,7 @@ export const SessionProvider = ({
 
       clearBackgroundAwayTimeouts();
       void dismissNotification(FOCUS_SESSION_WARNING_ID);
+      void dismissNotification(FOCUS_SESSION_FAILED_ID);
 
       if (screenLockedSessionRef.current) {
         screenLockedSessionRef.current = false;
@@ -917,8 +910,7 @@ export const SessionProvider = ({
       void (async () => {
         clearBackgroundAwayTimeouts();
         void dismissNotification(FOCUS_SESSION_WARNING_ID);
-        await cancelScheduledNotification(scheduledNotificationRef.current);
-        scheduledNotificationRef.current = null;
+        void dismissNotification(FOCUS_SESSION_FAILED_ID);
 
         const elapsed = Math.floor(
           (Date.now() - new Date(backgroundedAtRef.current!).getTime()) / 1000,
@@ -962,10 +954,7 @@ export const SessionProvider = ({
   ]);
 
   const startSession = useCallback(async () => {
-    const hasPermission = await ensureNotificationPermission();
-    if (__DEV__) {
-      console.log("[SessionContext] Notification permission:", hasPermission);
-    }
+    await ensureNotificationPermission();
 
     completionSnapshotRef.current = null;
     completionNotificationSentRef.current = false;

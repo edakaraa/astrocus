@@ -68,6 +68,19 @@ export const requestPushPermissionAndSaveToken = async (): Promise<void> => {
       return;
     }
 
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", userId)
+      .single();
+
+    if (!existingProfile) {
+      if (__DEV__) {
+        console.warn("[Astrocus] Profile not found, skipping push token save");
+      }
+      return;
+    }
+
     const { error } = await supabase.from("profiles").upsert(
       {
         id: userId,

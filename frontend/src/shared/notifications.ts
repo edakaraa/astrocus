@@ -275,9 +275,53 @@ export const updateFocusSessionNotification = async (
     return;
   }
 
-  const started = await presentFocusTimerService(remainingSeconds, language, "update");
+  const bodyText =
+    language === "en"
+      ? "Your star is shining ✨ Keep focusing"
+      : "Yıldızın parlıyor ✨ Odaklanmaya devam et";
+
+  let started = false;
+  try {
+    const focusTimer = await import("astrocus-focus-timer");
+    const endTimeMs = Date.now() + remainingSeconds * 1000;
+    if (focusTimer.isFocusTimerServiceAvailable()) {
+      started = await focusTimer.updateFocusTimerNotification(endTimeMs, "", bodyText);
+    }
+  } catch {
+    started = false;
+  }
+
   if (!started) {
-    await presentFocusSessionNotificationFallback(remainingSeconds, language);
+    const Notifications = await loadAndroidNotifications();
+    if (!Notifications) {
+      return;
+    }
+
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== "granted") {
+      return;
+    }
+
+    await ensureOngoingChannel(Notifications);
+
+    const sessionLabel = focusSessionNotificationTitle(language);
+
+    await Notifications.scheduleNotificationAsync({
+      identifier: FOCUS_SESSION_ONGOING_ID,
+      content: {
+        title: "",
+        subtitle: sessionLabel,
+        body: bodyText,
+        sticky: true,
+        autoDismiss: false,
+        priority: Notifications.AndroidNotificationPriority.HIGH,
+        ...(Platform.OS === "android" && {
+          color: FOCUS_SESSION_NOTIFICATION_BG,
+          channelId: FOCUS_SESSION_ONGOING_CHANNEL,
+        }),
+      },
+      trigger: null,
+    });
   }
 };
 
@@ -399,6 +443,51 @@ export const scheduleSessionFailedNotification = async (
       }),
     },
     trigger: null,
+  });
+};
+
+/** Native scheduler: fires fail notification after `delaySeconds` from `backgroundedAtMs`. */
+export const scheduleSessionFailedNotificationDelayed = async (
+  delaySeconds: number,
+  backgroundedAtMs?: number,
+  language: Language = "tr",
+): Promise<string | null> => {
+  const Notifications = await loadNotifications();
+  if (!Notifications) {
+    return null;
+  }
+
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status !== "granted") {
+    return null;
+  }
+
+  if (Platform.OS === "android") {
+    await ensureAlertChannel(Notifications);
+  }
+
+  const elapsedSeconds = backgroundedAtMs ? (Date.now() - backgroundedAtMs) / 1000 : 0;
+  const triggerSeconds = Math.max(1, Math.ceil(delaySeconds - elapsedSeconds));
+
+  return Notifications.scheduleNotificationAsync({
+    identifier: FOCUS_SESSION_FAILED_ID,
+    content: {
+      title: focusSessionFailedTitle(language),
+      body: focusSessionFailedBody(WARNING_THRESHOLD_SECONDS, language),
+      sound: true,
+      data: { type: "focus-session-failed" },
+      ...(Platform.OS === "android" && {
+        color: "#7B61FF",
+        channelId: FOCUS_SESSION_ALERT_CHANNEL,
+      }),
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: triggerSeconds,
+      ...(Platform.OS === "android" && {
+        channelId: FOCUS_SESSION_ALERT_CHANNEL,
+      }),
+    },
   });
 };
 
