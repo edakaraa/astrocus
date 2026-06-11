@@ -24,7 +24,14 @@ import {
 } from "../lib/analytics";
 import { AuthMode, AuthPayload, CelebrationPayload, PendingSession, UnlockStarResult, User, UserConstellationRow } from "../shared/types";
 import { requestPushPermissionAndSaveToken } from "../lib/notifications";
-import { createDevDemoPayload, isDevDemoToken, matchesDevDemoCredentials } from "./auth/devDemo";
+import {
+  createDevDemoPayload,
+  isDevDemoEnabled,
+  isDevDemoToken,
+  isDevDemoTokenPrefix,
+  matchesDevDemoCredentials,
+  purgeDevDemoStorage,
+} from "./auth/devDemo";
 export type AstrocusInfraRefs = {
   sessionHydrateRef: React.MutableRefObject<((payload: AuthPayload) => void) | null>;
   sessionSetPendingRef: React.MutableRefObject<((sessions: PendingSession[]) => void) | null>;
@@ -89,6 +96,16 @@ export const AuthProvider = ({
 
   const applyAuthPayload = useCallback(
     async (payload: AuthPayload) => {
+      if (isDevDemoTokenPrefix(payload.token) && !isDevDemoEnabled()) {
+        await purgeDevDemoStorage(
+          secureStorage.remove.bind(secureStorage),
+          asyncStorage.remove.bind(asyncStorage),
+          STORAGE_KEYS.authToken,
+          STORAGE_KEYS.demoAuthPayload,
+        );
+        return;
+      }
+
       setToken(payload.token);
       setUser(payload.user);
       identifyAnalyticsUser(payload.user.id, { email: payload.user.email });
@@ -119,6 +136,16 @@ export const AuthProvider = ({
       uiSetLanguageRef.current?.(initialLanguage);
 
       if (storedToken) {
+        if (isDevDemoTokenPrefix(storedToken) && !isDevDemoEnabled()) {
+          await purgeDevDemoStorage(
+            secureStorage.remove.bind(secureStorage),
+            asyncStorage.remove.bind(asyncStorage),
+            STORAGE_KEYS.authToken,
+            STORAGE_KEYS.demoAuthPayload,
+          );
+          setIsReady(true);
+          return;
+        }
         if (isDevDemoToken(storedToken)) {
           const storedDemoPayload = await asyncStorage.get<AuthPayload | null>(STORAGE_KEYS.demoAuthPayload, null);
           if (storedDemoPayload?.token === storedToken) {
@@ -184,7 +211,7 @@ export const AuthProvider = ({
 
   const login = useCallback(
     async (input: { email: string; password: string }, language: User["language"]) => {
-      if (__DEV__ && matchesDevDemoCredentials(input)) {
+      if (isDevDemoEnabled() && matchesDevDemoCredentials(input)) {
         const payload = createDevDemoPayload({ email: input.email.trim() });
         await asyncStorage.set(STORAGE_KEYS.demoAuthPayload, payload);
         await applyAuthPayload(payload);

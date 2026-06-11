@@ -10,8 +10,12 @@ export const initMonitoring = (): void => {
     return;
   }
 
+  const appEnv = process.env.APP_ENV?.trim();
+  const nodeEnv = process.env.NODE_ENV?.trim();
   const environment =
-    process.env.APP_ENV?.trim() || process.env.NODE_ENV?.trim() || "development";
+    appEnv === "production" || nodeEnv === "production"
+      ? "production"
+      : appEnv || nodeEnv || "development";
 
   Sentry.init({
     dsn,

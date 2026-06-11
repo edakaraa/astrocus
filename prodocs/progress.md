@@ -2,9 +2,32 @@
 
 Bu dosya, projede şimdiye kadar yapılan işleri, **güncel bileşen envanterini**, tamamlanan / eksik kalemleri ve teslim öncesi riskleri tek yerde tutar.
 
-> **Son güncelleme:** 2026-06-06 (yıldız tozu ekonomisi 10 ✦/dk, bilgi modalı, migration 024–025)  
+> **Son güncelleme:** 2026-06-11 (production go-live hazırlığı, e-posta köprüsü, ölü kod temizliği)  
 > İlgili dokümanlar: `prodocs/PRD.md`, `tech-stack.md`, `plan.md`, `DesignSystem.md`  
+> **Canlıya geçiş rehberi:** `docs/production-go-live.md`  
 > OAuth rehberi: `docs/oauth-expo-go.md` · Galaksi katalog planı: `docs/galaxy-catalog.md`
+
+---
+
+## Güncel özet (2026-06-11 — production go-live)
+
+### Yapılanlar
+
+| Alan | Değişiklik |
+|------|------------|
+| UI | Onboarding buton rengi tema paleti (`#8387C3`); seans kaybedildi metni 10 sn |
+| Production | `APP_ENV=production`; demo mod yalnızca `__DEV__`; eski demo token temizliği |
+| E-posta auth | `/auth/confirm` ara sayfa (mail tarayıcı koruması); `deploy:auth-email` `.env` okur |
+| Mobil `.env` | `EXPO_PUBLIC_AUTH_VERIFY_REDIRECT_URI=astrocus://verify-success` |
+| Ölü kod | `StarfieldBackground.tsx`, `starsApi.ts` silindi |
+| Dokümantasyon | `docs/production-go-live.md` + ilgili `.md` güncellemeleri |
+
+### Açık (cihaz / mağaza)
+
+- [ ] Railway backend redeploy (`/auth/confirm`)
+- [ ] Release APK smoke test (kayıt → e-posta → odak → push)
+- [ ] Play Console kapalı test
+- [ ] Migration 017–028 push (önceki maddeler)
 
 ---
 
@@ -227,7 +250,7 @@ backend/supabase/
 | **UIContext** | `context/UIContext.tsx` | Dil, kutlama modal state | ✅ |
 | **NotificationContext** | `context/NotificationContext.tsx` | Global `showToast`, `showAlert`, `showConfirm` | ✅ |
 | **session/*** | `context/session/*.ts` | Offline kuyruk, timer, süre hesabı (SessionContext'ten ayrıştırıldı) | ✅ |
-| **devDemo** | `context/auth/devDemo.ts` | `demo` / `demo@astrocus.dev` — 10 ✦/dk simülasyon | ✅ |
+| **devDemo** | `context/auth/devDemo.ts` | `demo` / `demo@astrocus.dev` — yalnızca `__DEV__` | ✅ |
 | **stardustEconomy** | `shared/stardustEconomy.ts` | Kazanç oranları, tier maliyetleri, günlük ödül tek kaynak | ✅ |
 | **stardust** | `context/session/stardust.ts` | Günlük özet (yerel aggregation) | ✅ |
 | **dateKey** | `context/session/dateKey.ts` | Tarih anahtarı (streak / günlük) | ✅ |
@@ -314,7 +337,7 @@ backend/supabase/
 | `AstroAlertModal` / `AstroConfirmModal` | Onay / uyarı diyalogları | ✅ |
 | `TabScreenScaffold` / `SubScreenScaffold` | Tab / alt ekran iskeleti | ✅ |
 | `ScreenContentColumn` | Responsive içerik sütunu | ✅ |
-| `CosmicScreenBackground` / `GalaxyBackground` / `StarfieldBackground` | Arka plan katmanları | ✅ |
+| `CosmicScreenBackground` / `GalaxyBackground` | Arka plan katmanları (Skia) | ✅ |
 | `SurfaceCard` / `AppCard` / `Card` | Kart yüzeyleri | ✅ |
 | `GradientButton` | Birincil CTA | ✅ |
 | `Logo` | Marka logosu (splash) | ✅ |
@@ -625,6 +648,24 @@ Dashboard → **SQL Editor** → her dosyayı **sırayla** yapıştırıp çalı
 * `@sentry/node` + `posthog-node`; `account/delete` olay ve hata yakalama
 
 **Açık:** `supabase db push` (017–023), PostHog/Sentry `.env` anahtarları, Express deploy, EAS build
+
+---
+
+### 2026-06-11 — Production go-live hazırlığı
+
+**Bağlam:** Canlıya geçiş öncesi UI düzeltmeleri, production env, e-posta doğrulama köprüsü, ölü kod temizliği, dokümantasyon.
+
+**Kod:**
+* Onboarding `colors.primary`; SessionScreen failed mesajı `WARNING_THRESHOLD_SECONDS` (10 sn)
+* `devDemo.ts` — `isDevDemoEnabled()`, production'da demo token purge
+* `auth.routes.ts` — `GET /auth/confirm` + `verifyOtp` signup/email fallback
+* `confirmation.html` / `recovery.html` → `/auth/confirm` linkleri
+* `deploy-auth-email-config.mjs` — `dotenv` + `.env` yorum temizleme + `smtp_port` string
+* Silinen: `StarfieldBackground.tsx`, `starsApi.ts`
+
+**Dokümantasyon:** `docs/production-go-live.md` (ana rehber); `release-checklist`, `auth-email-templates`, `android-local-release`, `backend-deploy`, `README` güncellendi.
+
+**Açık:** Railway redeploy, release APK smoke test, Play kapalı test.
 
 ---
 

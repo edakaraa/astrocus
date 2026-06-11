@@ -19,7 +19,7 @@ import { useAppContext } from "../context/AppContext";
 import { t } from "../shared/i18n";
 import type { Language } from "../shared/types";
 import { useResponsive } from "../shared/responsive";
-import { fontFamilies } from "../shared/theme";
+import { colors, fontFamilies } from "../shared/theme";
 
 const VISUALS = [
   require("../../assets/onboarding/visual_01_star.png"),
@@ -523,12 +523,12 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 54,
     borderRadius: 15,
-    backgroundColor: "#7c3aed",
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#7c3aed",
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.52,
+    shadowOpacity: 0.34,
     shadowRadius: 22,
     elevation: 12,
   },

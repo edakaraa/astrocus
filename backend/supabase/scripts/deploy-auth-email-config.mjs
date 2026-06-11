@@ -1,14 +1,26 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import dotenv from "dotenv";
 import { AUTH_EMAIL_OTP_EXPIRY_SECONDS } from "../templates/auth-email-palette.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const backendRoot = join(root, "..");
 const templatesDir = join(root, "templates");
 
-const accessToken = process.env.SUPABASE_ACCESS_TOKEN?.trim();
-const projectRef =
-  process.env.SUPABASE_PROJECT_REF?.trim() || process.env.SUPABASE_PROJECT_ID?.trim();
+dotenv.config({ path: join(backendRoot, ".env") });
+
+/** .env satır sonu yorumlarını (# ...) temizler. */
+const env = (key) => {
+  const raw = process.env[key];
+  if (!raw) {
+    return "";
+  }
+  return raw.split("#")[0].trim();
+};
+
+const accessToken = env("SUPABASE_ACCESS_TOKEN");
+const projectRef = env("SUPABASE_PROJECT_REF") || env("SUPABASE_PROJECT_ID");
 
 if (!accessToken || !projectRef) {
   console.error(
@@ -32,11 +44,11 @@ const REDIRECT_ALLOW_LIST = [
   "https://astrocus.up.railway.app/auth/mobile-redirect?*",
 ].join(",");
 
-const smtpHost = process.env.SMTP_HOST?.trim();
-const smtpPort = Number(process.env.SMTP_PORT ?? "587");
-const smtpUser = process.env.SMTP_USER?.trim();
-const smtpPass = process.env.SMTP_PASS?.trim();
-const smtpAdminEmail = process.env.SMTP_ADMIN_EMAIL?.trim();
+const smtpHost = env("SMTP_HOST");
+const smtpPort = Number(env("SMTP_PORT") || "587");
+const smtpUser = env("SMTP_USER");
+const smtpPass = env("SMTP_PASS");
+const smtpAdminEmail = env("SMTP_ADMIN_EMAIL");
 
 const payload = {
   mailer_otp_exp: AUTH_EMAIL_OTP_EXPIRY_SECONDS,
@@ -53,7 +65,7 @@ if (smtpHost && smtpUser && smtpPass && smtpAdminEmail) {
   Object.assign(payload, {
     external_email_enabled: true,
     smtp_host: smtpHost,
-    smtp_port: Number.isFinite(smtpPort) ? smtpPort : 587,
+    smtp_port: String(Number.isFinite(smtpPort) ? smtpPort : 587),
     smtp_user: smtpUser,
     smtp_pass: smtpPass,
     smtp_admin_email: smtpAdminEmail,

@@ -179,7 +179,24 @@ export const createDevDemoPayload = (input: { email: string }): AuthPayload => {
   };
 };
 
-export const isDevDemoToken = (token: string | null) => Boolean(token && token.startsWith(`${DEV_DEMO.tokenPrefix}:`));
+/** Token prefix check — production'da da eski demo oturumunu temizlemek için. */
+export const isDevDemoTokenPrefix = (token: string | null): boolean =>
+  Boolean(token && token.startsWith(`${DEV_DEMO.tokenPrefix}:`));
+
+/** Demo oturumu yalnızca geliştirme derlemelerinde aktif. */
+export const isDevDemoEnabled = (): boolean => __DEV__;
+
+export const isDevDemoToken = (token: string | null): boolean =>
+  isDevDemoEnabled() && isDevDemoTokenPrefix(token);
+
+export const purgeDevDemoStorage = async (
+  removeSecure: (key: string) => Promise<void>,
+  removeAsync: (key: string) => Promise<void>,
+  authTokenKey: string,
+  demoPayloadKey: string,
+): Promise<void> => {
+  await Promise.all([removeSecure(authTokenKey), removeAsync(demoPayloadKey)]);
+};
 
 export const matchesDevDemoCredentials = (input: { email: string; password: string }) => {
   const email = input.email.trim().toLowerCase();

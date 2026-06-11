@@ -3,13 +3,8 @@ export const USERNAME_MAX_LENGTH = 20;
 /** Latin + Turkish letters, digits, underscore; case-sensitive. */
 export const USERNAME_PATTERN = /^[a-zA-Z0-9_çğıöşüÇĞİÖŞÜ]+$/;
 
-const DEFAULT_USERNAMES = new Set(["Kaşif", "kaşif", "kasif", "explorer", "Explorer"]);
-
 /** Trim only — usernames are case-sensitive (Ali ≠ ali). */
 export const normalizeUsername = (raw: string): string => raw.trim();
-
-export const isDefaultUsername = (username: string): boolean =>
-  DEFAULT_USERNAMES.has(normalizeUsername(username));
 
 export type UsernameValidationResult =
   | { ok: true; normalized: string }

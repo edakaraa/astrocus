@@ -36,8 +36,12 @@ const buildErrorPage = (message: string): string => `<!DOCTYPE html>
 </body>
 </html>`;
 
-const buildDeepLinkRedirectPage = (deepLink: string): string => {
-  const deepLinkJson = JSON.stringify(deepLink);
+const escapeHtmlAttr = (value: string): string =>
+  value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+
+/** E-posta güvenlik tarayıcıları doğrudan /verify linkini tüketmesin diye ara sayfa. */
+const buildConfirmPage = (verifyUrl: string, actionLabel: string): string => {
+  const verifyHref = escapeHtmlAttr(verifyUrl);
 
   return `<!DOCTYPE html>
 <html lang="tr">
@@ -45,20 +49,46 @@ const buildDeepLinkRedirectPage = (deepLink: string): string => {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Astrocus</title>
-  <style>${AUTH_PAGE_STYLE}</style>
+  <style>${AUTH_PAGE_STYLE}
+    a.btn { display: inline-block; margin-top: 8px; padding: 14px 28px; background: #8387C3; color: #0A1123;
+      text-decoration: none; font-size: 15px; font-weight: 700; border-radius: 16px; }
+  </style>
+</head>
+<body>
+  <div>
+    <p>Astrocus</p>
+    <p class="muted">Devam etmek için aşağıdaki düğmeye dokunun.</p>
+    <a class="btn" href="${verifyHref}">${actionLabel}</a>
+    <p class="muted" style="margin-top:16px;">Bağlantı 15 dakika geçerlidir.</p>
+  </div>
+</body>
+</html>`;
+};
+
+const buildDeepLinkRedirectPage = (deepLink: string): string => {
+  const deepLinkJson = JSON.stringify(deepLink);
+  const deepLinkHref = escapeHtmlAttr(deepLink);
+
+  return `<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Astrocus</title>
+  <style>${AUTH_PAGE_STYLE}
+    a.btn { display: inline-block; margin-top: 16px; padding: 14px 28px; background: #8387C3; color: #0A1123;
+      text-decoration: none; font-size: 15px; font-weight: 700; border-radius: 16px; }
+  </style>
 </head>
 <body>
   <div>
     <p>Astrocus uygulamasına yönlendiriliyorsunuz…</p>
-    <p class="muted" id="fallback" hidden>Uygulama açılmadıysa Astrocus'u yükleyip e-postadaki bağlantıya tekrar dokunun.</p>
+    <a class="btn" href="${deepLinkHref}">Astrocus'u aç</a>
+    <p class="muted" style="margin-top:16px;">Otomatik açılmazsa yukarıdaki düğmeye dokunun.</p>
   </div>
   <script>
     (function () {
       window.location.replace(${deepLinkJson});
-      setTimeout(function () {
-        var el = document.getElementById("fallback");
-        if (el) el.hidden = false;
-      }, 3000);
     })();
   </script>
 </body>
@@ -71,12 +101,16 @@ const MOBILE_REDIRECT_PAGE = `<!DOCTYPE html>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Astrocus</title>
-  <style>${AUTH_PAGE_STYLE}</style>
+  <style>${AUTH_PAGE_STYLE}
+    a.btn { display: inline-block; margin-top: 16px; padding: 14px 28px; background: #8387C3; color: #0A1123;
+      text-decoration: none; font-size: 15px; font-weight: 700; border-radius: 16px; }
+  </style>
 </head>
 <body>
   <div>
     <p>Astrocus uygulamasına yönlendiriliyorsunuz…</p>
-    <p class="muted" id="fallback" hidden>Uygulama açılmadıysa Astrocus'u yükleyip e-postadaki bağlantıya tekrar dokunun.</p>
+    <a class="btn" id="open-app" href="astrocus://reset-password">Astrocus'u aç</a>
+    <p class="muted" style="margin-top:16px;">Otomatik açılmazsa yukarıdaki düğmeye dokunun.</p>
   </div>
   <script>
     (function () {
@@ -85,11 +119,10 @@ const MOBILE_REDIRECT_PAGE = `<!DOCTYPE html>
       params.delete("path");
       var rest = params.toString();
       var suffix = (rest ? "?" + rest : "") + (window.location.hash || "");
-      window.location.replace("astrocus://" + path + suffix);
-      setTimeout(function () {
-        var el = document.getElementById("fallback");
-        if (el) el.hidden = false;
-      }, 3000);
+      var deepLink = "astrocus://" + path + suffix;
+      var btn = document.getElementById("open-app");
+      if (btn) btn.href = deepLink;
+      window.location.replace(deepLink);
     })();
   </script>
 </body>
@@ -111,6 +144,38 @@ const normalizeOtpType = (raw: string): EmailOtpType | null => {
 
 const readQueryString = (value: unknown): string =>
   typeof value === "string" ? value.trim() : "";
+
+/**
+ * E-posta şablonları buraya yönlendirir; token tüketilmez (Outlook/Gmail ön tarama koruması).
+ */
+router.get("/confirm", (req, res) => {
+  const tokenHash = readQueryString(req.query.token_hash);
+  const rawType = readQueryString(req.query.type);
+  const requestedPath = readQueryString(req.query.path);
+  const otpType = normalizeOtpType(rawType);
+
+  if (!tokenHash || !otpType) {
+    sendHtml(
+      res,
+      400,
+      buildErrorPage("Geçersiz bağlantı. Astrocus uygulamasından yeni bir e-posta isteyebilirsin."),
+    );
+    return;
+  }
+
+  const params = new URLSearchParams({
+    token_hash: tokenHash,
+    type: rawType,
+  });
+  if (requestedPath && ALLOWED_APP_PATHS.has(requestedPath)) {
+    params.set("path", requestedPath);
+  }
+
+  const baseUrl = `${req.protocol}://${req.get("host")}`;
+  const verifyUrl = `${baseUrl}/auth/verify?${params.toString()}`;
+  const actionLabel = otpType === "recovery" ? "Şifremi sıfırla" : "E-postamı doğrula";
+  sendHtml(res, 200, buildConfirmPage(verifyUrl, actionLabel));
+});
 
 /**
  * E-posta linkleri: token_hash doğrulama → astrocus:// deep link (Supabase URL görünmez).
@@ -139,10 +204,26 @@ router.get("/verify", async (req, res) => {
 
   try {
     const supabaseAuth = createSupabaseAnonClient();
-    const { data, error } = await supabaseAuth.auth.verifyOtp({
+    let data: Awaited<ReturnType<typeof supabaseAuth.auth.verifyOtp>>["data"] = null;
+    let error: Awaited<ReturnType<typeof supabaseAuth.auth.verifyOtp>>["error"] = null;
+
+    const attempt = await supabaseAuth.auth.verifyOtp({
       token_hash: tokenHash,
       type: otpType,
     });
+    data = attempt.data;
+    error = attempt.error;
+
+    if ((error || !data.session) && otpType === "signup") {
+      const fallback = await supabaseAuth.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: "email",
+      });
+      if (!fallback.error && fallback.data.session) {
+        data = fallback.data;
+        error = null;
+      }
+    }
 
     if (error || !data.session) {
       sendHtml(

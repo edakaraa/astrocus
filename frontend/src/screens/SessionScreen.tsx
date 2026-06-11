@@ -11,8 +11,8 @@ import { useFocusEffect, useNavigation } from "expo-router";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAppContext } from "../context/AppContext";
 import {
-  BACKGROUND_TOLERANCE_SECONDS,
   PAUSE_LIMIT,
+  WARNING_THRESHOLD_SECONDS,
 } from "../shared/constants";
 import { formatTranslation, t, type TranslationKey } from "../shared/i18n";
 import { STARDUST_PER_MINUTE } from "../shared/constants";
@@ -615,7 +615,7 @@ export const SessionScreen = () => {
           <SurfaceCard style={[screenBlock, styles.failedCard]} borderVariant="strong">
             <AppText variant="sessionFailedTitle">{t(language, "failedSessionTitle")}</AppText>
             <AppText variant="sessionFailedText">
-              {t(language, "failedSessionBackground").replace("{seconds}", String(BACKGROUND_TOLERANCE_SECONDS))}
+              {t(language, "failedSessionBackground").replace("{seconds}", String(WARNING_THRESHOLD_SECONDS))}
             </AppText>
             <Pressable
               accessibilityRole="button"

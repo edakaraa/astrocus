@@ -274,4 +274,3 @@ export {
   preloadGalaxyScene,
   scheduleGalaxyScenePreload,
 } from "./galaxy/preloadGalaxyScene";
-export default GalaxyBackground;

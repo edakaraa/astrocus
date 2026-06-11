@@ -6,15 +6,6 @@ import theme from "../../theme";
 import { AppText } from "../ui/AppText";
 import { StarDustChip } from "../ui/StarDustChip";
 
-type TabScreenTopBarProps = {
-  stardustAmount: number;
-};
-
-export const getTabScreenTopBarOffset = (topInset: number) =>
-  Math.max(theme.spacing.sm, topInset) +
-  theme.layout.topBarMinHeight +
-  theme.layout.topBarBottomGap;
-
 const TopBarActionButton = ({
   onPress,
   accessibilityLabel,
@@ -81,29 +72,6 @@ export const SubScreenTitleRow: React.FC<SubScreenTitleRowProps> = ({
   </View>
 );
 
-export const TabScreenTopBar: React.FC<TabScreenTopBarProps> = ({ stardustAmount }) => {
-  const { topInset, edgePadding, maxContentWidth } = useResponsive();
-
-  return (
-    <View
-      style={[
-        styles.wrap,
-        {
-          paddingTop: Math.max(theme.spacing.sm, topInset),
-          paddingHorizontal: edgePadding,
-        },
-      ]}
-    >
-      <View style={[styles.inner, { maxWidth: maxContentWidth }]}>
-        <View style={styles.row}>
-          <View style={styles.actionPlaceholder} />
-          <StarDustChip amount={stardustAmount} showInfo />
-        </View>
-      </View>
-    </View>
-  );
-};
-
 type SubScreenTopBarProps = {
   title: string;
   onBack: () => void;
@@ -167,9 +135,6 @@ export const SubScreenTopBar: React.FC<SubScreenTopBarProps> = ({
     </View>
   );
 };
-
-/** @deprecated Use SubScreenTopBar */
-export const SettingsScreenTopBar = SubScreenTopBar;
 
 const styles = StyleSheet.create({
   wrap: {
