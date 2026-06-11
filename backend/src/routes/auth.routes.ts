@@ -204,15 +204,12 @@ router.get("/verify", async (req, res) => {
 
   try {
     const supabaseAuth = createSupabaseAnonClient();
-    let data: Awaited<ReturnType<typeof supabaseAuth.auth.verifyOtp>>["data"] = null;
-    let error: Awaited<ReturnType<typeof supabaseAuth.auth.verifyOtp>>["error"] = null;
 
     const attempt = await supabaseAuth.auth.verifyOtp({
       token_hash: tokenHash,
       type: otpType,
     });
-    data = attempt.data;
-    error = attempt.error;
+    let { data, error } = attempt;
 
     if ((error || !data.session) && otpType === "signup") {
       const fallback = await supabaseAuth.auth.verifyOtp({

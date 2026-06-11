@@ -71,6 +71,35 @@ Health check: `GET /health` → `{ ok: true, checks: { supabase: true } }`
 
 **Önemli:** `/auth/confirm` route'u eklendikten sonra Railway'de **yeniden deploy** gerekir.
 
+### Railway CLI ile deploy
+
+Servis ayarında **Root Directory = `backend`** ise (GitHub deploy gibi), komutu **`backend/` klasörünün içinden değil**, monorepo kökünden çalıştır:
+
+```powershell
+cd C:\Users\lleda\astrocus
+railway up
+```
+
+`backend` içinden `railway up` çalıştırırsan build şu hatayla düşer:
+
+```text
+directory .../snapshot-target-unpack/backend does not exist
+```
+
+Alternatif (yalnızca `backend/` içeriğini yükle, servis root'u boş/` `.` ise):
+
+```powershell
+cd C:\Users\lleda\astrocus
+railway up ./backend --path-as-root
+```
+
+Deploy öncesi yerelde build kontrolü:
+
+```powershell
+cd backend
+npm run build
+```
+
 ## Mobil yapılandırma
 
 Production build'de:
