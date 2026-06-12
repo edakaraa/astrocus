@@ -71,7 +71,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   const hasGoogleServices = fs.existsSync(googleServicesFile);
   if (!hasGoogleServices && !isDev) {
     console.warn(
-      "[Astrocus] frontend/google-services.json eksik — Android push (FCM) calismaz. docs/fcm-android-setup.md",
+      "[Astrocus] frontend/google-services.json eksik — Android push (FCM) calismaz. prodocs/tech-stack.md (FCM bölümü)",
     );
   }
 

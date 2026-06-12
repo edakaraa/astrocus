@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { PixelRatio, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { layout, spacing, getTabBarMetrics } from "./theme";
+import { getBottomSafePadding, layout, spacing, getTabBarMetrics } from "./theme";
 
 /** Web-aligned breakpoints adapted for React Native / tablet layouts */
 export const breakpoints = {
@@ -121,7 +121,9 @@ export const useResponsive = () => {
 };
 
 export const useModalLayout = () => {
-  const { isMobile, width, contentPadding } = useResponsive();
+  const { isMobile, width, height, contentPadding } = useResponsive();
+  const insets = useSafeAreaInsets();
+  const bottomSafePadding = getBottomSafePadding(insets.bottom);
 
   return useMemo(
     () => ({
@@ -130,7 +132,12 @@ export const useModalLayout = () => {
       cardWidth: isMobile ? width : Math.min(width - contentPadding * 2, 420),
       cardMaxWidth: isMobile ? width : 420,
       horizontalPad: isMobile ? 0 : contentPadding,
+      bottomSafePadding,
+      /** Sheet max height — leaves room for status bar on short phones. */
+      sheetMaxHeight: isMobile
+        ? Math.min(height * 0.88, height - insets.top - spacing.md)
+        : height * 0.88,
     }),
-    [contentPadding, isMobile, width],
+    [bottomSafePadding, contentPadding, height, insets.top, isMobile, width],
   );
 };

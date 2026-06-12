@@ -15,9 +15,9 @@ const tr: PolicyBlock[] = [
     title: "Topladığımız Veriler",
     body: `Hesap ve kimlik: e-posta adresi, kullanıcı adı, görünen ad (isteğe bağlı), şifre (yalnızca e-posta ile kayıtta; şifrelenmiş olarak Supabase Auth tarafından saklanır), dil tercihi. Google ile giriş yaparsanız Google kimlik doğrulama için ad ve e-posta bilgisini bizimle paylaşır; şifre oluşturmanız gerekmez.
 
-Profil ve oyunlaştırma: avatar seçimi, galaksi adı, hedef yıldız, toplam yıldız tozu ve XP, seviye, seri (streak) kayıtları, açılan yıldızlar, rozetler ve takımyıldızı ilerlemesi, günlük hedef süresi.
+Profil ve oyunlaştırma: avatar seçimi, galaksi adı, hedef yıldız, toplam yıldız tozu, seri (streak) kayıtları, açılan yıldızlar, rozetler ve takımyıldızı ilerlemesi, günlük hedef süresi.
 
-Odak seansları: kategori, süre, kazanılan yıldız tozu ve XP, duraklatma kullanımı, başlangıç ve bitiş zamanları; çevrimdışı tamamlanan seanslar cihazınızda geçici olarak saklanır ve bağlantı gelince sunucuya iletilir.
+Odak seansları: kategori, süre, kazanılan yıldız tozu, duraklatma kullanımı, başlangıç ve bitiş zamanları (kayıtlar bağlantı varken sunucuya iletilir).
 
 Haftalık raporlar: odak istatistiklerinizden üretilen özet metinler (Türkçe ve İngilizce) veritabanında saklanır.
 
@@ -25,7 +25,7 @@ Cihaz ve teknik veriler: oturum belirteci (token) güvenli cihaz deposunda tutul
   },
   {
     title: "Verileri Neden ve Nasıl Kullanıyoruz",
-    body: `Verilerinizi şu amaçlarla işleriz: hesap oluşturma ve güvenli giriş; odak seanslarınızı kaydetme ve ilerlemenizi (yıldız tozu, XP, rozetler, takımyıldızları) gösterme; oyunlaştırma kurallarını uygulama ve hile girişimlerini önleme (ör. minimum süre ve sunucu tarafı doğrulama); haftalık kişiselleştirilmiş odak raporu üretme; isteğe bağlı push bildirimleri gönderme; uygulama kararlılığını izleme ve hataları giderme; ürün deneyimini iyileştirmek için anonim veya kimliklendirilmiş kullanım analitiği.
+    body: `Verilerinizi şu amaçlarla işleriz: hesap oluşturma ve güvenli giriş; odak seanslarınızı kaydetme ve ilerlemenizi (yıldız tozu, rozetler, takımyıldızları) gösterme; oyunlaştırma kurallarını uygulama ve hile girişimlerini önleme (ör. minimum süre ve sunucu tarafı doğrulama); haftalık kişiselleştirilmiş odak raporu üretme; isteğe bağlı push bildirimleri gönderme; uygulama kararlılığını izleme ve hataları giderme; ürün deneyimini iyileştirmek için anonim veya kimliklendirilmiş kullanım analitiği.
 
 Hukuki dayanak (KVKK / GDPR): sözleşmenin ifası (hesap ve temel özellikler), meşru menfaat (güvenlik, hata ayıklama, analitik) ve açık rızanız (push bildirimleri ve kayıt sırasında kabul ettiğiniz gizlilik politikası).`,
   },
@@ -85,9 +85,9 @@ const en: PolicyBlock[] = [
     title: "Data We Collect",
     body: `Account & identity: email address, username, display name (optional), password (email sign-up only; stored encrypted by Supabase Auth), language preference. If you sign in with Google, Google shares your name and email for authentication; you do not set a password with us.
 
-Profile & gamification: avatar choice, galaxy name, target star, total stardust and XP, level, streak records, unlocked stars, badges, constellation progress, daily goal duration.
+Profile & gamification: avatar choice, galaxy name, target star, total stardust, streak records, unlocked stars, badges, constellation progress, daily goal duration.
 
-Focus sessions: category, duration, stardust and XP earned, pause usage, start and end times; offline sessions are stored temporarily on your device and synced when online.
+Focus sessions: category, duration, stardust earned, pause usage, start and end times (records are sent to our servers when you have a connection).
 
 Weekly reports: summary text generated from your focus statistics (Turkish and English) stored in our database.
 
@@ -95,7 +95,7 @@ Device & technical data: session token in secure device storage; preferences in 
   },
   {
     title: "Why and How We Use Data",
-    body: `We process your data to: create and secure your account; record focus sessions and show progress (stardust, XP, badges, constellations); enforce gamification rules and prevent abuse (e.g. minimum duration and server-side validation); generate personalized weekly focus reports; send optional push notifications; monitor stability and fix errors; improve the product through analytics.
+    body: `We process your data to: create and secure your account; record focus sessions and show progress (stardust, badges, constellations); enforce gamification rules and prevent abuse (e.g. minimum duration and server-side validation); generate personalized weekly focus reports; send optional push notifications; monitor stability and fix errors; improve the product through analytics.
 
 Legal basis (GDPR / KVKK): contract performance (account and core features), legitimate interests (security, debugging, analytics), and your consent (push notifications and privacy policy acceptance at sign-up).`,
   },

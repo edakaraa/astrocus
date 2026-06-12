@@ -82,7 +82,10 @@ import {
 } from "./session/monotonicNow";
 import { persistLocalDailyGoal } from "../lib/dailyGoalStorage";
 import { mergeSessionsWithPending } from "./session/offlineSessions";
-import { shouldQueueSessionAfterSaveFailure } from "./session/offlineQueue";
+import {
+  OFFLINE_SESSION_SYNC_ENABLED,
+  shouldQueueSessionAfterSaveFailure,
+} from "./session/offlineQueue";
 import { shouldResumeAwaySession } from "./session/focusBackgroundAway";
 import { onFocusSessionTimerCompleted } from "./session/focusSessionNotifications";
 import { createDailySummary, estimateSessionCelebration } from "./session/stardust";
@@ -1134,7 +1137,7 @@ export const SessionProvider = ({
   ]);
 
   useEffect(() => {
-    if (!token || pendingSessions.length === 0) {
+    if (!OFFLINE_SESSION_SYNC_ENABLED || !token || pendingSessions.length === 0) {
       return;
     }
 
@@ -1158,10 +1161,12 @@ export const SessionProvider = ({
     return unsubscribe;
   }, [pendingSessions.length, setIsOnline, syncOfflineQueue, token]);
 
-  const displaySessions = useMemo(
-    () => (user ? mergeSessionsWithPending(sessions, pendingSessions, user.id) : sessions),
-    [pendingSessions, sessions, user],
-  );
+  const displaySessions = useMemo(() => {
+    if (!OFFLINE_SESSION_SYNC_ENABLED || !user) {
+      return sessions;
+    }
+    return mergeSessionsWithPending(sessions, pendingSessions, user.id);
+  }, [pendingSessions, sessions, user]);
 
   const dailySummary = useMemo(
     () => createDailySummary(displaySessions, user, dailyGoalToday),

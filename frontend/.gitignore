@@ -9,3 +9,7 @@ eas.json.local
 *.pem
 *.p8
 credentials.json
+
+# EAS CLI yerel çıktıları
+build-info.json
+build-log.gz

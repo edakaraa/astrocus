@@ -100,6 +100,7 @@ export const UsernameSettingsBlock: React.FC<UsernameSettingsBlockProps> = ({
       showToast({
         title: t(language, "usernameSaved"),
         placement: "bottom",
+        avoidTabBar: false,
       });
     } catch (error) {
       const message =

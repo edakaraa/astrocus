@@ -35,6 +35,12 @@ frontend/android_old_locked_*/
 *.log
 .npmrc
 
+# EAS build çıktıları (yerel debug — commit etmeyin)
+build-info.json
+build-log.gz
+**/build-info.json
+**/build-log.gz
+
 # İşletim Sistemi ve IDE Dosyaları
 .DS_Store
 Thumbs.db

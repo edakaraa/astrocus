@@ -1,6 +1,12 @@
 import NetInfo from "@react-native-community/netinfo";
 import { isSchemaSessionError, isTransientNetworkError } from "../../shared/api";
 
+/**
+ * Çevrimdışı seans kuyruğu ve senkron UI v2'ye ertelendi.
+ * Altyapı (`offlineQueue`, `offlineSessions`, `syncSessions`) repoda kalır; kullanıcıya gösterilmez.
+ */
+export const OFFLINE_SESSION_SYNC_ENABLED = false;
+
 const NON_QUEUEABLE = /duration_mismatch|invalid_category|profile_not_found/i;
 
 export const isDeviceOffline = async (): Promise<boolean> => {
@@ -10,6 +16,10 @@ export const isDeviceOffline = async (): Promise<boolean> => {
 
 /** Whether a failed session save should be queued for later sync instead of showing a hard error. */
 export const shouldQueueSessionAfterSaveFailure = async (error: unknown): Promise<boolean> => {
+  if (!OFFLINE_SESSION_SYNC_ENABLED) {
+    return false;
+  }
+
   if (isSchemaSessionError(error)) {
     return false;
   }

@@ -4,10 +4,8 @@ import { useRouter } from "expo-router";
 import { SubScreenScaffold, SubScreenScrollLayout } from "../components/layout/SubScreenScaffold";
 import { SubScreenTopBar } from "../components/layout/TabScreenTopBar";
 import { toastTone, useAppContext } from "../context/AppContext";
-import { formatSessionSaveError } from "../shared/api";
 import { PRESET_AVATARS, resolveAvatarId } from "../shared/constants";
 import { t, type TranslationKey } from "../shared/i18n";
-import { formatNumber } from "../shared/formatLocale";
 import { UserAvatar } from "../components/UserAvatar";
 import { Card } from "../components/ui/Card";
 import { AppText } from "../components/ui/AppText";
@@ -17,7 +15,6 @@ import { SettingsDivider } from "../components/settings/SettingsDivider";
 import { SettingsNavLink } from "../components/settings/SettingsNavLink";
 import { SettingsRow } from "../components/settings/SettingsRow";
 import { useSettingsSpacing } from "../components/settings/settingsSpacing";
-import { OfflineSyncButton } from "../components/settings/OfflineSyncButton";
 import { UsernameSettingsBlock } from "../components/settings/UsernameSettingsBlock";
 import { useResponsive } from "../shared/responsive";
 import { layout } from "../shared/theme";
@@ -54,8 +51,6 @@ export const SettingsScreen = () => {
     logout,
     updateProfile,
     user,
-    pendingSessions,
-    syncOfflineSessions,
     refreshAnalytics,
     showAlert,
     showToast,
@@ -64,9 +59,6 @@ export const SettingsScreen = () => {
   if (!user) {
     return null;
   }
-
-  const pendingCount = pendingSessions.length;
-  const hasPending = pendingCount > 0;
 
   const handleAvatarSelect = useCallback(
     (avatarId: string) => {
@@ -77,27 +69,6 @@ export const SettingsScreen = () => {
     },
     [updateProfile],
   );
-
-  const handleSync = async () => {
-    if (!hasPending) {
-      return;
-    }
-    try {
-      await syncOfflineSessions();
-      showToast({
-        title: t(language, "toastSuccess"),
-        subtitle: t(language, "syncSuccess"),
-        ...toastTone.success,
-      });
-    } catch (error) {
-      void showAlert({
-        title: t(language, "toastErrorGeneric"),
-        message: error instanceof Error ? formatSessionSaveError(error) : t(language, "syncFailed"),
-        confirmLabel: t(language, "ok"),
-        icon: toastTone.error.icon,
-      });
-    }
-  };
 
   return (
     <SubScreenScaffold>
@@ -171,25 +142,6 @@ export const SettingsScreen = () => {
                   );
                 })}
               </ScrollView>
-            </SettingsBlock>
-
-            <SettingsDivider />
-
-            <SettingsBlock
-              title={t(language, "offlineSessions")}
-              caption={
-                <>
-                  <AppText variant="numericCompact">{formatNumber(language, pendingCount)}</AppText>
-                  {` ${t(language, "pendingRecords")}`}
-                </>
-              }
-            >
-              <OfflineSyncButton
-                label={t(language, "syncNow")}
-                accessibilityLabel={t(language, "syncOffline")}
-                disabled={!hasPending}
-                onPress={() => void handleSync()}
-              />
             </SettingsBlock>
 
             <SettingsDivider />

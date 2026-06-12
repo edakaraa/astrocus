@@ -70,7 +70,6 @@ export const useAppContext = () => {
     sessions: session.sessions,
     unlockedStarIds: session.unlockedStarIds,
     earnedBadgeIds: session.earnedBadgeIds,
-    pendingSessions: session.pendingSessions,
     sessionState: session.sessionState,
     stars: session.stars,
     categories: session.categories,
@@ -87,7 +86,6 @@ export const useAppContext = () => {
     resetSession: session.resetSession,
     cancelSession: session.cancelSession,
     endSession: session.endSession,
-    syncOfflineSessions: session.syncOfflineQueue,
 
     // UI
     language: ui.language,

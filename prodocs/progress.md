@@ -1,779 +1,584 @@
-## Astrocus — Progress Log
+# Astrocus — Progress Log
 
-Bu dosya, projede şimdiye kadar yapılan işleri, **güncel bileşen envanterini**, tamamlanan / eksik kalemleri ve teslim öncesi riskleri tek yerde tutar.
+İşlem kaydı, alınan kararlar, karşılaşılan hatalar ve çözümler. Bootcamp teslim dökümanı.
 
-> **Son güncelleme:** 2026-06-11 (production go-live hazırlığı, e-posta köprüsü, ölü kod temizliği)  
-> İlgili dokümanlar: `prodocs/PRD.md`, `tech-stack.md`, `plan.md`, `DesignSystem.md`  
-> **Canlıya geçiş rehberi:** `docs/production-go-live.md`  
-> OAuth rehberi: `docs/oauth-expo-go.md` · Galaksi katalog planı: `docs/galaxy-catalog.md`
-
----
-
-## Güncel özet (2026-06-11 — production go-live)
-
-### Yapılanlar
-
-| Alan | Değişiklik |
-|------|------------|
-| UI | Onboarding buton rengi tema paleti (`#8387C3`); seans kaybedildi metni 10 sn |
-| Production | `APP_ENV=production`; demo mod yalnızca `__DEV__`; eski demo token temizliği |
-| E-posta auth | `/auth/confirm` ara sayfa (mail tarayıcı koruması); `deploy:auth-email` `.env` okur |
-| Mobil `.env` | `EXPO_PUBLIC_AUTH_VERIFY_REDIRECT_URI=astrocus://verify-success` |
-| Ölü kod | `StarfieldBackground.tsx`, `starsApi.ts` silindi |
-| Dokümantasyon | `docs/production-go-live.md` + ilgili `.md` güncellemeleri |
-
-### Açık (cihaz / mağaza)
-
-- [ ] Railway backend redeploy (`/auth/confirm`)
-- [ ] Release APK smoke test (kayıt → e-posta → odak → push)
-- [ ] Play Console kapalı test
-- [ ] Migration 017–028 push (önceki maddeler)
+> **Son güncelleme:** 2026-06-12  
+> **Geliştirici:** Eda Kara (solo)  
+> **Ürün durumu:** MVP tamamlandı — Google Play **açık test (open testing)**  
+> **İlgili:** [PRD.md](./PRD.md) · [tech-stack.md — Canlıya geçiş](./tech-stack.md#devops)
 
 ---
 
-## Güncel özet (2026-06-06 — ikinci tur)
+## Güncel durum özeti
 
-### Yıldız tozu ekonomisi (024–025)
-
-- **10 ✦/dk** temel kazanç (`complete_focus_session` / `cancel_focus_session` RPC)
-- Bonuslar: seri +10%/gün (max +50%), duraklatmadan +10%; erken bitirmede bonus yok
-- Günlük hedef ödülü **+250 ✦**; katalog maliyetleri ve mevcut bakiyeler ×5 (tek seferlik geçiş)
-- Dinamik tier: **500 / 1500 / 2000** ✦ (`compute_star_cost`)
-- Frontend: `stardustEconomy.ts`, `StardustInfoModal` (!), odak/gökyüzü/profil ekranları
-
-### MVP çekirdek döngü — kod durumu
-
-| # | PRD özelliği | Kod | Uzak DB / deploy | Not |
-|---|--------------|-----|------------------|-----|
-| 01 | Odak zamanlayıcısı | ✅ | ✅ | Quick preset + özel süre; **duraklatma 5 dk iptali yapılmayacak** (karar) |
-| 02 | Yıldız / Galaksi | ✅ | ✅ | **Takımyıldızı kartları** (PRD gökyüzü haritası yerine — tasarım kararı) |
-| 03 | Yıldız tozu (10 ✦/dk) | ✅ | 🟡 | **Manuel unlock**; streak/duraklatma bonusu; günlük hedef +250 ✦; `024`/`025` push bekliyor |
-| 04 | Gökyüzü / galaksi UI | ✅ | ✅ | `GalaxyScreen` + 67 yıldız DB katalog |
-| 05 | Kategori seçimi | ✅ | ✅ | 8 kategori |
-| 06 | Çıkış toleransı + uyarı | ✅ | ✅ | 10 sn yerel bildirim; 20 sn → seans `failed` |
-| 07 | Günlük özet | ✅ | ✅ | `DailyGoalCard` + RPC; geçmiş sekmesi v1.1 |
-| 08 | Streak | ✅ | ✅ | RPC + profil; longest streak UI v1.1 |
-| 09 | Hesap & profil | ✅ | 🟡 | v1: e-posta + Google · kullanıcı adı düzenleme (021–023 migration push bekliyor) |
-| 10 | Onboarding | ✅ | ✅ | **4 slayt** + `star-pick`; skip/varsayılan yıldız yok (karar) |
-| 11 | Kutlama modalı | ✅ | ✅ | `CelebrationHost` + `CelebrationModal` — **Galaktik Tavsiye (Gemini) v1'den çıkarıldı** |
-| 12 | TR / EN | ✅ | — | Ana ekranlar i18n |
-| 13 | Haftalık AI rapor | ✅ | 🟡 cron | Edge Function **deployed**; haftalık cron secret doğrulanmalı |
-| 14 | Günlük hedef + ödül | ✅ | ✅ | RPC'ler production'da |
-| 15 | Rozetler ekranı | ✅ | ✅ | `/badges` — `BadgesScreen` |
-| 16 | Ayarlar ekranı | ✅ | ✅ | `/settings` — dil, avatar, kullanıcı adı, offline sync, çıkış |
-| 17 | Günlük evren mesajı (push) | ✅ | 🟡 deploy | `quotes` + `UniverseMessageCard` + `send-daily-quote` Edge Function; cron + migration 017 push bekliyor |
-
-**Gösterge:** ✅ kodda tamam · 🟡 dış bağımlılık (migration, deploy, cihaz testi) · ❌ yapılmadı
-
-### Son commit'ler (main) + commitlenmemiş yerel iş
-
-| Tarih | Commit / durum | Özet |
-|-------|----------------|------|
-| — | **Working tree (2026-06-06, tur 2)** | Galaktik Tavsiye kaldırıldı; Expo push + `send-daily-quote`; PostHog SDK; Sentry `errorTracking`; `/universe-message`; UI polish |
-| — | **Working tree (2026-06-06, tur 1)** | Context ayrıştırma, username RPC/migration, galaxy görselleri, ikon sistemi, günlük hedef 24s cap |
-| 2026-06-06 | `149742b` | Settings/legal UI, Lorelei avatarlar, hesap silme; react-dom CI fix |
-| 2026-06-06 | `c176cb1` | Bildirim sistemi için quotes; UI düzenlemeler |
-| 2026-06-03 | `0c97f5f` | UI iyileştirmeleri |
-| 2026-06-03 | `6f3f694` | UI/UX düzenlemeler |
-| 2026-06-01 | `8c56bd9` | Odak/seans sayfaları; AI entegrasyonu |
-| 2026-05-30 | `e03e1b8` | Onboarding tamamlandı |
-| 2026-05-28 | `7f6f0cb` | Dil paketleri güncellendi |
-| 2026-05-28 | `db43407` | Gökyüzü oyunlaştırması dinamik (DB katalog) |
-
-### Yayın planı — v1 (ilk yükleme) vs v2 (ikinci güncelleme)
-
-| | **v1 — Play / ilk mağaza sürümü** | **v2 — Sonraki güncelleme** |
-|---|-----------------------------------|-----------------------------|
-| **Platform** | Android (Google Play) öncelik; iOS mağazaya **henüz yok** | iOS App Store + gerekirse Play güncellemesi |
-| **Giriş** | E-posta + şifre, **Google OAuth** | **Apple Sign In** (kod hazır; provider + mağaza build gerekir) |
-| **Supabase** | Migration **001–016** ✅ (2026-06-05 doğrulandı); **017–023** yerelde hazır, push bekliyor | Haftalık + günlük quote cron (`CRON_SECRET`) |
-| **Backend** | Express deploy + `EXPO_PUBLIC_API_URL` (Gemini artık gerekmez) | iOS production build |
-| **EAS** | `eas.json` preview (APK) + production; `projectId` `app.config.ts`'de | Push bildirimleri production build'de (`expo-notifications` plugin) |
-| **Apple kodu** | Repoda var; v1 build'de **zorunlu değil** | Supabase Apple provider + Apple Developer |
-
-> Play'e ilk çıkışta Apple hesabı şart değil. iOS mağazaya çıkarken Apple Sign In ve native build (Expo Go değil) gerekir — **v2 kapsamı**.
-
-### Ürün kararları — yapılmayacak / tasarım sapması
-
-Bkz. `prodocs/PRD.md` §3.3. Özet:
-
-- ❌ Duraklatma > 5 dk seans iptali
-- ❌ Onboarding skip + varsayılan yıldız
-- ❌ Seans ekranında yıldız görseli
-- ❌ Otomatik yıldız unlock (manuel)
-- ✅ Takımyıldızı kartları (PRD gökyüzü simülasyonu yerine)
-- ✅ 4 slayt onboarding (PRD 3 ekran yerine)
-- 🟡 v1.1: longest streak UI, streak mesajı, saat dilimi bonusu (görünür rozet), geçmiş sekmesi
-
-### Teslim öncesi açık işler — v1 (öncelik)
-
-**Altyapı (kritik)**
-
-1. [x] Uzak Supabase migration **001–016** — `supabase migration list` ile doğrulandı (2026-06-05)
-2. [ ] Uzak Supabase migration **017–023** — quotes, günlük hedef cap, benzersiz kullanıcı adı (`supabase db push`)
-3. [x] Edge Function `generate-weekly-reports` — **ACTIVE** (v8, 2026-06-03)
-4. [ ] Haftalık rapor **cron** — `CRON_SECRET` + Bearer auth (`docs/weekly-reports-cron.md`)
-5. [ ] **Günlük quote push cron** — Edge Function `send-daily-quote` deploy + günlük cron (aynı `CRON_SECRET`)
-6. [ ] **Express API canlı deploy** (`docs/backend-deploy.md`) — analytics, unlock proxy, hesap silme
-7. [ ] Production `EXPO_PUBLIC_API_URL` (EAS secrets / build env)
-8. [ ] **Ürün analitiği (anahtarlar)** — kod hazır; `.env` anahtarları bekliyor:
-   - Frontend: `EXPO_PUBLIC_POSTHOG_KEY` → `posthog-react-native` SDK (`lib/analytics.ts`, `PostHogProvider`)
-   - Backend: `POSTHOG_API_KEY` → `posthog-node` (`productAnalytics.ts`)
-9. [ ] **Crash izleme (anahtarlar)** — kod + paketler kurulu; DSN bekliyor:
-   - Frontend: `@sentry/react-native` + `EXPO_PUBLIC_SENTRY_DSN` (`lib/errorTracking.ts`, EAS production build)
-   - Backend: `@sentry/node` + `SENTRY_DSN` + `APP_ENV=production`
-10. [x] **GitHub Actions CI** — `.github/workflows/ci.yml`
-11. [ ] Google OAuth redirect doğrula (`docs/oauth-expo-go.md`)
-12. [ ] **Gizlilik politikası** — `privacyPolicyContent.ts` hâlâ Gemini/Galaktik Tavsiye metni içeriyor; güncellenmeli
-13. [ ] **EAS production build** — push token kaydı Expo Go'da çalışmaz; preview/production APK ile test
-
-**Yayın**
-
-14. [ ] E2E smoke test (fiziksel cihaz) — kutlama modalı, push tap → `/universe-message`
-15. [ ] Google Play kapalı test — `eas build --profile preview`
-16. [ ] Demo video (`docs/demo-video-outline.md`)
-
-### v2 (Play sonrası / ikinci güncelleme)
-
-1. [ ] Supabase Auth → Apple provider + Apple Developer Services ID
-2. [ ] iOS production build (`eas build --platform ios`) + App Store Connect
-3. [ ] Apple Sign In uçtan uca test (TestFlight)
-4. [ ] Galaktik Tavsiye (seans sonu LLM) — istenirse yeniden eklenebilir; v1'de kaldırıldı
-5. [ ] Bildirim tercihleri UI (aç/kapa) — şu an token kaydı auth sonrası otomatik
-
-### Kapatılan kalemler (2026-05-28 → 2026-06-06)
-
-- [x] **Galaktik Tavsiye kaldırıldı** — `galacticAdvice` servisi, `/ai/galactic-advice` endpoint, `CelebrationModal` LLM bölümü silindi; backend `GEMINI_API_KEY` artık gerekmez
-- [x] **Expo push bildirim altyapısı** — `lib/notifications.ts`: token kaydı (`profiles.expo_push_token`), tap → `/universe-message`; auth sonrası otomatik izin
-- [x] **Günlük quote Edge Function** — `send-daily-quote`: kayıt gününe göre 60 günlük quote döngüsü, Expo Push API
-- [x] **Evren mesajı ekranı** — `/universe-message` rotası + `UniverseMessageScreen`
-- [x] **PostHog SDK geçişi** — `posthog-react-native` + `PostHogProvider`; `trackScreen`, `trackStreakIncreased`, `trackStarUnlocked` vb.
-- [x] **Sentry refactor** — `lib/errorTracking.ts` (`initSentry`, `bindSentryToSupabaseAuth`, `wrapRootWithSentry`); `lib/monitoring.ts` kaldırıldı
-- [x] **CelebrationModal sadeleştirme** — stardust, streak, rozet odaklı; LLM metni yok
-- [x] **app.config.ts** — EAS `projectId`, production'da `expo-notifications` plugin; `APP_ENV` ile dev/prod ayrımı
-- [x] **Context ayrıştırma** — `AuthContext`, `SessionContext`, `UIContext`, `NotificationContext`; `AppContext` birleşik `useAppContext()` yüzeyi
-- [x] **Session modülleri** — `offlineQueue`, `offlineSessions`, `sessionTimer`, `duration` ayrı dosyalara taşındı
-- [x] **Kullanıcı adı sistemi** — migration 021–023, `is_username_available` RPC, `UsernameSettingsBlock`, `shared/username.ts` (Türkçe karakter, case-sensitive)
-- [x] **Galaxy görsel yenileme** — `StarVisual`, `SkyStarVisual`, `starVisuals.ts`, `constellationIcons.ts`
-- [x] **İkon sistemi** — `AppIcon`, `StardustMark`, `shared/appIcons.ts` (kategori / preset ikonları)
-- [x] **Evren mesajı** — migration 017 `quotes` tablosu + `UniverseMessageCard` + `useUniverseMessage`
-- [x] **Günlük hedef üst sınır** — migration 019–020: cap 240 → 500 → **1440 dk** (24 saat)
-- [x] **PostHog / Sentry kod entegrasyonu** — frontend HTTP capture + Sentry RN; backend `posthog-node` + `@sentry/node` (anahtarlar henüz set edilmedi)
-- [x] Gökyüzü katalog **DB'den** (`skyCatalog.ts` + migration 008) — statik 39 yıldız kaldırıldı
-- [x] Takımyıldızı tier sistemi → `unlock_order` (009)
-- [x] Erken bitir dinamik eşik + aktif odak süresi (010, 015)
-- [x] UUID/RLS düzeltmeleri (011); kategori slug lookup (012)
-- [x] Haftalık AI rapor tablosu + istemci UI (013, `useWeeklyReport`)
-- [x] Günlük hedef sistemi (`DailyGoalCard`, 016 RPC'ler)
-- [x] Onboarding yeniden tasarım (PNG görseller, animasyonlar, i18n)
-- [x] SessionScreen büyük UI revizyonu (preset'ler, haftalık yıldızlar, rapor kartı)
-- [x] GalaxyScreen Skia sahne + filtre + `ConstellationCard` / `StarCard`
-- [x] ProfileScreen ayrıştırma: istatistikler profilde, ayarlar `/settings`
-- [x] `BadgesScreen` + `/badges` rotası
-- [x] `NotificationContext` — global toast / alert / confirm
-- [x] `CelebrationHost` — tab geçişlerinde kutlama modalı kalır
-- [x] E-posta deep link: `/verify-success`, `/reset-password`
-- [x] `eas.json` build profilleri (development / preview APK / production)
-- [x] Tipografi: DM Sans, Outfit, Space Mono (`expo-font`)
-- [x] TR/EN i18n — ana ekranlar ve bileşenler büyük ölçüde çevrildi
+| Alan | Durum |
+|------|--------|
+| **Platform (v1)** | Yalnızca Android / Google Play açık test |
+| **iOS** | Kod uyumlu; App Store yayını **yok** (sonraki sürüm) |
+| **Veritabanı** | Supabase migration **001–028** production'da uygulandı (doğrulandı) |
+| **Gamification** | Yalnızca **yıldız tozu (✦)**; XP/seviye UI'dan kaldırıldı |
+| **AI (ürün)** | Haftalık seans analizi — OpenRouter **Gemma 4** (`generate-weekly-reports` Edge Function) |
+| **AI (geliştirme)** | Cursor (kod, debug, prodocs); Claude (debug, migration/SQL, UI metinleri) |
 
 ---
 
-## Uygulama mimarisi (çalışan hal)
+## Kronolojik gelişim zaman çizelgesi
 
-```
-frontend/ (Expo Router — monorepo kök altında)
-  app/
-    index.tsx              → onboardingSeen / auth / star-pick / tabs
-    _layout.tsx            → font yükleme, CelebrationHost, skyCatalog preload
-    (onboarding)/          → animasyonlu tanıtım + star-pick
-    (auth)/                → AuthScreen
-    auth/callback.tsx      → OAuth deep link
-    (tabs)/                → session | galaxy | profile (+ auth guard)
-    settings.tsx           → ayarlar (profilden ayrıldı)
-    badges.tsx             → rozet koleksiyonu
-    reset-password.tsx     → şifre sıfırlama deep link
-    verify-success.tsx     → e-posta doğrulama sonrası
-    universe-message.tsx   → günlük evren mesajı (push deep link)
-    legal/                 → gizlilik, hesap silme, acknowledgments
+### 2026-04-15 — 2026-04-22 · Faz 0: Ürün tanımı ve kapsam
 
-  src/context/             → AuthContext, SessionContext, UIContext, NotificationContext (+ AppContext facade)
-  src/context/session/     → offlineQueue, offlineSessions, sessionTimer, duration, stardust, dateKey
-  src/screens/             → tam ekran UI (+ UniverseMessageScreen)
-  src/components/          → ui/, galaxy/, session/, profile/, settings/, badges/
-  src/services/            → API / mapper / katalog
-  src/hooks/               → useWeeklyReport, useDeepLink, useUniverseMessage
-  src/lib/                 → Supabase, OAuth, Apple, dailyGoalStorage, analytics (PostHog), errorTracking (Sentry), notifications (push)
-  src/shared/              → api, types, constants, i18n, theme, storage, username, appIcons
+| Tarih | Commit / olay | Özet |
+|-------|---------------|------|
+| 2026-04-15 | `24d3792` PRD | İlk Product Requirements Document |
+| 2026-04-16 | `afff0f9` … `c0542b1` | PRD revizyonları, MVP kapsamı, yazar bilgisi |
+| 2026-04-22 | `6e90a0e` | Kapsam güncellemesi |
+| 2026-04-22 | `bea9c86` | **Expo iskeleti** — monorepo, temel proje yapısı |
 
-backend/src/               → Express (analytics, unlock proxy, hesap silme)
-backend/supabase/
-  migrations/              → 001–023 SQL
-  functions/               → generate-weekly-reports, send-daily-quote (Edge Functions)
-```
-
-**Veri akışı (özet):** Kritik ödül / unlock / streak / günlük hedef → **Supabase RPC**. Haftalık rapor → **Edge Function + OpenRouter** → `weekly_reports`. Günlük evren mesajı → **quotes** tablosu + **send-daily-quote** → Expo Push. İstemci ödül hesaplamaz (anti-cheat).
+**Karar:** Odaklanma + kozmik gamification (burç takımyıldızları teması; astroloji tahmin uygulaması değil).
 
 ---
 
-## Expo Router — rotalar
+### 2026-05-05 — 2026-05-06 · Faz 1: İlk ekranlar ve auth
 
-| Rota | Dosya | İşlev | Durum |
-|------|--------|--------|--------|
-| `/` | `app/index.tsx` | Bootstrap: Logo splash → onboarding / auth / star-pick / tabs | ✅ |
-| `/(onboarding)` | `app/(onboarding)/index.tsx` | 4 slaytlık `OnboardingScreen` (PNG + animasyon) | ✅ |
-| `/(onboarding)/star-pick` | `app/(onboarding)/star-pick.tsx` | İlk takımyıldızı; `start_constellation` RPC | ✅ |
-| `/(auth)` | `app/(auth)/index.tsx` | Giriş / kayıt / Google / Apple | ✅ |
-| `/auth/callback` | `app/auth/callback.tsx` | Google OAuth dönüşü | ✅ |
-| `/(tabs)/session` | `app/(tabs)/session.tsx` | Odak seansı (yeni UI) | ✅ |
-| `/(tabs)/galaxy` | `app/(tabs)/galaxy.tsx` | Gökyüzü / takımyıldızı ilerlemesi | ✅ |
-| `/(tabs)/profile` | `app/(tabs)/profile.tsx` | Profil özeti + günlük hedef | ✅ |
-| `/settings` | `app/settings.tsx` | Dil, avatar, offline sync, çıkış | ✅ |
-| `/badges` | `app/badges.tsx` | Rozet koleksiyonu | ✅ |
-| `/reset-password` | `app/reset-password.tsx` | Supabase recovery deep link | ✅ |
-| `/verify-success` | `app/verify-success.tsx` | E-posta doğrulama sonrası | ✅ |
-| `/legal/privacy-policy` | `app/legal/privacy-policy.tsx` | KVKK metni | ✅ |
-| `/legal/delete-account` | `app/legal/delete-account.tsx` | Hesap silme | ✅ |
-| `/legal/acknowledgments` | `app/legal/acknowledgments.tsx` | Atıflar / lisanslar | ✅ |
-| `/universe-message` | `app/universe-message.tsx` | Günlük evren mesajı (push tap hedefi) | ✅ |
-| Tab guard | `app/(tabs)/_layout.tsx` | `!user` veya `!onboardingCompleted` → redirect | ✅ |
+| Tarih | Commit | Özet |
+|-------|--------|------|
+| 2026-05-05 | `f538534` | İlk ekranlar eklendi |
+| 2026-05-06 | `f020b1c` | Login, register, onboarding ekranları |
+| 2026-05-06 | `ce39739` | Tüm ana ekranlar güncellendi |
+| 2026-05-06 | `a22422b`, `2b646a8` | README güncellemeleri |
 
 ---
 
-## Context katmanı
+### 2026-05-13 — 2026-05-15 · Faz 2: Backend ve monorepo
 
-| Modül | Dosya | İşlev | Durum |
-|-------|--------|--------|--------|
-| **AppContext** | `context/AppContext.tsx` | `useAppContext()` facade — auth + session + UI + notification tek yüzey | ✅ |
-| **AuthContext** | `context/AuthContext.tsx` | Oturum, kayıt, Google/Apple, onboarding, unlock, silme, analytics user id | ✅ |
-| **SessionContext** | `context/SessionContext.tsx` | Timer, seans RPC, offline kuyruk, analytics events, NetInfo sync | ✅ |
-| **UIContext** | `context/UIContext.tsx` | Dil, kutlama modal state | ✅ |
-| **NotificationContext** | `context/NotificationContext.tsx` | Global `showToast`, `showAlert`, `showConfirm` | ✅ |
-| **session/*** | `context/session/*.ts` | Offline kuyruk, timer, süre hesabı (SessionContext'ten ayrıştırıldı) | ✅ |
-| **devDemo** | `context/auth/devDemo.ts` | `demo` / `demo@astrocus.dev` — yalnızca `__DEV__` | ✅ |
-| **stardustEconomy** | `shared/stardustEconomy.ts` | Kazanç oranları, tier maliyetleri, günlük ödül tek kaynak | ✅ |
-| **stardust** | `context/session/stardust.ts` | Günlük özet (yerel aggregation) | ✅ |
-| **dateKey** | `context/session/dateKey.ts` | Tarih anahtarı (streak / günlük) | ✅ |
+| Tarih | Commit | Özet |
+|-------|--------|------|
+| 2026-05-13 | `5225520` | Backend bağlantıları (Supabase) |
+| 2026-05-13 | `cd349f0` | Railway start script düzeltmesi |
+| 2026-05-15 | `c491506` | **Klasör yapısı yeniden kurgulandı** — `/frontend`, `/backend`, `/prodocs` |
+| 2026-05-15 | `948e1cb` | Backend ve frontend iyileştirmeleri |
+| 2026-05-15 | `aa9e54c` | README |
 
-### AuthContext — public API
-
-| Metod | Açıklama |
-|--------|----------|
-| `login` / `register` | Supabase e-posta; demo credentials (__DEV__) |
-| `continueWithGoogle` | `lib/oauth.ts` → `loadAuthPayloadFromSession` |
-| `continueWithApple` | `lib/appleAuth.ts` → `signInWithIdToken` (iOS) |
-| `completeOnboarding(constellationId)` | `start_constellation` RPC + `onboardingSeen` |
-| `unlockStar(starId)` | `api.unlockStar` → RPC; tamamlama kutlaması |
-| `updateProfile` / `refreshUser` / `logout` / `deleteAccount` | Profil ve hesap yaşam döngüsü; `setAnalyticsUserId` + Sentry `setMonitoringUser` |
-
-### SessionContext — public API
-
-| Metod / state | Açıklama |
-|---------------|----------|
-| `sessionState` | `idle` \| `running` \| `paused` \| `completed` \| `failed` |
-| `startSession` / `pauseSession` / `resumeSession` | Timer + 1 pause limiti |
-| `cancelSession` | Erken bitir; `cancel_focus_session` (dinamik eşik + `focused_minutes`) |
-| `resetSession` | Yerel sıfırlama |
-| `finalizeSession` | Tamamlanınca `complete_focus_session` + kutlama + LLM |
-| `syncOfflineQueue` | `pendingSessions` → RPC `p_is_offline: true` |
-| NetInfo effect | Online olunca otomatik `syncOfflineQueue` |
-| `analyticsSummary` | Express `/analytics/summary` (demo'da null) |
+**Karar:** Monorepo — mobil istemci ve Express API ayrı klasörler; kritik işlemler Supabase RPC ile.
 
 ---
 
-## Ekranlar (`src/screens/`)
+### 2026-05-18 — 2026-05-21 · Faz 3: Auth düzeltmeleri ve gamification temeli
 
-| Ekran | Dosya | İşlev | Durum | Not |
-|-------|--------|--------|--------|-----|
-| **OnboardingScreen** | `OnboardingScreen.tsx` | 4 slayt PNG + twinkle animasyon | ✅ | i18n tam |
-| **AuthScreen** | `AuthScreen.tsx` | Login, kayıt, Google, Apple, şifre sıfırlama | ✅ | KVKK checkbox |
-| **SessionScreen** | `SessionScreen.tsx` | Preset'ler, süre/kategori, timer, haftalık yıldızlar | ✅ | `WeeklyReportCard` entegre |
-| **GalaxyScreen** | `GalaxyScreen.tsx` | DB katalog, filtre, sıralı unlock, Skia sahne | ✅ | 67 yıldız |
-| **ProfileScreen** | `ProfileScreen.tsx` | Özet, günlük hedef, kategori dağılımı, nav | ✅ | Ayarlar ayrı ekran |
-| **SettingsScreen** | `SettingsScreen.tsx` | Dil, avatar, kullanıcı adı, offline sync, çıkış | ✅ | `UsernameSettingsBlock` |
-| **BadgesScreen** | `BadgesScreen.tsx` | Kazanılan / kilitli rozetler | ✅ | `/badges` |
-| **PrivacyPolicyScreen** | `PrivacyPolicyScreen.tsx` | Yasal metin | ✅ | — |
-| **DeleteAccountScreen** | `DeleteAccountScreen.tsx` | `DELETE` account API + çıkış | ✅ | — |
-| **AcknowledgmentsScreen** | `AcknowledgmentsScreen.tsx` | Üçüncü taraf atıflar | ✅ | — |
-| **UniverseMessageScreen** | `UniverseMessageScreen.tsx` | Günlük quote tam ekran | ✅ | Push `data.screen: universe-message` |
+| Tarih | Commit | Özet |
+|-------|--------|------|
+| 2026-05-18 | `d0009e8` | Login/register hata düzeltmeleri |
+| 2026-05-21 | `a226ce3` | Ara düzenlemeler |
 
-### SessionScreen — davranış detayı
+**Migration 003 (takımyıldızı gamification):** 13 burç, `complete_focus_session` / `cancel_focus_session` / `unlock_star` RPC'leri, sıralı ilerleme.
 
-- Quick preset'ler: Nefes (10), Pomodoro (25), Flow (45), Deep (60)
-- Süre bölümü: 15, 30, 90, 120 + `CustomDurationSheet` (slider)
-- Kategoriler: 8 adet, i18n etiketli
-- Aktif seans: duraklat / devam; **Seansı bitir** → onay → `cancelSession()`
-- Arka plan > 20 sn → `failed` + kullanıcı mesajı
-- Tamamlanınca → `CelebrationHost` üzerinden kutlama modalı (stardust, streak, rozet)
-- Haftalık odak yıldızları (`WeekDayStars`) + `WeeklyReportCard` + `UniverseMessageCard` (quotes)
-
-### GalaxyScreen — davranış detayı
-
-- Katalog: `loadSkyCatalog()` → Supabase `constellations` + `stars` (67 gök cismi)
-- Filtre: all / active / completed
-- Sıralama: `sortConstellationsForUser` + `unlock_order`
-- Yalnızca aktif takımyıldızında sıradaki yıldıza tap ile unlock
-- Maliyet: `starUnlockCost` — DB `required_stardust` alanı
-- Tamamlanınca: toast + haptics
-
-### ProfileScreen — davranış detayı
-
-- `DailyGoalCard`: hedef seç (15–1440 dk), ilerleme, ödül claim
-- `CategoryDistribution`: haftalık kategori pasta grafiği
-- `WeeklyReportCard` + modal
-- Nav: Rozetler, Ayarlar, Gizlilik, Hesap silme
+**Karar:** Gökyüzü haritası simülasyonu yerine **takımyıldızı kartları** + manuel yıldız unlock.
 
 ---
 
-## Bileşenler (`src/components/`)
+### 2026-05-28 — 2026-05-30 · Faz 4: DB katalog, onboarding, i18n
 
-### Genel / layout
+| Tarih | Commit | Özet |
+|-------|--------|------|
+| 2026-05-28 | `db43407` | Gökyüzü oyunlaştırması **dinamik DB katalog** (`skyCatalog.ts`, migration 008 — 67 yıldız) |
+| 2026-05-28 | `7f6f0cb` | Dil paketleri (TR/EN `i18n.ts`) |
+| 2026-05-30 | `e03e1b8` | **Onboarding tamamlandı** — 4 slayt + `star-pick` |
 
-| Bileşen | İşlev | Durum |
-|---------|--------|--------|
-| `CelebrationHost` | Root kutlama overlay (tab geçişinde kalır) | ✅ |
-| `CelebrationModal` | Seans sonu ✦, XP, streak, rozet, LLM | ✅ |
-| `GlassToast` | Galaksi / global toast | ✅ |
-| `AstroAlertModal` / `AstroConfirmModal` | Onay / uyarı diyalogları | ✅ |
-| `TabScreenScaffold` / `SubScreenScaffold` | Tab / alt ekran iskeleti | ✅ |
-| `ScreenContentColumn` | Responsive içerik sütunu | ✅ |
-| `CosmicScreenBackground` / `GalaxyBackground` | Arka plan katmanları (Skia) | ✅ |
-| `SurfaceCard` / `AppCard` / `Card` | Kart yüzeyleri | ✅ |
-| `GradientButton` | Birincil CTA | ✅ |
-| `Logo` | Marka logosu (splash) | ✅ |
-| `UserAvatar` | Preset avatar seçimi | ✅ |
+**Migration'lar (bu dönem):** 007–016 — tier/unlock_order, haftalık rapor tablosu, günlük hedef RPC'leri, UUID/RLS düzeltmeleri.
 
-### UI primitives (`components/ui/`)
-
-| Bileşen | İşlev |
-|---------|--------|
-| `AppText` | Tipografi wrapper (font scale clamp) |
-| `PillChip` / `StarDustChip` | Seçim chip'leri |
-| `ProgressBar` | İlerleme çubuğu |
-| `AppIcon` / `StardustMark` | Merkezi MaterialCommunityIcons + ✦ işareti |
-| `LanguageToggle` | TR/EN geçiş |
-| `IconTitleRow` | İkon + başlık satırı |
-
-### Galaxy (`components/galaxy/`)
-
-| Bileşen | İşlev |
-|---------|--------|
-| `SkySection` | Gökyüzü bölümü (tamamlanan / yolculuk) |
-| `ConstellationCard` | Takımyıldızı kartı + ilerleme + `constellationIcons` |
-| `StarCard` | Yıldız kartı + unlock CTA |
-| `StarVisual` / `SkyStarVisual` | Büyüklük tier'ına göre yıldız görseli |
-| `ConstellationFilterBar` | all / active / completed filtre |
-| `buildGalaxyScene` / `galaxySceneCache` | Skia sahne oluşturma + önbellek |
-| `preloadGalaxyScene` | Session tab'dan arka planda preload |
-
-### Session (`components/session/`)
-
-| Bileşen | İşlev |
-|---------|--------|
-| `FocusSectionCard` | Süre / kategori seçim kartı |
-| `WeekDayStars` | Haftalık odak yıldız göstergesi |
-| `UniverseMessageCard` | Günlük ilham sözü (DB `quotes`) |
-| `CustomDurationSheet` | Bottom sheet özel süre (slider) |
-
-### Profile (`components/profile/`)
-
-| Bileşen | İşlev |
-|---------|--------|
-| `DailyGoalCard` | Günlük hedef seçimi + ilerleme + ödül |
-| `CategoryDistribution` | Kategori dağılım grafiği |
-| `StatBox` | İstatistik kutusu |
-| `ProfileNavRow` | Profil navigasyon satırı |
-
-### Settings (`components/settings/`)
-
-| Bileşen | İşlev |
-|---------|--------|
-| `SettingsRow` / `SettingsNavLink` / `SettingsDivider` | Ayarlar listesi |
-| `OfflineSyncButton` | Bekleyen offline seans sync |
-| `UsernameSettingsBlock` | Kullanıcı adı düzenleme + müsaitlik kontrolü |
-
-### Rapor / rozet
-
-| Bileşen | İşlev |
-|---------|--------|
-| `WeeklyReportCard` | Haftalık rapor özeti kartı |
-| `WeeklyReportModal` | Tam rapor modal |
-| `BadgeItem` | Rozet grid öğesi |
+**Karar:** Onboarding 3 ekran değil **4 slayt**; skip ve varsayılan yıldız yok.
 
 ---
 
-## Servisler & lib
+### 2026-06-01 — 2026-06-03 · Faz 5: Seans UI ve haftalık rapor
 
-| Modül | Dosya | İşlev | Durum |
-|-------|--------|--------|--------|
-| **api** | `shared/api.ts` | Supabase auth, RPC, günlük hedef, unlock, demo | ✅ |
-| **skyCatalog** | `services/skyCatalog.ts` | DB'den takımyıldızı + yıldız katalog (cache) | ✅ |
-| **constellationCatalog** | `services/constellationCatalog.ts` | İlerleme listesi, gökyüzü grupları, maliyet | ✅ |
-| **profileMapper** | `services/profileMapper.ts` | DB satır → domain tipleri | ✅ |
-| **analyticsApi** | `services/analyticsApi.ts` | `GET /analytics/summary` | ✅ |
-| **dailyGoalStorage** | `lib/dailyGoalStorage.ts` | Yerel + RPC günlük hedef senkronu | ✅ |
-| **notifications** | `lib/notifications.ts` | Expo push token kaydı, bildirim tap navigasyonu | ✅ |
-| **useWeeklyReport** | `hooks/useWeeklyReport.ts` | Son haftalık rapor fetch | ✅ |
-| **useDeepLink** | `hooks/useDeepLink.ts` | E-posta doğrulama / recovery linkleri | ✅ |
-| **useUniverseMessage** | `hooks/useUniverseMessage.ts` | Günlük quote fetch (`quotes` tablosu) | ✅ |
-| **username** | `shared/username.ts` | Doğrulama, normalize, taken hata algılama | ✅ |
-| **analytics** | `lib/analytics.ts` | `posthog-react-native` SDK + `trackScreen` / olaylar | 🟡 `EXPO_PUBLIC_POSTHOG_KEY` bekliyor |
-| **errorTracking** | `lib/errorTracking.ts` | Sentry init + auth binding + `wrapRootWithSentry` | 🟡 `EXPO_PUBLIC_SENTRY_DSN` bekliyor |
-| **appIcons** | `shared/appIcons.ts` | Kategori / preset ikon eşlemesi | ✅ |
-| **oauth** / **appleAuth** | `lib/oauth.ts`, `lib/appleAuth.ts` | Sosyal giriş | ✅ |
-| **i18n** | `shared/i18n.ts` | TR/EN (~750+ satır çeviri) | ✅ |
-| **constants** | `shared/constants.ts` | Kategoriler, rozetler, stardust formülleri | ✅ |
-| **theme** / **responsive** | `shared/theme.ts`, `responsive.ts` | Tasarım token'ları, font scale clamp | ✅ |
+| Tarih | Commit | Özet |
+|-------|--------|------|
+| 2026-06-01 | `8c56bd9` | Odak/seans sayfaları revizyonu; **AI entegrasyonu** (seans sonu — sonra kaldırıldı) |
+| 2026-06-03 | `6f3f694`, `0c97f5f` | UI/UX iyileştirmeleri |
 
-### Günlük hedef RPC'leri (016)
-
-| RPC | İşlev |
-|-----|--------|
-| `upsert_daily_goal` | Bugünün hedefini onayla (timezone-aware) |
-| `get_daily_goal_progress` | Bugünkü hedef + odak dakikası |
-| `claim_daily_goal_reward` | Hedef tamamlanınca ödül |
-| `list_daily_goal_history` | Geçmiş hedefler (grafik / analytics) |
+**Eklenen:** `WeeklyReportCard`, `CelebrationHost`, preset süreler, `CustomDurationSheet`, `WeekDayStars`.
 
 ---
 
-## Backend Express (`backend/src/`)
+### 2026-06-05 — 2026-06-06 · Faz 6: Ayarlar, push, ekonomi, izleme
 
-| Endpoint / modül | İşlev | Durum |
-|------------------|--------|--------|
-| `GET /health` | Supabase ping | ✅ |
-| `GET /analytics/summary` | Haftalık dk, kategori, streak | ✅ |
-| `GET /analytics/daily-goals` | Günlük hedef geçmişi (RPC proxy) | ✅ |
-| `POST /stars/unlock` | JWT ile `unlock_star` proxy | ✅ |
-| `POST /account/delete` | Kalıcı hesap silme (`auth.users`) | ✅ |
-| `lib/monitoring.ts` | Sentry Express error handler | 🟡 `SENTRY_DSN` bekliyor |
-| `lib/productAnalytics.ts` | PostHog sunucu olayları (`account_deleted`) | 🟡 `POSTHOG_API_KEY` bekliyor |
+| Tarih | Commit | Özet |
+|-------|--------|------|
+| 2026-06-05 | `c176cb1` | `quotes` tablosu; bildirim altyapısı; UI |
+| 2026-06-05 | `19b59ee` | react-dom 19.1.0 CI hizalaması |
+| 2026-06-05 | `149742b` | Settings/legal UI, Lorelei avatarlar, **hesap silme** |
+| 2026-06-06 | `50870bf` | Günlük push + `send-daily-quote`; **Galaktik Tavsiye kaldırıldı**; PostHog SDK; Sentry refactor |
+| 2026-06-06 | `16839ec`, `d80bf7b` | Node 20 ws transport; dotenv production guard |
+| 2026-06-06 | (yerel) | Context ayrıştırma; kullanıcı adı migration 021–023; galaxy görselleri |
 
-**LLM (yalnızca haftalık rapor):** Edge Function → **OpenRouter** (ücretsiz modeller, fallback zinciri). Seans sonu Galaktik Tavsiye v1'de kaldırıldı.
+**Migration 024–025:** Yıldız tozu ekonomisi — 10 ✦/dk; tier maliyetleri 500 / 1200 / 2000 ✦; günlük hedef ödülü `max(75, hedef_dk × 3)`.
 
-**Scriptler:** `npm run dev` · `build` · `start` · `test` · `typecheck`
-
----
-
-## Supabase Edge Function
-
-| Fonksiyon | Dosya | İşlev | Deploy |
-|-----------|--------|--------|--------|
-| `generate-weekly-reports` | `backend/supabase/functions/generate-weekly-reports/` | Haftalık istatistik topla → OpenRouter → `weekly_reports` | 🟡 ACTIVE; cron doğrulanmalı |
-| `send-daily-quote` | `backend/supabase/functions/send-daily-quote/` | `quotes` + `expo_push_token` → Expo Push API; tap → `universe-message` | 🟡 yerelde hazır, deploy + cron bekliyor |
-
-Haftalık rapor metni bilingual: `{ "tr": "...", "en": "..." }`. Günlük quote: kayıt gününden itibaren 60 günlük döngü (`order_index`).
+**Karar:** Seans sonu Gemini tavsiyesi v1'den çıkarıldı; yerine günlük quote push + haftalık OpenRouter raporu.
 
 ---
 
-## Supabase `db push` — adım adım (Windows)
+### 2026-06-07 — 2026-06-11 · Faz 7: Production go-live hazırlığı
 
-Migration dosyaları: `backend/supabase/migrations/` (**001 → 023** sırayla uygulanır).
+| Tarih | Commit | Özet |
+|-------|--------|------|
+| 2026-06-07 | `5287aab` | Son düzenlemeler |
+| 2026-06-08 | `9f2c92d` | Auth e-posta verify + mobile redirect (`/auth/confirm`, `/auth/verify`) |
+| 2026-06-09 | `92e330a` | Haftalık rapor düzeltmeleri |
+| 2026-06-10 | `7ed7839` | Bildirim sistemi hata düzeltmeleri |
+| 2026-06-11 | `b07f1ca` | Focus session arka plan + bildirim güvenilirliği |
+| 2026-06-11 | `cf6fa20` | package-lock CI sync |
+| 2026-06-11 | `716c65b` | Auth confirm — **JavaScript olmayan e-posta WebView** desteği |
+| 2026-06-11 | `58e974e` | `auth.routes` TypeScript build (CI / Railway) |
 
-### Ön koşul
+**Dokümantasyon:** Hata kayıtları bu dosyada; deploy adımları [tech-stack.md §10](./tech-stack.md#devops).
 
-1. [Supabase Dashboard](https://supabase.com/dashboard) → projen → **Settings → General** → **Reference ID** not al.
-2. Supabase CLI (bir kez):
+**Production ayarları:** `APP_ENV=production`; demo mod yalnızca `__DEV__`; `EXPO_PUBLIC_AUTH_VERIFY_REDIRECT_URI=astrocus://verify-success`.
+
+---
+
+### 2026-06-12 · Bootcamp dökümantasyonu ve güvenlik denetimi
+
+- [PRD.md](./PRD.md) bootcamp teslim formatına güncellendi (MVP özeti, Play açık test, iOS ertelendi, XP kaldırıldı).
+- Gamification RLS sıkılaştırma ihtiyacı tespit edildi → migration 029 taslağı (aşağıda).
+
+---
+
+## Önemli ürün ve teknik kararlar
+
+| Tarih / dönem | Karar | Gerekçe |
+|---------------|-------|---------|
+| MVP | Takımyıldızı **kartları** (canlı gökyüzü simülasyonu değil) | Maliyet, net UX, DB katalog yeterli |
+| MVP | **Manuel** yıldız unlock | Kullanıcı ödülü ne zaman harcayacağını seçer |
+| MVP | Duraklatma > 5 dk → iptal **yok** | Düşük UX kazancı, ek karmaşıklık |
+| MVP | Seans ekranında yıldız görseli **yok** | Odak öncelikli minimal UI |
+| 2026-06-06 | Galaktik Tavsiye (Gemini) **kaldırıldı** | Kapsam sadeleştirme; günlük quote + haftalık rapor yeterli |
+| 2026-06-06 | PostHog native SDK; Sentry `errorTracking.ts` | Ürün analitiği ve crash izleme |
+| Mimari | Ödül/streak/unlock → **Supabase RPC** | Anti-cheat; istemci ödül hesaplamaz |
+| Mimari | Haftalık AI → **Edge Function + OpenRouter** | API anahtarı mobil bundle'da değil |
+| Mimari | Auth e-posta → **Express köprüsü** | Mail istemcisi WebView'da JS kapalı olabilir |
+| v1 yayın | **Android only**; iOS kod hazır, mağaza yok | Play açık test öncelik |
+| Gamification | **XP/seviye kaldırıldı** | Yalnızca yıldız tozu (✦) ekonomisi |
+
+---
+
+<a id="karsilasilan-sorunlar"></a>
+
+## Karşılaşılan sorunlar ve çözümler
+
+Aşağıdaki kayıtlar gerçek geliştirme ve production hazırlık sürecinden çıkarılmıştır. Her madde: **belirti → kök neden → çözüm** sırasıyla yazılmıştır. Canlıya geçiş adımları: [tech-stack.md §10](./tech-stack.md#devops).
+
+---
+
+### 1. E-posta doğrulama — “Bağlantının süresi dolmuş veya geçersiz”
+
+**Belirti:** Kullanıcı kayıt e-postasındaki linke tıkladığında hata; link daha önce hiç açılmamış olsa bile token geçersiz sayılıyordu.
+
+**Kök neden:** Gmail ve Outlook gibi istemciler, güvenlik taraması için e-postadaki doğrulama linkine **otomatik HTTP isteği** atıyor. Eski akışta link doğrudan `GET /auth/verify` → `verifyOtp` çağırıyordu; tarayıcı botu token'ı tüketince gerçek kullanıcı linke geldiğinde OTP artık geçersizdi.
+
+**Çözüm (iki adımlı köprü):**
+
+1. E-posta şablonu artık `{{ .SiteURL }}/auth/confirm?token_hash=...` adresine gidiyor — bu adımda token **henüz tüketilmiyor**.
+2. `/auth/confirm` basit bir HTML ara sayfası gösteriyor; kullanıcı “E-postamı doğrula” düğmesine basınca `/auth/verify` çalışıyor.
+3. `verifyOtp` başarılı olunca mobil deep link: `astrocus://verify-success#access_token=...&refresh_token=...`
+4. Uygulama `useDeepLink` ile hash'teki token'ları okuyup oturumu kuruyor → `/verify-success` ekranı.
+
+**Ek düzeltmeler:**
+
+- Yanlış env: `astrocus://verify-email` rotası uygulamada yok → `EXPO_PUBLIC_AUTH_VERIFY_REDIRECT_URI=astrocus://verify-success` olarak sabitlendi.
+- Bazı mail WebView'larında JavaScript kapalı → ara sayfa mümkün olduğunca **JS'siz** çalışacak şekilde düzenlendi (`716c65b`).
+- Şablon deploy: `cd backend && npm run deploy:auth-email` (SMTP + Supabase Management API). Railway'de `/auth/confirm` route'u yoksa backend **yeniden deploy** gerekir.
+
+**İlgili:** `9f2c92d`, `716c65b` · `backend/src/routes/auth.routes.ts` · `backend/supabase/templates/` · `npm run deploy:auth-email`
+
+**Ek sorun giderme (auth e-posta):**
+
+| Belirti | Olası neden | Çözüm |
+|---------|-------------|--------|
+| Railway ara sayfasında takılı kalma | Eski şablon veya `/auth/confirm` route yok | Backend redeploy + `deploy:auth-email` |
+| Şifre sıfırlama uygulamayı açmıyor | Mail WebView `astrocus://` otomatik açmaz | Ara sayfadaki “Astrocus'u aç” düğmesi |
+| `deploy:auth-email` token hatası | `backend/.env` eksik | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF` |
+| Süresi dolmuş (yeni mail) | Eski şablon doğrudan `/auth/verify` | `deploy:auth-email` + yeni kayıt maili |
+| Uygulama açılmıyor | Yanlış redirect URI | `astrocus://verify-success`, `astrocus://reset-password` |
+| “Error sending confirmation email” | Supabase varsayılan SMTP | Custom SMTP (Resend) — `backend/.env` SMTP alanları |
+
+---
+
+<a id="google-oauth-hatalari"></a>
+
+### 2. Google OAuth — Expo Go, mavi ekran ve `DEVELOPER_ERROR`
+
+#### 2a. Expo Go'da native Google Sign-In çalışmıyor
+
+**Belirti:** Google ile giriş butonu Expo Go'da hata veriyor veya hiç tamamlanmıyor.
+
+**Kök neden:** Production akış **native** `@react-native-google-signin/google-signin` kullanıyor (`id_token` → `supabase.auth.signInWithIdToken`). Bu modül Expo Go'da yok; preview/production APK gerekir.
+
+**Çözüm:** `eas build -p android --profile preview` veya yerel `npm run android:release`. Google Cloud'da Android OAuth client: package `com.astrocus.app` + doğru SHA-1.
+
+**İlgili:** [tech-stack.md §10.6](./tech-stack.md#google-oauth)
+
+#### 2b. Google dönüşünde “Failed to download remote update” (mavi ekran)
+
+**Belirti:** OAuth sonrası Expo Go mavi ekran; Metro bundle indirilemiyor.
+
+**Kök neden (birkaç senaryo):**
+
+- Redirect URL'de `127.0.0.1` / `localhost` — fiziksel telefonda bu adres PC değil, telefonun kendisi.
+- Android **cold start:** Chrome Custom Tab ayrı görevde açılınca `exp://` dönüşü Expo Go'yu sıfırdan başlatıyor; Metro'ya ulaşamıyor (logda `Android Bundled … (1 module)`).
+
+**Çözüm:**
+
+- Geliştirmede `npx expo start --lan -c`; Metro logundaki `exp://192.168.x.x:8081/--/auth/callback` değerini Supabase Redirect URLs'e ekle.
+- PC ve telefon **aynı Wi‑Fi**; Windows ağ profili “Özel”; güvenlik duvarında Node.js **8081** açık.
+- OAuth oturumunda `createTask: false` — Custom Tab aynı Android görevinde kalır.
+- İsteğe bağlı: `EXPO_PUBLIC_OAUTH_REDIRECT_URI` ile sabit LAN redirect.
+
+**İlgili:** [tech-stack.md §10.9](./tech-stack.md#expo-go-network)
+
+#### 2c. `DEVELOPER_ERROR` (release APK)
+
+**Belirti:** Google hesap seçici açılıyor ama `DEVELOPER_ERROR` ile düşüyor.
+
+**Kök neden:** Google Cloud Android OAuth client'taki **SHA-1 fingerprint**, APK'yı imzalayan keystore ile uyuşmuyor. Debug keystore SHA-1 ≠ EAS release keystore SHA-1.
+
+**Çözüm:**
 
 ```powershell
-npm install -g supabase
+cd frontend
+npx eas credentials -p android   # release SHA-1
+# veya yerel debug için:
+cd frontend\android
+.\gradlew.bat signingReport
 ```
 
-### Bağlan ve gönder
+Doğru SHA-1'i Google Cloud → Credentials → Android client'a ekle. `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` EAS secret olarak build'e gömülmeli.
 
-```powershell
-cd c:\Users\lleda\astrocus\backend
-supabase login
-supabase link --project-ref BURAYA_REFERENCE_ID
-supabase db push
+**İlgili:** `lib/googleSignIn.ts`, Google Cloud Android client SHA-1 — [tech-stack.md §10.6](./tech-stack.md#google-oauth)
+
+---
+
+### 3. Push bildirimleri ve FCM (Android)
+
+#### 3a. `Default FirebaseApp is not initialized`
+
+**Belirti:** Release build'de push veya FCM ile ilgili native crash.
+
+**Kök neden:** Android native projede Firebase yapılandırması yok — `google-services.json` eksik veya prebuild sonrası eklenmemiş.
+
+**Çözüm:**
+
+1. Firebase Console → Android app `com.astrocus.app` → `google-services.json` indir → `frontend/google-services.json` (gitignore, repoya commit edilmez).
+2. `npx expo prebuild --platform android --clean`
+3. EAS'da FCM v1 service account key ([tech-stack.md §10.7](./tech-stack.md#fcm-push)).
+
+#### 3b. Expo Go'da push token / kırmızı ekran
+
+**Belirti:** SDK 53+ Expo Go Android'de `expo-notifications` import edilince `console.error` → LogBox fatal kırmızı ekran. OAuth sonrası da görülebilir.
+
+**Kök neden:** Expo Go, push ve bazı native bildirim API'lerini tam desteklemiyor.
+
+**Çözüm:** `src/shared/notifications.ts` içinde `isRunningInExpoGo()` kontrolü — Expo Go'da modül lazy yüklenmiyor. Gerçek push testi **yalnızca release/preview APK** ile. Günlük quote push (`send-daily-quote`) de production build + kayıtlı `expo_push_token` gerektirir.
+
+**İlgili:** `7ed7839`, `shared/notifications.ts`, [tech-stack.md §10.7](./tech-stack.md#fcm-push)
+
+#### 3c. Günlük quote push gelmiyor
+
+**Kontrol listesi:** `google-services.json` var mı? `prebuild --clean` sonrası rebuild? Bildirim izni verildi mi? `profiles.expo_push_token` dolu mu? Edge Function `send-daily-quote` deploy + cron (`CRON_SECRET`)? Expo Go değil, release APK kullanılıyor mu?
+
+---
+
+### 4. Odak seansı — arka plan, bildirim ve seans kaybı
+
+#### 4a. Uygulama arka plana geçince süre / seans durumu
+
+**Belirti:** Kullanıcı başka uygulamaya geçince geri sayım tutarsız; uzun süre sonra seans iptal veya yanlış süre.
+
+**Kök neden:** Saf JS timer arka planda throttle edilir; ekran kapanınca `setInterval` güvenilir değil.
+
+**Çözüm:**
+
+- **AppState + timestamp:** Arka plana geçiş anı kaydedilir; ön plana dönünce `completed_at - started_at` farkı hesaplanır.
+- **20 sn tolerans** (`BACKGROUND_TOLERANCE_SECONDS`): Aşılırsa seans `failed`.
+- **10. sn yerel bildirim** (`WARNING_THRESHOLD_SECONDS`): Kullanıcıyı uygulamaya dönmeye çağırır.
+- UI metni bildirimle uyumlu olacak şekilde “10 saniye” olarak güncellendi (eskiden 20 sn yazıyordu).
+
+**İlgili:** `b07f1ca`, `SessionContext`, `constants.ts`
+
+#### 4b. Android kilit ekranında geri sayım görünmüyor
+
+**Belirti:** Seans sürerken kilit ekranında süre yok; kullanıcı telefonu kilitleyince odak bağlamı kayboluyor.
+
+**Çözüm:** Özel Expo modülü `astrocus-focus-timer` — Android **foreground service** + ongoing notification ile kilit ekranında geri sayım. `app.json` içinde `FOREGROUND_SERVICE`, `WAKE_LOCK`, `POST_NOTIFICATIONS` izinleri.
+
+**İlgili:** `frontend/modules/astrocus-focus-timer/`
+
+#### 4c. Bildirim zamanlaması güvenilirliği
+
+**Belirti:** Arka planda uyarı bazen gecikiyor veya tetiklenmiyor.
+
+**Çözüm:** `b07f1ca` ve `7ed7839` commit'lerinde focus session notification scheduling ve background handler'lar gözden geçirildi; notification channel'lar (`focus-session-ongoing`, `focus-session-warning` vb.) ayrı tanımlandı.
+
+**Test:** `npm run test:session` (timer + notification unit testleri).
+
+---
+
+### 5. Production ortamı ve demo modu
+
+#### 5a. Release build'de demo giriş veya localhost API
+
+**Belirti:** Production APK'da demo hesap çalışıyor veya API localhost'a gidiyor.
+
+**Kök neden:** `APP_ENV=development` veya eski demo token AsyncStorage'da kalmış.
+
+**Çözüm:**
+
+- Release build'de `APP_ENV=production` (`eas.json`, `build-release-apk.ps1`).
+- `devDemo.ts`: `isDevDemoEnabled()` yalnızca `__DEV__` true iken demo kabul eder; production bootstrap'ta eski demo token temizlenir.
+- `app.config.ts`: production'da cleartext HTTP kapalı.
+
+**İlgili:** `devDemo.ts`, `AuthContext.tsx`, `APP_ENV=production`
+
+---
+
+### 6. CI, Railway ve backend deploy
+
+#### 6a. GitHub Actions `npm ci` — react-dom uyumsuzluğu
+
+**Belirti:** CI frontend adımında peer dependency / lockfile hatası.
+
+**Kök neden:** React 19.1.0 ile react-dom sürümü lockfile'da hizasız.
+
+**Çözüm:** react-dom 19.1.0'a sabitleme; `package-lock.json` sync (`19b59ee`, `149742b`, `cf6fa20`).
+
+#### 6b. Railway TypeScript build fail — `auth.routes.ts`
+
+**Belirti:** Backend Docker/Railway build'de TypeScript derleme hatası; CI kırmızı.
+
+**Çözüm:** `auth.routes.ts` tip düzeltmeleri (`58e974e`) — e-posta köprüsü route'ları eklendikten sonra strict build kırılıyordu.
+
+#### 6c. Node 20 WebSocket transport
+
+**Belirti:** Backend'de ws bağlantısı veya transport hatası (geliştirme/production guard).
+
+**Çözüm:** `16839ec` — ws transport Node 20 uyumu; `dotenv` production guard.
+
+#### 6d. Express API + Expo Go geliştirme ağı
+
+**Belirti:** Telefonda Supabase çalışıyor ama `POST /account/delete` veya analytics Express'e ulaşamıyor.
+
+**Kök neden:** `expo start --tunnel` yalnızca Metro'yu (8081) tünelliyor; `localhost:4000` API telefondan erişilemez.
+
+**Çözüm:** Geliştirmede backend için ayrı tünel (ngrok/cloudflared → port 4000) veya LAN IP (`EXPO_PUBLIC_API_URL=http://192.168.x.x:4000`) + `expo start --lan`. Ayrıntı: [tech-stack.md §10.9](./tech-stack.md#expo-go-network).
+
+---
+
+### 7. Haftalık AI rapor (OpenRouter / Edge Function)
+
+#### 7a. Rapor oluşmuyor veya uygulamada boş
+
+**Belirti:** `WeeklyReportModal` boş; Edge Function log hatası veya DB'de kayıt yok.
+
+**Kök nedenler:**
+
+- `OPENROUTER_API_KEY` veya `CRON_SECRET` Supabase Edge secrets'ta tanımlı değil (anahtar **backend/.env'de değil**, Dashboard/CLI'da).
+- `weekly_reports` tablosu için service role / authenticated grant eksikliği.
+
+**Çözüm:**
+
+- Migration `013`, `014`, `028` — tablo + grant'ler.
+- `92e330a` — haftalık rapor fix commit'i.
+- Model: OpenRouter **Gemma 4** (`google/gemma-4-31b-it:free`) + fallback zinciri (`generate-weekly-reports/index.ts`).
+- Cron: GitHub Actions `weekly-reports-cron.yml` veya harici cron; `Authorization: Bearer <CRON_SECRET>`.
+
+**İlgili:** [tech-stack.md §10.8](./tech-stack.md#haftalik-cron), `.github/workflows/weekly-reports-cron.yml`
+
+---
+
+### 8. Veritabanı ve migration
+
+#### 8a. Uzak DB'de eski ekonomi veya eksik katalog
+
+**Belirti:** Yıldız maliyetleri yanlış; gökyüzü yüklenmiyor; RPC eski parametrelerle çalışıyor.
+
+**Kök neden:** Migration'lar sırayla uygulanmamış; özellikle `003` (takımyıldızı) ve `008` (67 yıldız katalog) kritik.
+
+**Çözüm:** `supabase db push` veya SQL Editor'de sıralı migration. Production'da **001–028 doğrulandı** (2026-06-12). Yerel doğrulama: `supabase migration list`.
+
+#### 8b. Gamification RLS — client'tan stardust manipülasyonu riski
+
+**Belirti (denetim):** `profiles.total_stardust`, `sessions`, `user_stars` için authenticated insert/update policy'leri doğrudan client yazımına izin veriyor; veri sızıntısı yok ama hile riski var.
+
+**Çözüm taslağı:** `029_tighten_gamification_rls.sql` — RPC-only + trigger guard. Frontend'de 3 kod yolu (profil güncelleme ×2, push token) yeni RPC'lere taşınmalı → **yayın sonrası** (bilinen borç, aşağıda).
+
+---
+
+### 9. Diğer UI / kod temizliği
+
+| Sorun | Çözüm |
+|-------|--------|
+| Onboarding “Başla” butonu tema dışı mor (`#7c3aed`) | `colors.primary` (`#8387C3`) — `OnboardingScreen.tsx` |
+| Kullanılmayan `StarfieldBackground.tsx`, `starsApi.ts` | Silindi; unlock zaten Supabase RPC |
+| Galaktik Tavsiye (Gemini) bakım maliyeti | Seans sonu LLM kaldırıldı; haftalık rapor + günlük quote kaldı (`50870bf`) |
+
+---
+
+### 10. Production — hızlı sorun tablosu
+
+| Belirti | Kontrol | Çözüm |
+|---------|---------|--------|
+| “Bağlantının süresi dolmuş” | E-posta linki `/auth/verify` mi? | `deploy:auth-email` + yeni kayıt; Railway `/auth/confirm` redeploy |
+| Google `DEVELOPER_ERROR` | SHA-1 / package | `gradlew signingReport` veya `eas credentials`; `com.astrocus.app` |
+| Push gelmiyor | FCM + build tipi | `google-services.json`, `prebuild --clean`, release APK (Expo Go değil) |
+| Demo giriş yok (release) | Beklenen | `demo@astrocus.dev` yalnızca `__DEV__` |
+| Haftalık rapor boş | Edge secrets | `OPENROUTER_API_KEY`, `CRON_SECRET` — [tech-stack.md §10.8](./tech-stack.md#haftalik-cron) |
+
+---
+
+<a id="canliya-gecis-checklist"></a>
+
+## Canlıya geçiş kontrol listesi
+
+Son doğrulama: **2026-06-12** · Adım adımları: [tech-stack.md §10.2](./tech-stack.md#canliya-gecis-adimlari)
+
+### Altyapı
+
+| # | Madde | Durum | Not |
+|---|--------|-------|-----|
+| 1 | Supabase migration 001–028 | ✅ | Production'da doğrulandı (`028_weekly_reports_authenticated_grant.sql`) |
+| 2 | Edge Function `generate-weekly-reports` | ✅ | Deploy edildi, ACTIVE |
+| 3 | Haftalık rapor cron | ✅ | `.github/workflows/weekly-reports-cron.yml` |
+| 4 | Express API Railway | ✅ | `APP_ENV=production`, `ALLOWED_ORIGIN=false` |
+| 5 | `OPENROUTER_API_KEY` Supabase secret | ✅ | Edge Function secrets (Dashboard) |
+| 6 | EAS / yerel env production | ✅ | `APP_ENV=production`, `EXPO_PUBLIC_*` release build'de |
+| 7 | CI yeşil | ✅ | `.github/workflows/ci.yml` |
+| 8 | PostHog / Sentry | ✅ | `EXPO_PUBLIC_POSTHOG_KEY`, `EXPO_PUBLIC_SENTRY_DSN` |
+| 9 | Supabase redirect URLs | ✅ | `astrocus://verify-success`, `astrocus://reset-password`, OAuth |
+| 10 | Auth e-posta + SMTP | ✅ | `npm run deploy:auth-email`, `/auth/confirm` köprüsü |
+
+**Gösterge:** ✅ tamam · 🟡 kısmi · ⬜ yapılmadı
+
+### Mobil build
+
+| # | Madde | Durum | Not |
+|---|--------|-------|-----|
+| 11 | `google-services.json` + prebuild | ✅ | FCM release APK'da |
+| 12 | Release AAB/APK | ✅ | `npm run android:release` / `android:bundle` |
+| 13 | Gizlilik politikası erişilebilir | ✅ | `/legal/privacy-policy` |
+| 14 | Play Console açık test | ✅ | Google Play open testing |
+
+### Smoke test (production build)
+
+- [x] Kayıt → e-posta → `/auth/confirm` → uygulama → onboarding → star-pick
+- [x] Google OAuth giriş (release APK)
+- [x] Odak seansı tamamla + kutlama (✦)
+- [x] Günlük hedef ödülü
+- [x] Kilit ekranı ongoing bildirimi
+- [x] Arka plan 10 sn uyarı / seans kaybı
+- [x] Haftalık rapor kartı
+- [x] Hesap silme (test hesabı)
+
+---
+
+<a id="bilinen-teknik-borc"></a>
+
+## Bilinen teknik borç
+
+### 2026-06-12 — Gamification RLS sıkılaştırma (migration 029)
+
+**Bağlam:** Play Store öncesi güvenlik ve temizlik denetimi; gamification tablolarında RLS sıkılaştırma ihtiyacı tespit edildi.
+
+* Güvenlik denetimi sırasında `stardust_ledger`, `sessions`, `user_stars` ve `profiles.total_stardust` tablolarındaki RLS policy'lerinin client'a doğrudan insert/update izni verdiği tespit edildi.
+* Risk değerlendirmesi: kullanıcı verisi sızıntısı yok (RLS aktif, izolasyon var), ancak hile/abuse riski mevcut (örn. kullanıcı kendi stardust/total_stardust değerini manipüle edebilir).
+* Çözüm tasarlandı ve migration taslağı hazırlandı: `backend/supabase/migrations/029_tighten_gamification_rls.sql` (RPC-only erişim + trigger guard + REVOKE).
+* Bu migration, frontend'de 3 kod yolunun (profil güncelleme ×2, push token kaydı) yeni RPC'lere geçirilmesini gerektirdiği için bilinçli olarak yayın sonrasına ertelendi (known technical debt).
+
+**Dokümantasyon:** Bu dosya — “Bilinen teknik borç” ve “Canlıya geçiş kontrol listesi” bölümleri.
+
+---
+
+<a id="offline-sync-v2"></a>
+
+### 2026-06-12 — Çevrimdışı seans senkronu (UI kapalı, v2)
+
+**Bağlam:** Çevrimdışı tamamlama ve senkron akışı uçtan uca güvenilir çalışmıyor; kullanıcıya yanıltıcı “kuyruğa alındı / senkronize et” deneyimi sunulmaması için v1'den gizlendi.
+
+**Kod (korundu — teknik borç):**
+
+* `context/session/offlineQueue.ts`, `offlineSessions.ts`, `api.syncSessions`, `OFFLINE_SESSION_SYNC_ENABLED = false`
+* `CelebrationModal` `pendingSync` dalı (tetiklenmez)
+* `components/settings/OfflineSyncButton.tsx` (kullanılmıyor)
+
+**Ürün / UI değişiklikleri:**
+
+* Ayarlar ekranından “Çevrimdışı seanslar” bloğu ve senkron butonu kaldırıldı (`SettingsScreen.tsx`).
+* Ağ hatasında seans kaydı kuyruğa alınmıyor; kullanıcıya standart **seans kaydedilemedi** uyarısı gösteriliyor.
+* Bekleyen seanslar istatistiklere yansıtılmıyor (`displaySessions` yalnızca sunucu seansları).
+* Otomatik NetInfo senkronu devre dışı (`OFFLINE_SESSION_SYNC_ENABLED` false iken).
+
+**Sonraki güncelleme (v2):** Flag `true`, ayarlar UI'si, kutlama `pendingSync` metinleri ve gizlilik politikası metni yeniden etkinleştirilecek.
+
+---
+
+## MVP özellik durumu (kod × production)
+
+| # | Özellik | Kod | Production |
+|---|---------|-----|--------------|
+| 01 | Odak zamanlayıcısı | ✅ | ✅ |
+| 02 | Takımyıldızı / Galaksi | ✅ | ✅ |
+| 03 | Yıldız tozu (10 ✦/dk, manuel unlock) | ✅ | ✅ |
+| 04 | Gökyüzü UI (kartlar + Skia) | ✅ | ✅ |
+| 05 | 8 odak kategorisi | ✅ | ✅ |
+| 06 | Arka plan toleransı + uyarı | ✅ | ✅ |
+| 07 | Günlük özet + hedef | ✅ | ✅ |
+| 08 | Streak | ✅ | ✅ |
+| 09 | Hesap (e-posta, Google) | ✅ | ✅ |
+| 10 | Onboarding (4 slayt + star-pick) | ✅ | ✅ |
+| 11 | Kutlama modalı (✦, streak, rozet) | ✅ | ✅ |
+| 12 | TR / EN | ✅ | ✅ |
+| 13 | Haftalık AI rapor (Gemma 4) | ✅ | ✅ Edge Function |
+| 14 | Günlük quote push + evren mesajı | ✅ | ✅ |
+| 15 | Rozetler, ayarlar, hesap silme | ✅ | ✅ |
+
+**Not:** Çevrimdışı seans senkronu MVP kapsamında **kullanıcıya sunulmuyor** (teknik borç, yukarıda).
+
+---
+
+## Açık işler ve riskler (2026-06-12)
+
+| Öncelik | Madde | Not |
+|---------|-------|-----|
+| Borç | Migration **029** RLS sıkılaştırma | Yayın sonrası; “Bilinen teknik borç” bölümü |
+| Borç | **Çevrimdışı seans senkronu** | `OFFLINE_SESSION_SYNC_ENABLED = false`; v2 |
+| v2 | iOS App Store + Apple Sign In mağaza testi | Kod hazır; yayın yok |
+| v2 | Bildirim aç/kapa UI (ayarlar) | Token kaydı auth sonrası otomatik |
+
+---
+
+## Mimari referans (kısa)
+
+```
+Mobil (Expo Router)
+  → Supabase Auth + RPC (seans, unlock, günlük hedef, streak)
+  → Express API / Railway (auth e-posta köprüsü, analytics, hesap silme)
+  → Edge Functions (haftalık rapor OpenRouter, günlük quote Expo Push)
 ```
 
-### Doğrulama
+**Ana rotalar:** `(tabs)/session` · `(tabs)/galaxy` · `(tabs)/profile` · `settings` · `badges` · `universe-message` · `legal/*`
 
-Dashboard → **Table Editor**: `constellations`, `stars` (67 kayıt), `weekly_reports`, `daily_goal_entries` görünmeli.  
-**SQL** → fonksiyonlar: `start_constellation`, `unlock_star`, `cancel_focus_session`, `get_daily_goal_progress` listelenmeli.
+**State:** `AuthContext`, `SessionContext`, `UIContext`, `NotificationContext` → `useAppContext()` facade
 
-Uygulamada: yeni kullanıcı → onboarding → gökyüzü yükleniyor → hata yoksa **008+** başarılı.
-
-### `db push` çalışmazsa (alternatif)
-
-Dashboard → **SQL Editor** → her dosyayı **sırayla** yapıştırıp çalıştır:
-
-1. `001_initial_schema.sql` *(uzak DB zaten doluysa atla)*
-2. `002_profile_extra_fields.sql`
-3. `003_constellation_gamification.sql` **← kritik**
-4. `004_handle_new_user_resilient.sql`
-5. `005_notification_logs.sql`
-6. `006_notification_logs_rls.sql`
-7. `007_user_constellation_tiers.sql`
-8. `008_real_star_catalog.sql` **← 67 yıldız**
-9. `009_constellation_unlock_order.sql`
-10. `010_partial_stardust_dynamic_threshold.sql`
-11. `011_fix_uuid_columns_and_rls.sql`
-12. `012_fix_category_slug_lookup.sql`
-13. `013_weekly_reports.sql`
-14. `014_service_role_weekly_reports_grants.sql`
-15. `015_focus_active_duration.sql`
-16. `016_daily_goal_entries.sql`
-17. `017_quotes_and_push_notifications.sql` **← quotes + push alanları**
-18. `018_quotes_sequence_grants.sql`
-19. `019_daily_goal_max_500.sql`
-20. `020_daily_goal_max_24h.sql` **← günlük hedef cap 1440 dk**
-21. `021_unique_username.sql` **← benzersiz kullanıcı adı**
-22. `022_username_case_sensitive.sql`
-23. `023_username_turkish_chars.sql`
-
-> Uzak DB'de eski `complete_focus_session` (10 ✦/dk) veya statik 39 yıldız varsa **003 + 008** mutlaka çalışmalı.  
-> **017–023** henüz production'a push edilmedi (2026-06-06).
+**Detaylı bileşen envanteri:** Önceki sürümlerde bu dosyada tutuluyordu; güncel kod için `frontend/src/` ve `frontend/app/` dizin yapısı referans alınmalı. İç geliştirme sprint planı: [plan.md](./plan.md) — **bu dosya (`progress.md`) güncel durum kaynağıdır**.
 
 ---
 
-## Supabase — migrations & RPC
+## Geliştirme yaklaşımı (özet)
 
-| Dosya | İçerik | Uzakta uygulandı mı? |
-|-------|--------|---------------------|
-| `001`–`016` | Tüm şema, RPC, katalog, rapor, günlük hedef | ✅ **Production'da uygulandı** (2026-06-05) |
-| `017`–`018` | `quotes` tablosu, push notification profil alanları | 🟡 yerelde hazır |
-| `019`–`020` | Günlük hedef üst sınırı 1440 dk | 🟡 yerelde hazır |
-| `021`–`023` | Benzersiz / case-sensitive / Türkçe kullanıcı adı + `is_username_available` | 🟡 yerelde hazır |
-| `024`–`025` | Yıldız tozu ekonomisi 10 ✦/dk, katalog ×5, tier 500/1500/2000 | 🟡 yerelde hazır — **push bekliyor** |
-
-### RPC özeti (authenticated)
-
-| RPC | İşlev |
-|-----|--------|
-| `complete_focus_session` | Seans kaydı, stardust (10 ✦/dk + bonus), streak, rozetler |
-| `cancel_focus_session` | Erken bitir; dinamik eşik + aktif odak dakikası |
-| `unlock_star` | Manuel yıldız açma, dinamik maliyet, takımyıldızı tamamlama |
-| `start_constellation` | Onboarding; `active_constellation_id` + `onboarding_completed` |
-| `initialize_user_constellations` | Kullanıcı takımyıldızı ilerleme başlatma |
-| `upsert_daily_goal` / `get_daily_goal_progress` / `claim_daily_goal_reward` | Günlük hedef döngüsü |
-| `list_daily_goal_history` | Geçmiş hedef + odak verisi |
-| `is_username_available` | Kullanıcı adı müsaitlik kontrolü (021+) |
+1. Önce PRD/MVP tutarlılığı, sonra çalışan iskelet.
+2. Kritik ödül ve ilerleme → sunucu RPC (anti-cheat).
+3. LLM yalnızca haftalık rapor; seans sonu AI v1'de yok.
+4. Katalog verisi Supabase'den (`skyCatalog.ts`).
+5. AI destekli geliştirme: Cursor + Claude; bootcamp prodocs Cursor ile tamamlandı.
 
 ---
 
-## Ürün analitiği & crash izleme
-
-| Katman | PostHog | Sentry | Durum |
-|--------|---------|--------|--------|
-| **Frontend** | `posthog-react-native` SDK + `PostHogProvider` (`lib/analytics.ts`) | `@sentry/react-native` (`lib/errorTracking.ts`) | 🟡 kod hazır; `.env` anahtarları + EAS build |
-| **Backend** | `posthog-node` (`productAnalytics.ts`) | `@sentry/node` + Express error handler (`lib/monitoring.ts`) | 🟡 kod hazır; `.env` anahtarları |
-
-**İzlenen olaylar (frontend):** `onboarding_completed`, `first_session_started`, `session_completed`, `streak_increased`, `star_unlocked`, `weekly_report_viewed`, `goal_completed`, ekran görüntüleme (`trackScreen`)
-
-**İzlenen olaylar (backend):** `account_deleted` (API)
-
-**Not:** `EXPO_PUBLIC_POSTHOG_KEY` veya `EXPO_PUBLIC_POSTHOG_API_KEY` kabul edilir. Expo Go'da native Sentry crash yakalama sınırlıdır — production EAS build gerekir.
-
----
-
-## Kimlik doğrulama matrisi
-
-| Yöntem | Kod | Yapılandırma |
-|--------|-----|--------------|
-| E-posta + şifre | ✅ | Supabase Auth + deep link (verify / reset) |
-| Google OAuth | ✅ | Supabase + Google Cloud + `docs/oauth-expo-go.md` |
-| Apple Sign In | ✅ kod (iOS) | **v2** — Supabase + Apple Developer + mağaza build |
-| Demo (`demo` / `demo1234`) | ✅ __DEV__ | Offline; RPC yok |
-
----
-
-## Bildirimler
-
-| Katman | Durum |
-|--------|--------|
-| Yerel uyarı (10 sn arka plan) | ✅ `expo-notifications` |
-| `profiles.expo_push_token` / `notifications_enabled` | ✅ migration 017 + auth sonrası otomatik kayıt (`lib/notifications.ts`) |
-| Push tap → `/universe-message` | ✅ `setupNotificationResponseHandler` |
-| `send-daily-quote` Edge Function | 🟡 kod hazır; deploy + cron bekliyor |
-| `notification_logs` tablosu + RLS | ✅ migration 005–006 |
-| Bildirim aç/kapa UI (ayarlar) | ❌ v2 — şu an auth sonrası otomatik izin |
-| Expo Go push testi | ❌ desteklenmez — EAS preview/production build gerekir |
-
----
-
-## CI / kalite / build
-
-| Kontrol | Durum |
-|---------|--------|
-| `.github/workflows/ci.yml` | ✅ backend test+build, frontend typecheck |
-| `.github/workflows/weekly-reports-cron.yml` | ✅ Pazartesi cron (repo secrets gerekli) |
-| `frontend` `npm run typecheck` | ✅ |
-| `backend` `npm test` | ✅ (galacticAdvice, accountDeletion) |
-| `eas.json` | ✅ development / preview (APK) / production |
-| Fiziksel cihaz E2E checklist | 🟡 manuel |
-| Demo video | 🟡 |
-
----
-
-## Tarihçe (özet günlükler)
-
-### 2026-06-06 (tur 2) — Push bildirimleri, Galaktik Tavsiye kaldırıldı, PostHog SDK
-
-**Bağlam:** Seans sonu LLM (Gemini) v1 kapsamından çıkarıldı. Günlük evren mesajı push bildirimleri ve Expo push altyapısı eklendi. PostHog HTTP capture → native SDK geçişi. Sentry `errorTracking` modülüne taşındı.
-
-**Frontend:**
-* Galaktik Tavsiye kaldırıldı — `galacticAdvice.ts`, `CelebrationModal` LLM bölümü
-* `lib/notifications.ts` — Expo push token, tap → `/universe-message`
-* `UniverseMessageScreen` + `app/universe-message.tsx`
-* `posthog-react-native` + `PostHogProvider`; `lib/analytics.ts` (trackScreen, streak, star unlock)
-* `lib/errorTracking.ts` — Sentry init, auth binding, root wrap
-* `app.config.ts` — EAS projectId, production'da `expo-notifications` plugin
-* UI polish: `CelebrationModal`, `SessionScreen`, `CelestialVisual`, rozet/galaxy kartları
-
-**Backend:**
-* `/ai/galactic-advice` endpoint ve `galacticAdvice` servisi silindi
-* `send-daily-quote` Edge Function — quotes döngüsü + Expo Push API
-* `config.toml` — `send-daily-quote` verify_jwt = false
-
-**Açık:** `send-daily-quote` deploy + cron, migration 017–023 push, gizlilik politikası Gemini metni, PostHog/Sentry anahtarları, EAS build ile push testi
-
----
-
-### 2026-06-06 (tur 1) — Context ayrıştırma, kullanıcı adı, UI polish, izleme altyapısı
-
-**Bağlam:** Monolitik context parçalandı; kullanıcı adı sistemi ve galaxy/ikon görselleri yenilendi. PostHog/Sentry kod entegrasyonu tamamlandı; ortam anahtarları ve migration push bekliyor.
-
-**Frontend:**
-* `AuthContext` / `SessionContext` / `UIContext` / `NotificationContext` ayrıştırması; `AppContext` facade
-* `UsernameSettingsBlock` + `shared/username.ts` (Türkçe karakter, case-sensitive)
-* Galaxy: `StarVisual`, `SkyStarVisual`, `constellationIcons`, `starVisuals`
-* İkon sistemi: `AppIcon`, `StardustMark`, `appIcons.ts`
-* `UniverseMessageCard` + `useUniverseMessage` (quotes)
-* Günlük hedef cap 1440 dk (`dailyGoalStorage`, migration 020)
-* PostHog HTTP capture + `@sentry/react-native` kurulumu; Sentry erken init (`_layout.tsx`)
-
-**Backend:**
-* Migration 017–023 (quotes, günlük hedef cap, username RPC'leri)
-* `@sentry/node` + `posthog-node`; `account/delete` olay ve hata yakalama
-
-**Açık:** `supabase db push` (017–023), PostHog/Sentry `.env` anahtarları, Express deploy, EAS build
-
----
-
-### 2026-06-11 — Production go-live hazırlığı
-
-**Bağlam:** Canlıya geçiş öncesi UI düzeltmeleri, production env, e-posta doğrulama köprüsü, ölü kod temizliği, dokümantasyon.
-
-**Kod:**
-* Onboarding `colors.primary`; SessionScreen failed mesajı `WARNING_THRESHOLD_SECONDS` (10 sn)
-* `devDemo.ts` — `isDevDemoEnabled()`, production'da demo token purge
-* `auth.routes.ts` — `GET /auth/confirm` + `verifyOtp` signup/email fallback
-* `confirmation.html` / `recovery.html` → `/auth/confirm` linkleri
-* `deploy-auth-email-config.mjs` — `dotenv` + `.env` yorum temizleme + `smtp_port` string
-* Silinen: `StarfieldBackground.tsx`, `starsApi.ts`
-
-**Dokümantasyon:** `docs/production-go-live.md` (ana rehber); `release-checklist`, `auth-email-templates`, `android-local-release`, `backend-deploy`, `README` güncellendi.
-
-**Açık:** Railway redeploy, release APK smoke test, Play kapalı test.
-
----
-
-### 2026-06-06 — Settings/legal, Lorelei avatarlar (`149742b`, `c176cb1`)
-
-* Settings ve legal ekran UI; Lorelei avatar seti; hesap silme akışı
-* Quotes tablosu ve bildirim sistemi için altyapı (commit `c176cb1`)
-* react-dom 19.1.0 CI hizalaması
-
----
-
-### 2026-06-05 — Ürün kararları + yayın altyapısı
-
-**Bağlam:** PRD v1.3 ürün kararları dokümante edildi. Production DB migration 001–016 doğrulandı. CI, deploy dokümanları, PostHog/Sentry altyapısı eklendi.
-
-**Altyapı:**
-* `supabase migration list` — 001–016 Local = Remote ✅
-* Edge Function `generate-weekly-reports` ACTIVE v8 ✅
-* `.github/workflows/ci.yml` + `weekly-reports-cron.yml`
-* `backend/Dockerfile`, `docs/backend-deploy.md`, `docs/release-checklist.md`
-* PostHog HTTP capture (`analytics.ts`), Sentry iskelet (`monitoring.ts`) — 2026-06-06'da tam entegrasyon genişletildi
-
-**Açık:** Express production deploy, `GEMINI_API_KEY`, PostHog/Sentry `.env` anahtarları, migration 017–023 push, EAS build, demo video
-
----
-
-### 2026-06-05 — Progress envanteri güncellendi
-
-**Bağlam:** 2026-05-28 sonrası UI/UX, DB katalog, haftalık rapor ve günlük hedef özellikleri tamamlandı; bu kayıt güncel durumu yansıtır.
-
----
-
-### 2026-06-03 — UI iyileştirmeleri
-
-* Genel UI polish, responsive düzenlemeler
-* `AppText`, font scale clamp, layout scaffold iyileştirmeleri
-
----
-
-### 2026-06-01 — Odak/seans sayfaları + AI
-
-* `SessionScreen` büyük revizyon: preset'ler, `CustomDurationSheet`, `WeekDayStars`
-* `WeeklyReportCard` Session + Profile'a entegre
-* Kutlama akışı `CelebrationHost`'a taşındı
-
----
-
-### 2026-05-30 — Onboarding tamamlandı
-
-* 4 slayt PNG görseller (`assets/onboarding/visual_0*.png`)
-* Twinkle animasyonları, FlatList pager, i18n metinler
-* KVKK / gizlilik kabul akışı auth'ta
-
----
-
-### 2026-05-28 — DB katalog + dil paketleri
-
-* Migration **008**: 67 gerçek yıldız katalog
-* `skyCatalog.ts` — statik `constants.ts` yıldız listesi yerine DB fetch
-* Migration **007, 009–012**: tier/unlock_order, partial stardust, UUID/RLS fix
-* Migration **013–016**: haftalık rapor + günlük hedef
-* i18n genişletildi (~750 satır TR/EN)
-* `GalaxyScreen` Skia sahne, filtre, yeni kart bileşenleri
-* `SettingsScreen`, `BadgesScreen`, `NotificationContext`
-* `eas.json` build profilleri
-
----
-
-### 2026-05-28 — Çekirdek eksikler kapatma (önceki tur)
-
-* `SessionScreen`: Seansı bitir → `cancelSession()`; 2 ✦/dk
-* `api.unlockStar`: doğrudan Supabase RPC
-* NetInfo offline sync, Apple Sign In, onboarding bayrak hizası
-* `006_notification_logs_rls.sql`
-
----
-
-### 2026-05-21 — Takımyıldızı gamification, Google OAuth
-
-* Migration **003**: 13 takımyıldızı, 2 ✦/dk, cancel/unlock RPC
-* Google OAuth Expo Go redirect; `authErrors.ts`
-
----
-
-### 2026-05-15 — Monorepo + Supabase + Express
-
-* `/frontend` + `/backend` monorepo
-* İlk şema + `complete_focus_session` RPC
-* Analytics API; offline kuyruk
-
----
-
-## Yaklaşım (Approach)
-
-* **Önce PRD/MVP'yi teknik olarak tutarlı hale getir, sonra çalışan iskelet.**
-* **Anti-cheat:** Stardust, XP, streak, unlock, günlük hedef ödülü → Supabase RPC.
-* **LLM:** Yalnızca haftalık rapor → Edge Function/OpenRouter. Seans sonu Galaktik Tavsiye v1'de yok.
-* **Katalog:** Takımyıldızı/yıldız verisi artık **Supabase'den** (`skyCatalog.ts`).
-* **Expo SDK 54 + Expo Router** — Skia galaxy sahne; Apple için native build gerekir.
-* **Manuel yıldız unlock** — otomatik unlock kaldırıldı (ürün kuralı).
-* **Profil / Ayarlar ayrımı** — odak istatistikleri profilde, tercihler `/settings`.
-
----
-
-## plan.md ile fark (not)
-
-`prodocs/plan.md` hâlâ eski durumu (dosya tabanlı storage, OpenRouter seans sonu, CI açık maddeler) yansıtıyor. Gerçek durum için **bu dosya (`progress.md`)** referans alınmalı. Plan.md güncellemesi ayrı bir görev.
-
----
-
-*Astrocus Progress — son kod envanteri 2026-06-06 (tur 2)*
+*Astrocus Progress — bootcamp teslim sürümü, 2026-06-12*

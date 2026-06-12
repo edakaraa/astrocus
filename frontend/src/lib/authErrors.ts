@@ -55,7 +55,12 @@ export const mapSupabaseAuthError = (
     return t(language, "signupDisabled");
   }
 
-  if (m.includes("rate limit") || m.includes("too many requests")) {
+  if (
+    m.includes("rate limit") ||
+    m.includes("too many requests") ||
+    m.includes("security purposes") ||
+    m.includes("over_email_send_rate_limit")
+  ) {
     return t(language, "rateLimited");
   }
 

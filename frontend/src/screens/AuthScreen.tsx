@@ -24,7 +24,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { toastTone, useAppContext } from "../context/AppContext";
 import { GradientButton } from "../components/GradientButton";
 import { colors, fontFamilies, layout, spacing, typography } from "../shared/theme";
-import { isEmailConfirmationRequiredError } from "../lib/authErrors";
+import { isEmailConfirmationRequiredError, mapSupabaseAuthError } from "../lib/authErrors";
 import { oauthUserMessage } from "../lib/authErrors";
 import { isAppleSignInAvailable } from "../lib/appleAuth";
 import { api } from "../shared/api";
@@ -552,9 +552,12 @@ export const AuthScreen = () => {
                   icon: "email-fast-outline",
                 });
               } catch (error) {
+                const raw = error instanceof Error ? error.message : "";
                 void showAlert({
                   title: t(language, "appName"),
-                  message: error instanceof Error ? error.message : t(language, "requestFailed"),
+                  message: raw
+                    ? mapSupabaseAuthError(raw, "login", language)
+                    : t(language, "requestFailed"),
                   confirmLabel: t(language, "ok"),
                   icon: "alert-circle-outline",
                 });

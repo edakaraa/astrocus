@@ -50,6 +50,7 @@ const theme = {
     topBarBottomGap: 12,
     lockIconSize: 16,
     categoryDotSize: 10,
+    /** @deprecated Use getBottomToastOffset() from shared/theme — device-aware. */
     rewardToastBottom: 90,
     goalSheetMinMinutes: 15,
     /** Upper bound = one full day (24 × 60). */

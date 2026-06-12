@@ -32,6 +32,8 @@ import {
   matchesDevDemoCredentials,
   purgeDevDemoStorage,
 } from "./auth/devDemo";
+import { OFFLINE_SESSION_SYNC_ENABLED } from "./session/offlineQueue";
+
 export type AstrocusInfraRefs = {
   sessionHydrateRef: React.MutableRefObject<((payload: AuthPayload) => void) | null>;
   sessionSetPendingRef: React.MutableRefObject<((sessions: PendingSession[]) => void) | null>;
@@ -129,8 +131,14 @@ export const AuthProvider = ({
       const [storedToken, initialLanguage, storedPendingSessions] = await Promise.all([
         secureStorage.get(STORAGE_KEYS.authToken),
         resolveInitialLanguage(),
-        asyncStorage.get<PendingSession[]>(STORAGE_KEYS.pendingSessions, []),
+        OFFLINE_SESSION_SYNC_ENABLED
+          ? asyncStorage.get<PendingSession[]>(STORAGE_KEYS.pendingSessions, [])
+          : Promise.resolve([] as PendingSession[]),
       ]);
+
+      if (!OFFLINE_SESSION_SYNC_ENABLED) {
+        void asyncStorage.remove(STORAGE_KEYS.pendingSessions);
+      }
 
       sessionSetPendingRef.current?.(storedPendingSessions);
       uiSetLanguageRef.current?.(initialLanguage);

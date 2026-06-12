@@ -68,7 +68,11 @@ export const StardustInfoModal: React.FC<StardustInfoModalProps> = ({ visible, o
           style={[
             styles.cardWrap,
             modal.isSheet ? styles.cardSheet : null,
-            { maxWidth: modal.cardMaxWidth, width: modal.isSheet ? "100%" : modal.cardWidth },
+            {
+              maxWidth: modal.cardMaxWidth,
+              width: modal.isSheet ? "100%" : modal.cardWidth,
+              maxHeight: modal.isSheet ? modal.sheetMaxHeight : "88%",
+            },
           ]}
         >
           <BlurView intensity={42} tint="dark" style={[styles.blur, modal.isSheet ? styles.blurSheet : null]}>
@@ -76,7 +80,12 @@ export const StardustInfoModal: React.FC<StardustInfoModalProps> = ({ visible, o
             {modal.isSheet ? <View style={styles.sheetHandle} accessibilityElementsHidden /> : null}
             <ScrollView
               style={styles.scroll}
-              contentContainerStyle={styles.content}
+              contentContainerStyle={[
+                styles.content,
+                modal.isSheet
+                  ? { paddingBottom: modal.bottomSafePadding + spacing.lg }
+                  : null,
+              ]}
               showsVerticalScrollIndicator={false}
               bounces={false}
             >
@@ -198,7 +207,7 @@ const styles = StyleSheet.create({
     maxHeight: "100%",
   },
   content: {
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.md,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
   },

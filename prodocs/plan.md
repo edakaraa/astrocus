@@ -1,506 +1,223 @@
-# Astrocus — Geliştirme Planı (Plan.md)
+# Astrocus — Plan.md
 
-> **Versiyon:** MVP v2.0
-> **Hazırlayan:** Eda Kara
-> **Son Güncelleme:** Stack & tasarım revizyonu sonrası
-> **Hedef:** App Store + Google Play yayına çıkış
-
----
-
-## İçindekiler
-
-1. [Mevcut Durum Özeti](#1-mevcut-durum-özeti)
-2. [Açık Maddeler & Öncelik Sırası](#2-açık-maddeler--öncelik-sırası)
-3. [Sprint Planı](#3-sprint-planı)
-4. [Teknik Görev Detayları](#4-teknik-görev-detayları)
-5. [Test Planı](#5-test-planı)
-6. [Yayın Kontrol Listesi](#6-yayın-kontrol-listesi)
-7. [Post-MVP Yol Haritası](#7-post-mvp-yol-haritası)
+> PRD’deki ürün özelliklerinin **kullanıcı hikayeleri** ve bunların kod tabanındaki **teknik karşılıkları**.  
+> **Hazırlayan:** Eda Kara  
+> **Son güncelleme:** 2026-06-12  
+> **Durum:** MVP tamamlandı — Google Play açık test (Android)
 
 ---
 
-## 1. Mevcut Durum Özeti
+## 1. Bu dökümanın amacı
 
-### ✅ Tamamlanan (Demo / MVP Seviyesinde)
+`Plan.md`, bootcamp tesliminde istenen **“PRD’den türetilmiş teknik adımlar”** dökümanıdır. İki katmandan oluşur:
 
-| Alan                     | Detay                                                              |
-| ------------------------ | ------------------------------------------------------------------ |
-| **Expo İskelet**         | Expo SDK 54, Expo Router, TypeScript yapılandırması hazır          |
-| **Navigasyon**           | Tab bar (Odak / Gökyüzü / Profil), Stack navigasyon                |
-| **Auth Akışı**           | E-posta + şifre kayıt ve giriş (Supabase Auth — temel)             |
-| **Onboarding**           | 4 ekran akışı (animasyonlar kısmen tamamlandı)                     |
-| **Timer Motoru**         | AppState + timestamp tabanlı; pause, background tolerans mantığı   |
-| **Gamification Formülü** | XP ve yıldız tozu hesaplama (istemci taraflı, doğrulama henüz yok) |
-| **Yıldız Kataloğu**      | Statik yıldız listesi, kilit/açık UI                               |
-| **Streak Takibi**        | Temel streak sayacı (lokal)                                        |
-| **Offline Kuyruk**       | `AsyncStorage` kuyruğu + sync endpoint iskeleti                    |
-| **TR/EN Lokalizasyon**   | i18n anahtar yapısı, cihaz dil tespiti                             |
-| **Express API**          | Node.js/Express; JSON dosya tabanlı storage (geçici)               |
+| Katman | İçerik |
+|--------|--------|
+| **Bölüm 2 — Kullanıcı hikayeleri** | Uygulamayı kullanan kişinin bakış açısı; odak, galaksi, profil vb. |
+| **Bölüm 3 — Teknik uygulama adımları** | Altyapı, veritabanı, deploy, CI — geliştirme tarafı; hikaye formatı zorunlu değil |
+
+Her kullanıcı hikayesinin altında, o deneyimi sağlayan **gerçek kod yolları** listelenir. Detaylı ürün tanımı için [PRD.md](./PRD.md), zaman çizelgesi için [progress.md](./progress.md) kullanılır.
+
+**Durum:** ✅ Tamamlandı · 🟡 Kısmi / sonraki sürüm · ❌ Planlanmış, yapılmadı
 
 ---
 
-### ❌ Kritik Açık Maddeler (Yayın Öncesi Zorunlu)
+## 2. Kullanıcı hikayeleri
 
-| #   | Görev                                                               | Öncelik |
-| --- | ------------------------------------------------------------------- | ------- |
-| C1  | Supabase tam entegrasyonu (dosya tabanlı storage kaldır)            | 🔴 P0   |
-| C2  | `complete_focus_session` atomik RPC yazımı                          | 🔴 P0   |
-| C3  | Google OAuth native entegrasyonu                                    | 🔴 P0   |
-| C4  | Apple Sign In native entegrasyonu (iOS App Store zorunluluğu)       | 🔴 P0   |
-| C5  | OpenRouter API `/ai/galactic-advice` endpoint + frontend bağlantısı | 🔴 P0   |
-| C6  | Rozet sistemi backend doğrulaması                                   | 🔴 P0   |
-| C7  | XP seviye sistemi `profiles` tablosuna eklenmesi                    | 🔴 P0   |
-| C8  | Tüm tablolar için RLS politikaları + test                           | 🔴 P0   |
-| C9  | Gerçek cihaz iOS / Android smoke test                               | 🔴 P0   |
+Hikayeler, Astrocus’u indirip odaklanmak isteyen **son kullanıcı** için yazılmıştır.
 
----
+### 2.1 Hesap ve güvenli giriş
 
-## 2. Açık Maddeler & Öncelik Sırası
+| ID | Kullanıcı hikayesi | Kabul özeti |
+|----|-------------------|-------------|
+| **KH-01** | E-posta ve şifre ile hesap oluşturup giriş yapabilmek istiyorum ki odak verilerim kalıcı olsun. | Kayıt/giriş formu; min. 8 karakter şifre; gizlilik onayı |
+| **KH-02** | Kayıt sonrası e-postamdaki linkle hesabımı doğrulayabilmek istiyorum ki güvenle uygulamaya girebileyim. | E-posta → uygulama açılır; doğrulama başarı ekranı |
+| **KH-03** | Google hesabımla tek dokunuşla giriş yapabilmek istiyorum ki şifre hatırlamak zorunda kalmayayım. | Native Google giriş (release APK) |
+| **KH-04** | Şifremi unuttuğumda e-posta ile sıfırlayabilmek istiyorum ki hesabıma yeniden erişebileyim. | Şifre sıfırlama deep link |
+| **KH-05** | İstediğimde hesabımı ve tüm verilerimi kalıcı silebilmek istiyorum ki verilerim üzerinde kontrolüm olsun. | Ayarlar → hesap silme; onay adımı |
 
-### P0 — Yayın Bloklayıcı
+**Teknik karşılık:** `AuthScreen`, `AuthContext`, `auth.routes.ts` (`/auth/confirm`, `/auth/verify`), `lib/googleSignIn.ts`, `DeleteAccountScreen`, `POST /account/delete`, Supabase Auth + `profiles` trigger.
 
-```
-[ ] C1  Supabase entegrasyonu
-[ ] C2  complete_focus_session RPC
-[ ] C3  Google OAuth
-[ ] C4  Apple Sign In
-[ ] C5  OpenRouter AI endpoint
-[ ] C6  Rozet backend doğrulaması
-[ ] C7  XP/Seviye profil entegrasyonu
-[ ] C8  RLS politikaları
-[ ] C9  Cihaz smoke testi
-```
-
-### P1 — Yayın Öncesi Güçlü Tercih
-
-```
-[ ] Sentry entegrasyonu (crash raporlama)
-[ ] Uygulama ikonları (iOS + Android, tüm çözünürlükler)
-[ ] Splash screen
-[ ] App Store / Play Store meta verileri (başlık, açıklama, ekran görüntüleri)
-[ ] KVKK / GDPR uyum metni (onboarding'e eklenmesi)
-[ ] Hesap silme flow testi (30 gün soft delete → kalıcı silme)
-[ ] Push bildirim altyapısı (expo-notifications, temel izin akışı)
-[ ] Performans: düşük cihaz animasyon fallback
-```
-
-### P2 — Post-MVP (Sonraki Sürüm)
-
-```
-[ ] Global Odalar & Body Doubling
-[ ] Uzay Ambiyansı / Ambient Sesler
-[ ] Haptic Feedback & Ses Efektleri
-[ ] Engagement Push Bildirimleri
-[ ] Gökyüzü Paylaşımı
-[ ] Karanlık / Aydınlık Tema Toggle
-[ ] Premium Abonelik
-[ ] Liderlik Tablosu
-[ ] PostHog / Mixpanel Analitik
-```
+**Durum:** ✅ (KH-03: Expo Go’da değil, release build)
 
 ---
 
-## 3. Sprint Planı
+### 2.2 İlk keşif ve onboarding
 
-> Tahmini süre: 6 sprint × 1 hafta = ~6 hafta (2 geliştirici varsayımı)
+| ID | Kullanıcı hikayesi | Kabul özeti |
+|----|-------------------|-------------|
+| **KH-06** | Uygulamayı ilk açtığımda kısa bir tanıtım görmek istiyorum ki galaksi metaforunu ve ne yapacağımı anlayayım. | 4 slayt; swipe ile geçiş |
+| **KH-07** | Yolculuğuma bir takımyıldızı seçerek başlamak istiyorum ki gökyüzüm bana özel hissetsin. | Zorunlu `star-pick`; seçmeden ana ekrana geçilemez |
 
-### Sprint 1 — Supabase & Auth Temeli
+**Teknik karşılık:** `OnboardingScreen`, `(onboarding)/index`, `(onboarding)/star-pick`, `start_constellation` RPC, `(tabs)/_layout` auth guard.
 
-**Hedef:** Gerçek veritabanı ve auth çalışıyor, dosya tabanlı storage kaldırıldı.
-
-| Görev                                          | Sorumlu  | Süre    |
-| ---------------------------------------------- | -------- | ------- |
-| Supabase projesi oluştur, env yapılandır       | Backend  | 0.5 gün |
-| SQL şeması migration'ları yaz (tüm tablolar)   | Backend  | 1 gün   |
-| RLS politikalarını yaz ve test et              | Backend  | 1 gün   |
-| `@supabase/supabase-js` frontend entegrasyonu  | Frontend | 1 gün   |
-| E-posta auth gerçek Supabase'e bağla           | Frontend | 0.5 gün |
-| JSON dosya storage'ı kaldır, Express'i temizle | Backend  | 0.5 gün |
-| Google OAuth native (Expo AuthSession)         | Frontend | 1 gün   |
-| Apple Sign In native                           | Frontend | 1 gün   |
-
-**Sprint Sonu Kriteri:** Kullanıcı kaydolup giriş yapabiliyor; veriler Supabase'de görünüyor.
+**Durum:** ✅
 
 ---
 
-### Sprint 2 — Seans Motoru & RPC
+### 2.3 Odak seansı
 
-**Hedef:** Seans tamamlama → atomik RPC → doğrulanmış ödül akışı çalışıyor.
+| ID | Kullanıcı hikayesi | Kabul özeti |
+|----|-------------------|-------------|
+| **KH-08** | Çalışacağım süreyi ve konuyu (kategori) seçip odak seansı başlatabilmek istiyorum ki neye odaklandığımı kayıt altına alabileyim. | Preset süreler + özel süre; 8 kategori |
+| **KH-09** | Seans sırasında bir kez duraklatıp devam edebilmek istiyorum ki kısa molaları yönetebileyim. | Tek duraklatma hakkı |
+| **KH-10** | Yanlışlıkla uygulamadan çıksam kısa sürede dönebilmek istiyorum; çok uzun kalırsam seansın bittiğini anlamak istiyorum. | 10 sn uyarı, 20 sn sonra seans kaybı |
+| **KH-11** | Seansı bitirdiğimde ne kadar yıldız tozu kazandığımı ve varsa yeni rozetlerimi görmek istiyorum ki emeğimin karşılığını hissedeyim. | Kutlama ekranı; sunucu doğrulamalı ödül |
+| **KH-12** | Telefonu kilitlediğimde bile geri sayımı takip edebilmek istiyorum ki seans bağlamını kaybetmeyeyim. | Android kilit ekranı geri sayımı (release) |
 
-| Görev                                                | Sorumlu  | Süre    |
-| ---------------------------------------------------- | -------- | ------- |
-| `complete_focus_session` RPC yazımı (PostgreSQL)     | Backend  | 2 gün   |
-| Streak güncelleme mantığı (RPC içinde)               | Backend  | 0.5 gün |
-| Rozet kontrol mantığı (RPC içinde)                   | Backend  | 1 gün   |
-| Frontend → RPC entegrasyonu (seans sonu akışı)       | Frontend | 1 gün   |
-| Offline kuyruk → Supabase sync testi                 | Frontend | 1 gün   |
-| XP / Seviye hesaplama `profiles` tablosuna eklenmesi | Backend  | 0.5 gün |
+**Teknik karşılık:** `SessionScreen`, `SessionContext`, `complete_focus_session` / `cancel_focus_session` RPC, `CelebrationHost` / `CelebrationModal`, `astrocus-focus-timer`, `focusSessionNotifications`.
 
-**Sprint Sonu Kriteri:** Seans tamamlayınca XP, stardust, streak ve rozetler Supabase'e doğru yazılıyor.
+**Not:** v1’de seans kaydı **çevrimiçi** gerektirir; bağlantı yokken kayıt tamamlanmaz (`OFFLINE_SESSION_SYNC_ENABLED = false`).
 
----
-
-### Sprint 3 — AI Galaktik Tavsiyeler
-
-**Hedef:** OpenRouter entegrasyonu tamamlandı; seans sonrası AI tavsiyesi görünüyor.
-
-| Görev                                                                         | Sorumlu  | Süre    |
-| ----------------------------------------------------------------------------- | -------- | ------- |
-| OpenRouter API hesabı, API key, .env yapılandırması                           | Backend  | 0.5 gün |
-| `/ai/galactic-advice` Express endpoint yazımı                                 | Backend  | 1 gün   |
-| Sistem ve kullanıcı prompt şablonları (TR + EN)                               | Backend  | 0.5 gün |
-| Supabase JWT doğrulama middleware (endpoint koruması)                         | Backend  | 0.5 gün |
-| Prompt injection koruması (whitelist + sanitizasyon)                          | Backend  | 0.5 gün |
-| Timeout (5s) + fallback metin havuzu implementasyonu                          | Backend  | 0.5 gün |
-| Frontend → endpoint bağlantısı + skeleton yükleyici                           | Frontend | 1 gün   |
-| Model seçimi testi: `google/gemma-2-9b-it` vs `mistralai/mistral-7b-instruct` | Backend  | 0.5 gün |
-
-**Sprint Sonu Kriteri:** Seans bitti ekranında AI tavsiyesi görünüyor; API hatasında fallback devreye giriyor.
+**Durum:** ✅
 
 ---
 
-### Sprint 4 — UI Polish & Animasyonlar
+### 2.4 Galaksi ve ödüller
 
-**Hedef:** Tüm ekranlar tasarıma uygun; animasyonlar çalışıyor.
+| ID | Kullanıcı hikayesi | Kabul özeti |
+|----|-------------------|-------------|
+| **KH-13** | Odaklandıkça yıldız tozu biriktirmek istiyorum ki çabam somut bir ödüle dönüşsün. | 10 ✦/dk temel; streak ve disiplin bonusları |
+| **KH-14** | Gökyüzü ekranında takımyıldızlarımı görüp biriktirdiğim tozla sırayla yıldız açmak istiyorum ki galaksimi kendi hızımda büyüteyim. | 13 takımyıldızı; manuel unlock; tier maliyetleri |
+| **KH-15** | Ardışık günlerde odaklanarak seri (streak) oluşturmak ve rozetler kazanmak istiyorum ki alışkanlığım sürsün. | Streak profilde; rozetler `/badges` |
+| **KH-16** | Kendime günlük odak hedefi koyup tamamlayınca ekstra ödül almak istiyorum ki günlük rutin oluşturayım. | Günlük hedef kartı; hedef tamamlanınca ✦ bonusu |
 
-| Görev                                                   | Sorumlu  | Süre    |
-| ------------------------------------------------------- | -------- | ------- |
-| Onboarding animasyonları (4 ekran, tam)                 | Frontend | 1.5 gün |
-| Timer gezegen animasyonu (Reanimated)                   | Frontend | 1 gün   |
-| Seans sonu kutlama animasyonları (XP sayaç, rozet)      | Frontend | 1 gün   |
-| Yıldız açılış efekti (parlama + konfeti)                | Frontend | 1 gün   |
-| Tüm ekran tasarım token uyumu (renk, tipografi, boşluk) | Frontend | 1 gün   |
-| Düşük cihaz animasyon fallback                          | Frontend | 0.5 gün |
+**Teknik karşılık:** `stardustEconomy.ts`, `GalaxyScreen`, `unlock_star` / `compute_star_cost`, `DailyGoalCard`, `BadgesScreen`, migration `003`–`026`.
 
-**Sprint Sonu Kriteri:** Tasarım dosyasıyla görsel karşılaştırmada %90+ uyum.
+**Durum:** ✅
 
 ---
 
-### Sprint 5 — Test & Hata Düzeltme
+### 2.5 İlerleme ve içgörü
 
-**Hedef:** Kritik buglar giderildi; cihaz testleri tamamlandı.
+| ID | Kullanıcı hikayesi | Kabul özeti |
+|----|-------------------|-------------|
+| **KH-17** | Profilimde toplam yıldız tozum, serim ve hangi konularda ne kadar odaklandığımı görmek istiyorum ki üretkenliğimi takip edebileyim. | Profil özeti; kategori dağılımı |
+| **KH-18** | Haftalık odak performansımın okunabilir bir özetini almak istiyorum ki nerede iyi gittiğimi fark edeyim. | Haftalık AI rapor (TR/EN) |
+| **KH-19** | Günün kısa bir ilham mesajını uygulama içinde okuyabilmek istiyorum ki motivasyonum tazelensin. | Kozmik mesaj kartı + isteğe bağlı push |
 
-| Görev                                            | Sorumlu   | Süre    |
-| ------------------------------------------------ | --------- | ------- |
-| iOS gerçek cihaz smoke testi (tüm P0 özellikler) | Frontend  | 1 gün   |
-| Android gerçek cihaz smoke testi                 | Frontend  | 1 gün   |
-| RLS politika güvenlik testi                      | Backend   | 1 gün   |
-| Offline → online seans sync edge case testi      | Frontend  | 0.5 gün |
-| Hata düzeltme (test çıktısı)                     | Her ikisi | 2.5 gün |
+**Teknik karşılık:** `ProfileScreen`, `CategoryDistribution`, `generate-weekly-reports` (OpenRouter Gemma 4), `WeeklyReportModal`, `quotes`, `send-daily-quote`, `UniverseMessageScreen`.
 
-**Sprint Sonu Kriteri:** Cihaz testlerinde P0 özellikler hatasız çalışıyor.
+**Durum:** ✅ (push: release APK + FCM)
 
 ---
 
-### Sprint 6 — Yayın Hazırlığı
+### 2.6 Kişiselleştirme ve güven
 
-**Hedef:** App Store ve Play Store'a gönderim hazır.
+| ID | Kullanıcı hikayesi | Kabul özeti |
+|----|-------------------|-------------|
+| **KH-20** | Uygulamayı Türkçe veya İngilizce kullanabilmek istiyorum ki kendi dilimde rahat odaklanayım. | Dil değiştirme ayarlarda |
+| **KH-21** | Avatarımı ve kullanıcı adımı düzenleyebilmek istiyorum ki profilim bana ait görünsün. | Lorelei avatar seti; benzersiz kullanıcı adı |
+| **KH-22** | Verilerimin nasıl işlendiğini uygulama içinden okuyabilmek istiyorum ki güvenle kullanayım. | Gizlilik politikası; açık kaynak atıfları |
 
-| Görev                                                  | Sorumlu   | Süre    |
-| ------------------------------------------------------ | --------- | ------- |
-| Uygulama ikonu (tüm boyutlar)                          | Tasarım   | 0.5 gün |
-| Splash screen                                          | Tasarım   | 0.5 gün |
-| App Store meta (başlık, açıklama, ekran görüntüleri)   | Ürün      | 1 gün   |
-| Play Store meta                                        | Ürün      | 0.5 gün |
-| KVKK uyum metni onboarding'e eklenmesi                 | Frontend  | 0.5 gün |
-| Sentry kurulumu                                        | Backend   | 0.5 gün |
-| EAS Build yapılandırması (production profile)          | Frontend  | 0.5 gün |
-| TestFlight (iOS) + Internal Testing (Android) dağıtımı | Her ikisi | 1 gün   |
-| Beta kullanıcı geri bildirimi                          | Ürün      | devam   |
+**Teknik karşılık:** `i18n.ts`, `LanguageToggle`, `SettingsScreen`, `UsernameSettingsBlock`, `PrivacyPolicyScreen`, `AcknowledgmentsScreen`.
 
-**Sprint Sonu Kriteri:** TestFlight ve Play Console'da yüklenmiş build var; ilk 20 beta kullanıcı davet edildi.
+**Durum:** ✅
 
 ---
 
-## 4. Teknik Görev Detayları
+### 2.7 Sonraki sürüm — kullanıcı hikayeleri (henüz karşılanmıyor)
 
-### 4.1 `complete_focus_session` RPC Şeması
-
-```sql
-CREATE OR REPLACE FUNCTION complete_focus_session(
-  p_user_id          UUID,
-  p_session_id       UUID,         -- client'dan gelen UUID (idempotent)
-  p_category_id      UUID,
-  p_duration_minutes INTEGER,
-  p_started_at       TIMESTAMPTZ,
-  p_completed_at     TIMESTAMPTZ,
-  p_pause_used       BOOLEAN,
-  p_background_hit   BOOLEAN,
-  p_is_offline       BOOLEAN
-) RETURNS JSONB AS $$
-DECLARE
-  v_stardust      INTEGER;
-  v_xp            INTEGER;
-  v_streak        INTEGER;
-  v_new_badges    UUID[];
-  v_actual_mins   INTEGER;
-BEGIN
-  -- 1. Süre doğrulama (anti-cheat)
-  v_actual_mins := EXTRACT(EPOCH FROM (p_completed_at - p_started_at)) / 60;
-  IF v_actual_mins < p_duration_minutes * 0.8 THEN
-    RAISE EXCEPTION 'invalid_duration';
-  END IF;
-
-  -- 2. Yıldız tozu ve XP hesaplama (formül PRD §4.3)
-  -- [formül implementasyonu]
-
-  -- 3. sessions tablosuna kayıt (idempotent upsert)
-  INSERT INTO sessions (...) VALUES (...)
-    ON CONFLICT (id) DO NOTHING;
-
-  -- 4. stardust_ledger güncelleme
-  -- 5. profiles güncelleme (stardust, xp, streak, seviye)
-  -- 6. Rozet kontrolü → user_badges
-  -- 7. Yıldız açılış kontrolü → user_stars
-
-  RETURN jsonb_build_object(
-    'stardust_earned', v_stardust,
-    'xp_earned', v_xp,
-    'streak_count', v_streak,
-    'new_badges', v_new_badges
-  );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-```
-
-### 4.2 OpenRouter Endpoint Yapısı
-
-```javascript
-// backend/routes/ai.js
-
-router.post("/galactic-advice", verifySupabaseJWT, async (req, res) => {
-  const { duration_minutes, category_slug, streak_count, xp_earned, language } =
-    req.body;
-
-  // Whitelist doğrulaması
-  const VALID_CATEGORIES = [
-    "deep_focus",
-    "study",
-    "reading",
-    "project",
-    "creativity",
-    "sport",
-    "meditation",
-    "coding",
-    "other",
-  ];
-  if (!VALID_CATEGORIES.includes(category_slug)) {
-    return res.status(400).json({ error: "invalid_category" });
-  }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000); // 5s timeout
-
-  try {
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://astrocus.app",
-          "X-Title": "Astrocus",
-        },
-        body: JSON.stringify({
-          model: process.env.OPENROUTER_MODEL || "google/gemma-2-9b-it:free",
-          max_tokens: 80,
-          temperature: 0.85,
-          messages: [
-            { role: "system", content: buildSystemPrompt(language) },
-            {
-              role: "user",
-              content: buildUserPrompt({
-                duration_minutes,
-                category_slug,
-                streak_count,
-                xp_earned,
-              }),
-            },
-          ],
-        }),
-        signal: controller.signal,
-      },
-    );
-
-    clearTimeout(timeout);
-    const data = await response.json();
-    const advice = data.choices?.[0]?.message?.content?.trim();
-
-    if (!advice) throw new Error("empty_response");
-    res.json({ advice });
-  } catch (err) {
-    clearTimeout(timeout);
-    // Fallback metin havuzundan rastgele seç
-    const fallback = getFallbackMessage(language);
-    res.json({ advice: fallback, fallback: true });
-  }
-});
-```
-
-### 4.3 Önerilen OpenRouter Model Listesi
-
-| Model               | Slug                                    | Dil Kalitesi | Ücretsiz |
-| ------------------- | --------------------------------------- | ------------ | -------- |
-| Google Gemma 2 9B   | `google/gemma-2-9b-it:free`             | TR ✅ EN ✅  | ✅       |
-| Mistral 7B Instruct | `mistralai/mistral-7b-instruct:free`    | TR ✅ EN ✅  | ✅       |
-| Meta Llama 3.1 8B   | `meta-llama/llama-3.1-8b-instruct:free` | TR ⚠️ EN ✅  | ✅       |
-| Qwen 2.5 7B         | `qwen/qwen-2.5-7b-instruct:free`        | TR ✅ EN ✅  | ✅       |
-
-> **Not:** Model, `OPENROUTER_MODEL` env değişkeniyle kod değişikliği yapmadan değiştirilebilir.
-
-### 4.4 Offline Seans Sync Mantığı
-
-```javascript
-// Seans tamamlandığında
-async function completeSession(sessionData) {
-  if (isOnline) {
-    await callRPC("complete_focus_session", sessionData);
-  } else {
-    // Kuyruğa ekle
-    const queue = (await AsyncStorage.getItem("session_queue")) || "[]";
-    const parsed = JSON.parse(queue);
-    parsed.push({ ...sessionData, is_offline: true });
-    await AsyncStorage.setItem("session_queue", JSON.stringify(parsed));
-  }
-}
-
-// Bağlantı geldiğinde
-async function flushSessionQueue() {
-  const queue = JSON.parse(
-    (await AsyncStorage.getItem("session_queue")) || "[]",
-  );
-  for (const session of queue) {
-    try {
-      await callRPC("complete_focus_session", session);
-    } catch (e) {
-      break; // Hata durumunda sırayı koru, tekrar dene
-    }
-  }
-  await AsyncStorage.removeItem("session_queue");
-}
-```
+| ID | Kullanıcı hikayesi | Not |
+|----|-------------------|-----|
+| **KH-F1** | İnternetim yokken de seans tamamlayıp bağlantı gelince verilerimin kaydedilmesini istiyorum. | Altyapı repoda; v1’de kapalı |
+| **KH-F2** | iPhone’umda App Store’dan Astrocus’u kullanmak istiyorum. | Kod uyumlu; mağaza yayını yok |
+| **KH-F3** | Apple ID ile giriş yapmak istiyorum. | `appleAuth.ts` hazır; v1 Android |
+| **KH-F4** | Başkalarıyla aynı anda odaklanma odasına katılmak istiyorum. | PRD post-MVP |
+| **KH-F5** | Galaksimin görselini paylaşmak istiyorum. | PRD post-MVP |
 
 ---
 
-## 5. Test Planı
+## 3. Teknik uygulama adımları
 
-### 5.1 Unit Test Kapsamı
+Aşağıdaki adımlar **geliştirme ve yayın** sürecine aittir; her biri için kullanıcı hikayesi yazılmaz. Sıra, mantıksal bağımlılığa göre verilmiştir.
 
-| Modül                     | Test Edilecek                         | Öncelik |
-| ------------------------- | ------------------------------------- | ------- |
-| Yıldız tozu formülü       | Streak, kategori, tam seans bonusları | P0      |
-| XP hesaplama              | Tüm seans tipleri                     | P0      |
-| Streak güncelleme mantığı | Bugün / dün / eski senaryo            | P0      |
-| Rozet açılış koşulları    | Her rozet için edge case              | P0      |
-| Timer arka plan toleransı | ≤20s / >20s senaryoları               | P0      |
-| Offline kuyruk            | Ekleme, flush, çakışma                | P1      |
-| i18n                      | Eksik key fallback                    | P1      |
+### 3.1 Altyapı ve veri modeli
 
-### 5.2 Entegrasyon Test Senaryoları
-
-```
-Senaryo 1: Tam seans akışı
-  → Seans başlat → tamamla → RPC çağrısı → UI güncelleme
-
-Senaryo 2: Seans arka planda kayıp
-  → 25. saniyede geri dön → seans iptal → diyalog göster
-
-Senaryo 3: AI tavsiyesi hata
-  → OpenRouter timeout → fallback metin göster → uygulama çökmez
-
-Senaryo 4: Offline seans
-  → Offline tamamla → kuyruğa ekle → online ol → sync → veriler DB'de
-
-Senaryo 5: Streak kırılması
-  → 1 gün atla → streak sıfırla → "Yeni başlangıç" mesajı göster
-
-Senaryo 6: Rozet kazanımı
-  → Koşul tamamla → RPC'de tespit → user_badges'e yaz → UI kutla
-
-Senaryo 7: RLS güvenlik testi
-  → A kullanıcısı B kullanıcısının seansını okumaya çalışır → reddedilir
-```
-
-### 5.3 Cihaz Test Matrisi
-
-| Cihaz                            | OS         | Öncelik |
-| -------------------------------- | ---------- | ------- |
-| iPhone 15 (veya 14)              | iOS 17     | 🔴 P0   |
-| iPhone SE 3. nesil (küçük ekran) | iOS 16     | 🔴 P0   |
-| Samsung Galaxy S23               | Android 13 | 🔴 P0   |
-| Düşük segment Android (2GB RAM)  | Android 11 | 🟡 P1   |
-| iPad (tablet layout)             | iPadOS 17  | 🟢 P2   |
+| Adım | Yapılan iş | Ana dosyalar / araçlar | Durum |
+|------|------------|------------------------|--------|
+| T-01 | Monorepo: `frontend`, `backend`, `prodocs` | `c491506`, `README.md`, `.env.example` | ✅ |
+| T-02 | Supabase ilk şema: profil, seans, katalog, RLS | `migrations/001_initial_schema.sql` | ✅ |
+| T-03 | Odak seansı atomik RPC + anti-cheat | `complete_focus_session`, `cancel_focus_session` | ✅ |
+| T-04 | Takımyıldızı gamification (13 burç, 39 yıldız) | `003`, `008`, `009` | ✅ |
+| T-05 | Yıldız tozu ekonomisi yeniden dengeleme | `024`, `025`, `stardustEconomy.ts` | ✅ |
+| T-06 | Günlük hedef RPC’leri | `016`, `019`–`020`, `026` | ✅ |
+| T-07 | Kullanıcı adı kuralları (benzersiz, TR karakter) | `021`–`023` | ✅ |
+| T-08 | Quotes + push alanları | `017`, `018` | ✅ |
+| T-09 | Haftalık rapor tablosu ve grant’ler | `013`, `014`, `028` | ✅ |
+| T-10 | Production migration seti | **001–028** uzak DB’de doğrulandı | ✅ |
+| T-11 | Gamification RLS sıkılaştırma | `029_tighten_gamification_rls.sql` | ❌ Teknik borç |
 
 ---
 
-## 6. Yayın Kontrol Listesi
+### 3.2 Mobil uygulama mimarisi
 
-### Teknik
-
-- [ ] Tüm P0 kritik maddeler kapalı (`C1`–`C9`)
-- [ ] `complete_focus_session` RPC üretimde test edildi
-- [ ] RLS politikaları tüm tablolarda aktif ve test edildi
-- [ ] OpenRouter API key backend `.env`'de; frontend bundle'da YOK
-- [ ] OPENROUTER_MODEL env değişkeni ayarlı
-- [ ] Timeout ve fallback senaryoları test edildi
-- [ ] Offline sync senaryoları test edildi
-- [ ] Sentry entegrasyonu aktif (production DSN)
-- [ ] EAS Build production profile yapılandırıldı
-- [ ] iOS: Apple Developer hesabı + provisioning profile
-- [ ] Android: Play Console hesabı + keystore
-
-### Ürün
-
-- [ ] Uygulama ikonu (iOS: 1024px, Android: tüm mDPI–xxxHDPI)
-- [ ] Splash screen (iOS + Android)
-- [ ] App Store açıklaması (TR + EN)
-- [ ] Play Store açıklaması (TR + EN)
-- [ ] Ekran görüntüleri (iPhone 6.7", 5.5"; Android)
-- [ ] Gizlilik politikası URL'si
-- [ ] Kullanım şartları URL'si
-- [ ] KVKK / GDPR uyum metni onboarding'de
-
-### Kalite
-
-- [ ] TestFlight ile ≥5 beta kullanıcı testi tamamlandı
-- [ ] Kritik bug: 0
-- [ ] P0 akışlar cihazda eksiksiz çalışıyor
-- [ ] App Store review kılavuzuna uyum kontrol edildi
-- [ ] Apple Sign In sorunsuz çalışıyor (iOS review zorunluluğu)
+| Adım | Yapılan iş | Ana dosyalar | Durum |
+|------|------------|--------------|--------|
+| T-12 | Expo Router iskeleti ve tab navigasyon | `app/(tabs)/`, `app/_layout.tsx` | ✅ |
+| T-13 | Context ayrıştırma (auth, session, UI, bildirim) | `context/AppContext.tsx` | ✅ |
+| T-14 | Supabase istemci ve API katmanı | `lib/supabase.ts`, `shared/api.ts` | ✅ |
+| T-15 | Gökyüzü katalog DB’den | `services/skyCatalog.ts` | ✅ |
+| T-16 | Skia galaksi sahnesi | `GalaxyBackground`, `galaxySceneCache` | ✅ |
+| T-17 | Android foreground service (odak timer) | `modules/astrocus-focus-timer` | ✅ |
+| T-18 | Çevrimdışı kuyruk altyapısı (UI kapalı) | `offlineQueue.ts`, flag `false` | 🟡 Borç |
 
 ---
 
-## 7. Post-MVP Yol Haritası
+### 3.3 Backend API ve edge
 
-### v2.1 — Sosyal & Ambiyans (Tahmini: +6 hafta)
-
-| Özellik                        | Açıklama                                                 |
-| ------------------------------ | -------------------------------------------------------- |
-| **Global Odalar**              | Gerçek zamanlı body-doubling odaları (Supabase Realtime) |
-| **Aktif Kullanıcı Göstergesi** | Odada kaç kişi çalışıyor                                 |
-| **Uzay Ambiyansı**             | 5–8 ambient ses seçeneği (lofi, uzay, yağmur)            |
-| **Haptic Feedback**            | Seans başlangıç / bitiş / rozet kazanımı                 |
-| **Engagement Bildirimleri**    | "Bugün henüz odaklanmadın 🌟" gibi hatırlatıcılar        |
-
-### v2.2 — Premium & Monetizasyon (Tahmini: +8 hafta)
-
-| Özellik                      | Açıklama                                                    |
-| ---------------------------- | ----------------------------------------------------------- |
-| **Premium Abonelik**         | RevenueCat entegrasyonu; aylık / yıllık plan                |
-| **Premium İçerikler**        | Ekstra yıldız seti, özel gezegen temaları, ambiyans sesleri |
-| **Gökyüzü Paylaşımı**        | Galaksini sosyal medyada paylaş                             |
-| **Karanlık / Aydınlık Tema** | Kullanıcı seçimi                                            |
-
-### v2.3 — Sosyal Rekabet (Tahmini: +10 hafta)
-
-| Özellik                     | Açıklama                                     |
-| --------------------------- | -------------------------------------------- |
-| **Liderlik Tablosu**        | Haftalık XP sıralaması (arkadaşlar / global) |
-| **Arkadaş Sistemi**         | Kullanıcı adıyla arkadaş ekleme              |
-| **Profil: 12 Aylık Geçmiş** | Tema bazlı aylık odak haritası               |
-| **PostHog Analitik**        | Kullanıcı davranış funnel analizi            |
+| Adım | Yapılan iş | Ana dosyalar | Durum |
+|------|------------|--------------|--------|
+| T-19 | Express API: health, analytics, account | `backend/src/index.ts` | ✅ |
+| T-20 | E-posta doğrulama köprüsü | `auth.routes.ts`, `deploy:auth-email` | ✅ |
+| T-21 | Edge: haftalık AI rapor | `generate-weekly-reports` | ✅ |
+| T-22 | Edge: günlük quote push | `send-daily-quote` | ✅ |
+| T-23 | Railway production deploy | [tech-stack.md §10.3](./tech-stack.md#railway-backend) | ✅ |
 
 ---
 
-_Astrocus Plan.md — MVP v2.0 · Dahili kullanım içindir._
+### 3.4 Gözlemlenebilirlik ve kalite
+
+| Adım | Yapılan iş | Ana dosyalar | Durum |
+|------|------------|--------------|--------|
+| T-24 | PostHog ürün analitiği | `lib/analytics.ts`, `productAnalytics.ts` | ✅ |
+| T-25 | Sentry hata izleme | `lib/errorTracking.ts`, `monitoring.ts` | ✅ |
+| T-26 | GitHub Actions CI | `.github/workflows/ci.yml` | ✅ |
+| T-27 | Seans timer unit testleri | `npm run test:session` | ✅ |
+
+---
+
+### 3.5 Yayın (Android v1)
+
+| Adım | Yapılan iş | Ana dosyalar / rehber | Durum |
+|------|------------|----------------------|--------|
+| T-28 | `APP_ENV=production`, demo mod yalnızca `__DEV__` | `app.config.ts`, `devDemo.ts` | ✅ |
+| T-29 | EAS build profilleri | `eas.json`, `build-release-apk.ps1` | ✅ |
+| T-30 | FCM / `google-services.json` | [tech-stack.md §10.7](./tech-stack.md#fcm-push) | ✅ |
+| T-31 | Google OAuth SHA-1 | [tech-stack.md §10.6](./tech-stack.md#google-oauth) | ✅ |
+| T-32 | Play Store açık test | [tech-stack.md §10.2](./tech-stack.md#canliya-gecis-adimlari) | ✅ |
+
+---
+
+## 4. Hikaye → teknik eşleme (özet)
+
+| Kullanıcı alanı | KH ID’leri | Ana kod |
+|-----------------|------------|---------|
+| Hesap | KH-01 … KH-05 | `AuthScreen`, `AuthContext`, `auth.routes.ts` |
+| Onboarding | KH-06, KH-07 | `OnboardingScreen`, `star-pick` |
+| Odak | KH-08 … KH-12 | `SessionScreen`, `SessionContext`, focus timer modülü |
+| Galaksi / ödül | KH-13 … KH-16 | `GalaxyScreen`, RPC `unlock_star`, `DailyGoalCard` |
+| İçgörü | KH-17 … KH-19 | `ProfileScreen`, Edge Functions |
+| Kişiselleştirme | KH-20 … KH-22 | `SettingsScreen`, `i18n.ts`, legal ekranlar |
+
+---
+
+## 5. İlgili dokümanlar
+
+| Döküman | Rol |
+|---------|-----|
+| [PRD.md](./PRD.md) | Ürün kapsamı ve özellik listesi |
+| [tech-stack.md](./tech-stack.md) | Teknoloji seçimleri ve canlıya geçiş |
+| [DesignSystem.md](./DesignSystem.md) | Görsel dil ve bileşenler |
+| [progress.md](./progress.md) | Zaman çizelgesi, hatalar, checklist |
+| [README.md](../README.md) | Kurulum özeti |

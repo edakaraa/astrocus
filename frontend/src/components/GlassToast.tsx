@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { AppText } from "./ui/AppText";
+import { getBottomToastOffset } from "../shared/theme";
 import theme from "../theme";
 
 export type GlassToastPlacement = "top" | "bottom";
@@ -16,6 +17,8 @@ type GlassToastProps = {
   iconColor?: string;
   iconBackground?: string;
   placement?: GlassToastPlacement;
+  /** Tab ekranlarında true (varsayılan); settings gibi stack ekranlarda false. */
+  avoidTabBar?: boolean;
   onHide?: () => void;
   durationMs?: number;
 };
@@ -28,6 +31,7 @@ export const GlassToast = ({
   iconColor = theme.colors.accent,
   iconBackground = "rgba(131,135,195,0.18)",
   placement = "top",
+  avoidTabBar = true,
   onHide,
   durationMs = theme.layout.rewardToastDurationMs,
 }: GlassToastProps) => {
@@ -73,7 +77,7 @@ export const GlassToast = ({
   const edgeStyle =
     placement === "top"
       ? { top: Math.max(insets.top, theme.spacing.sm) + theme.layout.topBarMinHeight }
-      : { bottom: Math.max(insets.bottom, theme.spacing.md) + theme.layout.rewardToastBottom };
+      : { bottom: getBottomToastOffset(insets.bottom, { avoidTabBar }) };
 
   return (
     <Animated.View

@@ -37,6 +37,8 @@ export type AppToastOptions = {
   iconColor?: string;
   iconBackground?: string;
   placement?: "top" | "bottom";
+  /** Bottom toast on stack screens (no tab bar) — see GlassToast.avoidTabBar */
+  avoidTabBar?: boolean;
   durationMs?: number;
 };
 
@@ -97,6 +99,7 @@ const AppNotifierHost = ({
       iconColor={toast?.iconColor}
       iconBackground={toast?.iconBackground}
       placement={toast?.placement}
+      avoidTabBar={toast?.avoidTabBar}
       durationMs={toast?.durationMs}
       onHide={onToastHide}
     />

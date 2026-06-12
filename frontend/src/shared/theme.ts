@@ -76,6 +76,25 @@ export const getTabBarMetrics = (bottomInset: number) => {
   return { bottomOffset, height, clearance };
 };
 
+/** Bottom safe padding for sheets / modals anchored to the screen edge. */
+export const getBottomSafePadding = (bottomInset: number) =>
+  Math.max(bottomInset, spacing.md);
+
+/**
+ * Offset for bottom toasts — tab bar + home indicator + gap.
+ * On stack screens without a tab bar, pass `{ avoidTabBar: false }`.
+ */
+export const getBottomToastOffset = (
+  bottomInset: number,
+  options?: { avoidTabBar?: boolean },
+) => {
+  const safe = getBottomSafePadding(bottomInset);
+  if (options?.avoidTabBar === false) {
+    return safe + spacing.lg;
+  }
+  return getTabBarMetrics(bottomInset).clearance + spacing.md;
+};
+
 /** Full-width block inside screen horizontal gutter (Session, Profile, Galaxy, etc.). */
 export const screenBlock = {
   alignSelf: "stretch" as const,

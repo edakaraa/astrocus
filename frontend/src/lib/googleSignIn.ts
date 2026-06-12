@@ -51,7 +51,7 @@ const mapGoogleSignInError = (error: unknown): OAuthError => {
     }
     if (error.code === "10" || error.message.includes("DEVELOPER_ERROR")) {
       return new OAuthError(
-        "Google yapılandırma hatası (DEVELOPER_ERROR). Google Console Android client: package com.astrocus.app + doğru SHA-1 (yerel debug veya EAS). docs/google-oauth-setup.md",
+        "Google yapılandırma hatası (DEVELOPER_ERROR). Google Console Android client: package com.astrocus.app + doğru SHA-1 (yerel debug veya EAS). prodocs/tech-stack.md (Google OAuth)",
         "config",
       );
     }

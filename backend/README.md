@@ -2,7 +2,7 @@
 
 - **Supabase:** PostgreSQL şeması, RLS, `complete_focus_session` ve `unlock_star` RPC
 - **Node API:** Analytics, yıldız kilidi, hesap silme
-- **Edge Functions:** Haftalık AI rapor (`generate-weekly-reports`, OpenRouter) — `docs/weekly-reports-cron.md`
+- **Edge Functions:** Haftalık AI rapor (`generate-weekly-reports`, OpenRouter) — [prodocs/tech-stack.md](../prodocs/tech-stack.md) (haftalık rapor cron)
 
 ## Kurulum
 

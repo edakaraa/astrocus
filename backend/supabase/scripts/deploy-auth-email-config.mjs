@@ -73,7 +73,7 @@ if (smtpHost && smtpUser && smtpPass && smtpAdminEmail) {
   console.log("[Astrocus] Custom SMTP ayarları payload'a eklendi:", smtpHost);
 } else {
   console.warn(
-    "[Astrocus] SMTP_HOST / SMTP_USER / SMTP_PASS / SMTP_ADMIN_EMAIL eksik — yalnızca şablonlar güncellenir. Kayıt e-postaları için custom SMTP gerekir (docs/auth-email-templates.md).",
+    "[Astrocus] SMTP_HOST / SMTP_USER / SMTP_PASS / SMTP_ADMIN_EMAIL eksik — yalnızca şablonlar güncellenir. Kayıt e-postaları için custom SMTP gerekir (prodocs/tech-stack.md (auth e-posta)).",
   );
 }
 
