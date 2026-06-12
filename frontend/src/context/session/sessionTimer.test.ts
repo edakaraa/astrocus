@@ -56,6 +56,23 @@ describe("sessionTimer", () => {
     assert.equal(state.focusedSeconds, 120);
   });
 
+  it("does not count time between background event and freeze (async lock check)", () => {
+    const t0 = 1_700_000_000_000;
+    let state = start15(t0);
+
+    state = heartbeatTick(state, t0 + 5 * 60 * 1000);
+    assert.equal(state.focusedSeconds, 5 * 60);
+
+    const bgAt = t0 + 5 * 60 * 1000;
+    // SessionContext pauses heartbeat while backgrounded; freeze anchors at bgAt.
+    state = freezeFocusTimer(state, bgAt);
+    assert.equal(state.focusedSeconds, 5 * 60);
+    assert.ok(isFocusTimerFrozenForAway(state));
+
+    const syncedWhileAway = syncFocusTimer(state, bgAt + 30 * 1000);
+    assert.equal(syncedWhileAway.focusedSeconds, 5 * 60);
+  });
+
   it("does not count app-switch away time toward focus", () => {
     const t0 = 1_700_000_000_000;
     let state = start15(t0);

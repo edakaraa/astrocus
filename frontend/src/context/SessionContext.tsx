@@ -358,12 +358,23 @@ export const SessionProvider = ({
       backgroundedAtRef.current = null;
     }
 
+    backgroundEventTimeRef.current = null;
+
+    const nowMs = sessionMonotonicNowMs();
     const current = sessionStateRef.current;
     if (current.status !== "running") {
       return;
     }
 
-    const synced = syncFocusTimer(current, sessionMonotonicNowMs());
+    setSessionState((state) => {
+      if (state.status !== "running") {
+        return state;
+      }
+      const synced = syncFocusTimer(state, nowMs);
+      return materializeFocusTimer(synced, nowMs);
+    });
+
+    const synced = syncFocusTimer(current, nowMs);
     const plannedDurationMinutes =
       synced.plannedDurationMinutes ?? current.plannedDurationMinutes ?? current.selectedDurationMinutes;
 
@@ -383,22 +394,26 @@ export const SessionProvider = ({
   }, [clearBackgroundAwayTimeouts, clearOngoingNotificationInterval, notificationLanguage]);
 
   const enterAppBackgroundAwayMode = useCallback(async () => {
-    if (backgroundedAtRef.current || screenLockedSessionRef.current) {
+    if (screenLockedSessionRef.current) {
       return;
     }
 
     const current = sessionStateRef.current;
-    if (current.status !== "running") {
+    if (current.status !== "running" || isFocusTimerFrozenForAway(current)) {
       return;
     }
 
     clearOngoingNotificationInterval();
     void stopFocusSessionNotification();
 
-    setSessionState((state) => freezeFocusTimer(state, sessionMonotonicNowMs()));
+    const freezeAtMs = backgroundEventTimeRef.current ?? sessionMonotonicNowMs();
+    setSessionState((state) => freezeFocusTimer(state, freezeAtMs));
+    backgroundEventTimeRef.current = null;
 
-    const backgroundedAtMs = Date.now();
-    backgroundedAtRef.current = new Date(backgroundedAtMs).toISOString();
+    if (!backgroundedAtRef.current) {
+      backgroundedAtRef.current = new Date().toISOString();
+    }
+    const backgroundedAtMs = new Date(backgroundedAtRef.current).getTime();
 
     clearBackgroundAwayTimeouts();
 
@@ -554,6 +569,13 @@ export const SessionProvider = ({
     const intervalId = setInterval(() => {
       setSessionState((current) => {
         if (current.status !== "running") {
+          return current;
+        }
+
+        if (
+          AppState.currentState !== "active" &&
+          !screenLockedSessionRef.current
+        ) {
           return current;
         }
 
@@ -851,7 +873,8 @@ export const SessionProvider = ({
           : nextState === "inactive" || nextState === "background");
 
       if (shouldScheduleLockOrAway) {
-        backgroundEventTimeRef.current = Date.now();
+        backgroundEventTimeRef.current = sessionMonotonicNowMs();
+        backgroundedAtRef.current = new Date().toISOString();
         void (async () => {
           const isScreenLock = await isFocusSessionScreenLock();
           if (isScreenLock) {
@@ -900,7 +923,8 @@ export const SessionProvider = ({
         return;
       }
 
-      const wasAway = Boolean(backgroundedAtRef.current);
+      const wasAway =
+        Boolean(backgroundedAtRef.current) || backgroundEventTimeRef.current !== null;
 
       if (!wasAway) {
         syncSessionAfterForeground();
@@ -919,6 +943,7 @@ export const SessionProvider = ({
           (Date.now() - new Date(backgroundedAtRef.current!).getTime()) / 1000,
         );
         backgroundedAtRef.current = null;
+        backgroundEventTimeRef.current = null;
 
         if (!shouldResumeAwaySession(elapsed)) {
           void dismissNotification(FOCUS_SESSION_WARNING_ID);
