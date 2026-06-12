@@ -2,7 +2,7 @@
 
 - **Supabase:** PostgreSQL şeması, RLS, `complete_focus_session` ve `unlock_star` RPC
 - **Node API:** Analytics, yıldız kilidi, hesap silme
-- **Edge Functions:** Haftalık AI rapor (`generate-weekly-reports`, OpenRouter) — [prodocs/tech-stack.md](../prodocs/tech-stack.md) (haftalık rapor cron)
+- **Edge Functions:** Haftalık AI rapor (`generate-weekly-reports`, OpenRouter) — [prodocs/tech-stack.md §10.8](../prodocs/tech-stack.md#haftalik-cron)
 
 ## Kurulum
 
@@ -64,6 +64,8 @@ npm start
 - `ALLOWED_ORIGIN` — yalnızca web istemcisi CORS gerektiriyorsa ayarlayın; saf mobil + Bearer için genelde gerekmez.
 
 Platform seçtikten sonra o sağlayıcının Node deploy dokümantasyonuna göre `build` / `start` komutlarını bağlayın.
+
+<a id="gercek-yildiz-katalogu-migration-008"></a>
 
 ## Gerçek yıldız kataloğu (migration 008)
 

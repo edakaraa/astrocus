@@ -7,7 +7,20 @@
 > **Ürün durumu:** MVP tamamlandı — Google Play **açık test (open testing)**  
 > **İlgili:** [PRD.md](./PRD.md) · [tech-stack.md — Canlıya geçiş](./tech-stack.md#devops)
 
+## İçindekiler
+
+- [Güncel durum özeti](#guncel-durum)
+- [Kronolojik gelişim](#kronoloji)
+- [Önemli kararlar](#kararlar)
+- [Karşılaşılan sorunlar ve çözümler](#karsilasilan-sorunlar)
+- [Canlıya geçiş kontrol listesi](#canliya-gecis-checklist)
+- [Bilinen teknik borç](#bilinen-teknik-borc)
+- [MVP özellik durumu](#mvp-durum)
+- [Açık işler ve riskler](#acik-isler)
+
 ---
+
+<a id="guncel-durum"></a>
 
 ## Güncel durum özeti
 
@@ -21,6 +34,8 @@
 | **AI (geliştirme)** | Cursor (kod, debug, prodocs); Claude (debug, migration/SQL, UI metinleri) |
 
 ---
+
+<a id="kronoloji"></a>
 
 ## Kronolojik gelişim zaman çizelgesi
 
@@ -142,6 +157,8 @@
 - Gamification RLS sıkılaştırma ihtiyacı tespit edildi → migration 029 taslağı (aşağıda).
 
 ---
+
+<a id="kararlar"></a>
 
 ## Önemli ürün ve teknik kararlar
 
@@ -519,6 +536,8 @@ Son doğrulama: **2026-06-12** · Adım adımları: [tech-stack.md §10.2](./tec
 
 ---
 
+<a id="mvp-durum"></a>
+
 ## MVP özellik durumu (kod × production)
 
 | # | Özellik | Kod | Production |
@@ -542,6 +561,8 @@ Son doğrulama: **2026-06-12** · Adım adımları: [tech-stack.md §10.2](./tec
 **Not:** Çevrimdışı seans senkronu MVP kapsamında **kullanıcıya sunulmuyor** (teknik borç, yukarıda).
 
 ---
+
+<a id="acik-isler"></a>
 
 ## Açık işler ve riskler (2026-06-12)
 

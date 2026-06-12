@@ -139,7 +139,7 @@ Aşağıdaki adımlar **geliştirme ve yayın** sürecine aittir; her biri için
 | T-01 | Monorepo: `frontend`, `backend`, `prodocs` | `c491506`, `README.md`, `.env.example` | ✅ |
 | T-02 | Supabase ilk şema: profil, seans, katalog, RLS | `migrations/001_initial_schema.sql` | ✅ |
 | T-03 | Odak seansı atomik RPC + anti-cheat | `complete_focus_session`, `cancel_focus_session` | ✅ |
-| T-04 | Takımyıldızı gamification (13 burç, 39 yıldız) | `003`, `008`, `009` | ✅ |
+| T-04 | Takımyıldızı gamification (13 burç, 67 yıldız) | `003`, `008`, `009` | ✅ |
 | T-05 | Yıldız tozu ekonomisi yeniden dengeleme | `024`, `025`, `stardustEconomy.ts` | ✅ |
 | T-06 | Günlük hedef RPC’leri | `016`, `019`–`020`, `026` | ✅ |
 | T-07 | Kullanıcı adı kuralları (benzersiz, TR karakter) | `021`–`023` | ✅ |
@@ -217,7 +217,7 @@ Aşağıdaki adımlar **geliştirme ve yayın** sürecine aittir; her biri için
 | Döküman | Rol |
 |---------|-----|
 | [PRD.md](./PRD.md) | Ürün kapsamı ve özellik listesi |
-| [tech-stack.md](./tech-stack.md) | Teknoloji seçimleri ve canlıya geçiş |
+| [tech-stack.md](./tech-stack.md#devops) | Teknoloji seçimleri ve canlıya geçiş |
 | [DesignSystem.md](./DesignSystem.md) | Görsel dil ve bileşenler |
 | [progress.md](./progress.md) | Zaman çizelgesi, hatalar, checklist |
 | [README.md](../README.md) | Kurulum özeti |

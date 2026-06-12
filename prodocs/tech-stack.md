@@ -1,12 +1,33 @@
 # Astrocus — Tech Stack
 
+<a id="tech-stack"></a>
+
 Bu doküman, Astrocus’ta kullanılan teknolojileri, servis seçimlerinin kısa gerekçelerini ve geliştirme sürecinde yapay zekanın nasıl kullanıldığını özetler.
 
 > **Son güncelleme:** 2026-06-12  
 > **Geliştirici:** Eda Kara
 > **Ürün durumu:** MVP tamamlandı — Google Play **açık test** (Android); App Store yayını yok (sonraki sürüm)
 
+## İçindekiler
+
+- [Mimari genel bakış](#mimari)
+- [Frontend](#frontend)
+- [Backend](#backend)
+- [Supabase](#supabase)
+- [DevOps ve canlıya geçiş](#devops)
+  - [Production env](#prod-env)
+  - [Canlıya geçiş adımları](#canliya-gecis-adimlari)
+  - [Railway](#railway-backend)
+  - [Android release](#android-release)
+  - [Auth e-posta](#auth-email-deploy)
+  - [Google OAuth](#google-oauth)
+  - [FCM / push](#fcm-push)
+  - [Haftalık AI cron](#haftalik-cron)
+  - [Expo Go ağı](#expo-go-network)
+
 ---
+
+<a id="mimari"></a>
 
 ## 1. Mimari genel bakış
 
@@ -38,6 +59,8 @@ Astrocus **monorepo** yapısındadır: mobil istemci (Expo), sunucu tarafı API 
 | `.env.example` | Gerçek API anahtarları olmadan ortam şablonu (`frontend/`, `backend/`) |
 
 ---
+
+<a id="frontend"></a>
 
 ## 2. Frontend (`frontend/`)
 
@@ -73,6 +96,8 @@ Astrocus **monorepo** yapısındadır: mobil istemci (Expo), sunucu tarafı API 
 
 ---
 
+<a id="backend"></a>
+
 ## 3. Backend (`backend/`)
 
 | Katman | Seçim | Gerekçe |
@@ -97,6 +122,8 @@ Astrocus **monorepo** yapısındadır: mobil istemci (Expo), sunucu tarafı API 
 Gemini / seans sonu LLM **yok** — `50870bf` ile kaldırıldı.
 
 ---
+
+<a id="supabase"></a>
 
 ## 4. Supabase
 
@@ -149,7 +176,7 @@ Proje **solo geliştirme** (Eda Kara). AI araçları üretkenlik ve dokümantasy
 | **UI/UX metinleri** | Cursor, Claude | TR/EN `i18n.ts`, onboarding ve hata mesajları |
 | **Migration / SQL** | Cursor, Claude | Supabase migration’lar, RPC ve RLS tasarımı |
 
-**Bağlam yönetimi:** [README.md](./README.md) giriş noktası; karar ve hata kayıtları [progress.md](./progress.md) içinde tutulur.
+**Bağlam yönetimi:** [README.md](../README.md) giriş noktası; karar ve hata kayıtları [progress.md](./progress.md) içinde tutulur.
 
 ---
 
@@ -241,6 +268,8 @@ cd backend
 npm run deploy:auth-email   # Supabase şablon + SMTP
 ```
 
+<a id="android-release"></a>
+
 ### 10.4 Android release (yerel, EAS kotası olmadan)
 
 ```powershell
@@ -251,6 +280,8 @@ npm run android:bundle                         # Play Store AAB
 ```
 
 `scripts/build-release-apk.ps1` otomatik `APP_ENV=production` set eder.
+
+<a id="auth-email-deploy"></a>
 
 ### 10.5 Auth e-posta deploy
 

@@ -251,7 +251,7 @@ Tab bar ikonları: `timer` / `star-four-points` / `account` (outline pasif).
 | Açık | Tam parlaklık, `StarVisual` / `SkyStarVisual` |
 | Sıradaki | `galaxyNextPillText` ile işaretli |
 
-Maliyet tier'ları: **500 / 1200 / 2000 ✦** (sırayla 1., 2., 3. yıldız).
+Maliyet tier'ları: **500 / 1200 / 2000 ✦** (takımyıldızı yolculuk sırasına göre — `unlock_order` grupları).
 
 ### 6.4 Avatarlar
 
@@ -462,7 +462,7 @@ Tamamlanan seans → `CelebrationModal` (global `CelebrationHost`):
 |---------|--------|
 | [PRD.md](./PRD.md) | Ürün kapsamı |
 | [plan.md](./plan.md) | Kullanıcı hikayeleri ve teknik adımlar |
-| [tech-stack.md](./tech-stack.md) | Expo, Skia, font paketleri |
+| [tech-stack.md](./tech-stack.md#tech-stack) | Expo, Skia, font paketleri |
 | [progress.md](./progress.md) | Tasarım kararları ve iterasyon geçmişi |
 
 ---
