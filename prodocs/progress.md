@@ -2,9 +2,9 @@
 
 İşlem kaydı, alınan kararlar, karşılaşılan hatalar ve çözümler. Bootcamp teslim dökümanı.
 
-> **Son güncelleme:** 2026-06-12  
+> **Son güncelleme:** 2026-06-13  
 > **Geliştirici:** Eda Kara (solo)  
-> **Ürün durumu:** MVP tamamlandı — Google Play **açık test (open testing)**  
+> **Ürün durumu:** MVP tamamlandı — Google Play **kapalı test (closed testing)**  
 > **İlgili:** [PRD.md](./PRD.md) · [tech-stack.md — Canlıya geçiş](./tech-stack.md#devops)
 
 ## İçindekiler
@@ -26,7 +26,7 @@
 
 | Alan | Durum |
 |------|--------|
-| **Platform (v1)** | Yalnızca Android / Google Play açık test |
+| **Platform (v1)** | Yalnızca Android / Google Play kapalı test |
 | **iOS** | Kod uyumlu; App Store yayını **yok** (sonraki sürüm) |
 | **Veritabanı** | Supabase migration **001–028** production'da uygulandı (doğrulandı) |
 | **Gamification** | Yalnızca **yıldız tozu (✦)**; XP/seviye UI'dan kaldırıldı |
@@ -158,6 +158,13 @@
 
 ---
 
+### 2026-06-13 · Play Store kapalı test
+
+- Google Play **açık testten kapalı teste (closed testing)** geçildi.
+- `prodocs/` ve README ürün durumu metinleri güncellendi.
+
+---
+
 <a id="kararlar"></a>
 
 ## Önemli ürün ve teknik kararlar
@@ -173,7 +180,7 @@
 | Mimari | Ödül/streak/unlock → **Supabase RPC** | Anti-cheat; istemci ödül hesaplamaz |
 | Mimari | Haftalık AI → **Edge Function + OpenRouter** | API anahtarı mobil bundle'da değil |
 | Mimari | Auth e-posta → **Express köprüsü** | Mail istemcisi WebView'da JS kapalı olabilir |
-| v1 yayın | **Android only**; iOS kod hazır, mağaza yok | Play açık test öncelik |
+| v1 yayın | **Android only**; iOS kod hazır, mağaza yok | Play kapalı test (closed testing) |
 | Gamification | **XP/seviye kaldırıldı** | Yalnızca yıldız tozu (✦) ekonomisi |
 
 ---
@@ -481,7 +488,7 @@ Son doğrulama: **2026-06-12** · Adım adımları: [tech-stack.md §10.2](./tec
 | 11 | `google-services.json` + prebuild | ✅ | FCM release APK'da |
 | 12 | Release AAB/APK | ✅ | `npm run android:release` / `android:bundle` |
 | 13 | Gizlilik politikası erişilebilir | ✅ | `/legal/privacy-policy` |
-| 14 | Play Console açık test | ✅ | Google Play open testing |
+| 14 | Play Console kapalı test | ✅ | Google Play closed testing |
 
 ### Smoke test (production build)
 

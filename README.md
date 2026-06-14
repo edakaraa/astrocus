@@ -3,7 +3,7 @@
 
 **Astrocus**, odaklanma seanslarını görsel ve ödüllendirici bir galaksi inşa yolculuğuna dönüştüren kozmik temalı bir odaklanma zamanlayıcısıdır. Kullanıcı odaklandıkça yıldız tozu (✦) kazanır, takımyıldızlarındaki yıldızları sırayla açar ve ilerlemesini profil ekranında takip eder.
 
-> **Durum:** MVP tamamlandı — Google Play **açık test (open testing)** aşamasında (Android). iOS kodu uyumlu; App Store yayını sonraki sürüm kapsamında.
+> **Durum:** MVP tamamlandı — Google Play **kapalı test (closed testing)** aşamasında (Android). iOS kodu uyumlu; App Store yayını sonraki sürüm kapsamında.
 
 **Diller:** Türkçe (TR) + İngilizce (EN)
 

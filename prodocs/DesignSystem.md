@@ -4,7 +4,7 @@
 > **Kaynak:** `frontend/src/theme/`, `frontend/src/shared/theme.ts`, `frontend/src/components/`  
 > **Hazırlayan:** Eda Kara  
 > **Son güncelleme:** 2026-06-12  
-> **Durum:** MVP aktif — Google Play açık test (Android)  
+> **Durum:** MVP aktif — Google Play kapalı test (Android)  
 > **Tema:** Yalnızca karanlık 
 
 ---

@@ -4,9 +4,9 @@
 
 Bu doküman, Astrocus’ta kullanılan teknolojileri, servis seçimlerinin kısa gerekçelerini ve geliştirme sürecinde yapay zekanın nasıl kullanıldığını özetler.
 
-> **Son güncelleme:** 2026-06-12  
+> **Son güncelleme:** 2026-06-13  
 > **Geliştirici:** Eda Kara
-> **Ürün durumu:** MVP tamamlandı — Google Play **açık test** (Android); App Store yayını yok (sonraki sürüm)
+> **Ürün durumu:** MVP tamamlandı — Google Play **kapalı test** (Android); App Store yayını yok (sonraki sürüm)
 
 ## İçindekiler
 
@@ -89,7 +89,7 @@ Astrocus **monorepo** yapısındadır: mobil istemci (Expo), sunucu tarafı API 
 
 ### v1 platform notu
 
-- **Yayın:** Yalnızca **Android** (Google Play açık test).
+- **Yayın:** Yalnızca **Android** (Google Play kapalı test).
 - **iOS:** `app.json` / Apple Sign In kodu uyumlu; **App Store’a yayınlanmıyor** (sonraki sürüm).
 - **Expo Go:** Geliştirme için kullanılır; Google native giriş, FCM push ve tam bildirim davranışı **release/preview APK** gerektirir.
 - **OTA:** `app.config.ts` içinde kapalı (`updates.enabled: false`).

@@ -3,7 +3,7 @@
 > PRD’deki ürün özelliklerinin **kullanıcı hikayeleri** ve bunların kod tabanındaki **teknik karşılıkları**.  
 > **Hazırlayan:** Eda Kara  
 > **Son güncelleme:** 2026-06-12  
-> **Durum:** MVP tamamlandı — Google Play açık test (Android)
+> **Durum:** MVP tamamlandı — Google Play kapalı test (Android)
 
 ---
 
@@ -195,7 +195,7 @@ Aşağıdaki adımlar **geliştirme ve yayın** sürecine aittir; her biri için
 | T-29 | EAS build profilleri | `eas.json`, `build-release-apk.ps1` | ✅ |
 | T-30 | FCM / `google-services.json` | [tech-stack.md §10.7](./tech-stack.md#fcm-push) | ✅ |
 | T-31 | Google OAuth SHA-1 | [tech-stack.md §10.6](./tech-stack.md#google-oauth) | ✅ |
-| T-32 | Play Store açık test | [tech-stack.md §10.2](./tech-stack.md#canliya-gecis-adimlari) | ✅ |
+| T-32 | Play Store kapalı test | [tech-stack.md §10.2](./tech-stack.md#canliya-gecis-adimlari) | ✅ |
 
 ---
 

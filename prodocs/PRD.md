@@ -3,8 +3,8 @@
 > **Projenin anayasası** — çözülen problem, hedef kullanıcı, temel özellikler ve değer önerisi.  
 > **Versiyon:** MVP v1.3 (bootcamp teslim)  
 > **Hazırlayan:** Eda Kara  
-> **Son güncelleme:** 2026-06-12  
-> **Platform (şu an):** Android — Google Play açık test  
+> **Son güncelleme:** 2026-06-13  
+> **Platform (şu an):** Android — Google Play kapalı test  
 > **Platform (kod tabanı):** Expo React Native; iOS uyumlu, **App Store yayını yok** (sonraki sürümler)  
 > **Diller:** Türkçe (TR) + İngilizce (EN)
 
@@ -18,7 +18,7 @@
 | **Ürün adı**            | Astrocus                                                                                  |
 | **Bundle ID**           | `com.astrocus.app`                                                                        |
 | **Mimari**              | Expo mobil istemci + Supabase (Auth, PostgreSQL, Edge Functions) + Express API (Railway)  |
-| **Ürün durumu**         | **MVP tamamlandı** — Google Play Store'da **açık test (open testing)** aşamasında         |
+| **Ürün durumu**         | **MVP tamamlandı** — Google Play Store'da **kapalı test (closed testing)** aşamasında         |
 | **Mağaza kapsamı (v1)** | Yalnızca **Android / Google Play**; App Store'a **yayınlanmayacak**                       |
 | **iOS**                 | Kod tabanı hazır (`app.json`, Apple Sign In vb.); mağaza yayını **sonraki sürüm** kapsamı |
 | **Geliştirici**         | Eda Kara                                                                                  |
@@ -280,7 +280,7 @@ Bu maddeler eksik değil; MVP maliyet ve UX öncelikleriyle **bilinçli ürün k
 - **Bilinen teknik borç:** `029_tighten_gamification_rls.sql` henüz uygulanmadı (bkz. [progress.md](./progress.md#bilinen-teknik-borc)).
 - **Depolama:** Supabase Storage kullanılmaz; avatarlar emoji tabanlıdır.
 - **AI:** Haftalık rapor OpenRouter + Gemma 4 (Edge Function); API anahtarı mobilde yok.
-- **Platform önceliği (v1):** Yalnızca **Android** — Google Play açık test. **App Store'a yayın yok**; Expo projesi iOS'u destekler ancak mağaza çıkışı bilinçli olarak sonraki sürüme bırakıldı.
+- **Platform önceliği (v1):** Yalnızca **Android** — Google Play kapalı test. **App Store'a yayın yok**; Expo projesi iOS'u destekler ancak mağaza çıkışı bilinçli olarak sonraki sürüme bırakıldı.
 - **Gizlilik:** Gerçek API anahtarları ve veritabanı şifreleri GitHub'a yüklenmez (`.env.example` şablon kullanılır).
 
 ---
