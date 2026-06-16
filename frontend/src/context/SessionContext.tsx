@@ -164,6 +164,7 @@ export const SessionProvider = ({
   const prevAppStateRef = useRef<AppStateStatus>(AppState.currentState);
   /** Serializes Android FGS stop→start so pause/resume cannot race startForegroundService vs stop. */
   const focusNotificationChainRef = useRef(Promise.resolve());
+  const hadActiveFocusNotificationRef = useRef(false);
 
   const notificationLanguage = user?.language ?? "tr";
 
@@ -544,12 +545,16 @@ export const SessionProvider = ({
     let cancelled = false;
 
     const syncFocusNotification = async (): Promise<void> => {
-      await stopFocusSessionNotification();
-      if (cancelled) {
+      if (!isActiveFocusSession) {
+        if (hadActiveFocusNotificationRef.current) {
+          await stopFocusSessionNotification();
+          hadActiveFocusNotificationRef.current = false;
+        }
         return;
       }
 
-      if (!isActiveFocusSession) {
+      await stopFocusSessionNotification();
+      if (cancelled) {
         return;
       }
 
@@ -558,6 +563,8 @@ export const SessionProvider = ({
       if (cancelled) {
         return;
       }
+
+      hadActiveFocusNotificationRef.current = true;
 
       if (sessionStateRef.current.status === "running") {
         startOngoingNotificationInterval();

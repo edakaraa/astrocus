@@ -1,17 +1,3 @@
-import {
-  bindSentryToSupabaseAuth,
-  initGlobalErrorHandlers,
-  initSentry,
-  wrapRootWithSentry,
-} from "../src/lib/errorTracking";
-import { AstrocusErrorBoundary } from "../src/components/AstrocusErrorBoundary";
-import { posthog, trackScreen } from "../src/lib/analytics";
-import { PostHogProvider } from "posthog-react-native";
-
-initSentry();
-initGlobalErrorHandlers();
-bindSentryToSupabaseAuth();
-
 import * as WebBrowser from "expo-web-browser";
 
 // OAuth dönüşü — provider yüklenmeden önce (Expo Go Android cold start)
@@ -21,7 +7,7 @@ import "../src/lib/oauthLinking";
 import React, { useEffect, useRef } from "react";
 import { Text, TextInput } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { Stack, useNavigationContainerRef, useRouter } from "expo-router";
+import { Stack, useNavigationContainerRef, useRouter, ErrorBoundary } from "expo-router";
 import * as Linking from "expo-linking";
 import { StatusBar } from "expo-status-bar";
 import { MAX_FONT_SCALE } from "../src/shared/responsive";
@@ -70,6 +56,17 @@ import Constants, { ExecutionEnvironment } from "expo-constants";
 import { useDeepLink } from "../src/hooks/useDeepLink";
 import { loadAuthPayloadFromSession } from "../src/shared/api";
 import { useAppContext } from "../src/context/AppContext";
+import {
+  bindSentryToSupabaseAuth,
+  initSentry,
+  wrapRootWithSentry,
+} from "../src/lib/errorTracking";
+import { posthog, trackScreen } from "../src/lib/analytics";
+import { PostHogProvider } from "posthog-react-native";
+
+export { ErrorBoundary };
+
+initSentry();
 
 type NavigationRouteState = {
   index?: number;
@@ -237,6 +234,7 @@ function RootLayoutInner() {
   const refs = useAstrocusInfrastructureRefs();
 
   useEffect(() => {
+    bindSentryToSupabaseAuth();
     void loadSkyCatalog().catch((error) => {
       if (__DEV__) {
         console.warn("[Astrocus] sky catalog preload failed:", error);
@@ -257,30 +255,28 @@ function RootLayoutInner() {
   }
 
   return (
-    <AstrocusErrorBoundary boundary="root">
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <AuthProvider {...refs}>
-          <NotificationProvider>
-            <SessionProvider {...refs}>
-              <UIProvider {...refs}>
-                <PostHogScreenTracker />
-                <OAuthColdStartProbe />
-                <AuthEmailDeepLinkHandler />
-                <NotificationResponseHandler />
-                <CelebrationHost />
-                <StatusBar style="light" />
-                <Stack
-                  screenOptions={{
-                    headerShown: false,
-                    contentStyle: { backgroundColor: colors.background },
-                  }}
-                />
-              </UIProvider>
-            </SessionProvider>
-          </NotificationProvider>
-        </AuthProvider>
-      </GestureHandlerRootView>
-    </AstrocusErrorBoundary>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider {...refs}>
+        <NotificationProvider>
+          <SessionProvider {...refs}>
+            <UIProvider {...refs}>
+              <PostHogScreenTracker />
+              <OAuthColdStartProbe />
+              <AuthEmailDeepLinkHandler />
+              <NotificationResponseHandler />
+              <CelebrationHost />
+              <StatusBar style="light" />
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: { backgroundColor: colors.background },
+                }}
+              />
+            </UIProvider>
+          </SessionProvider>
+        </NotificationProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
 

@@ -115,5 +115,5 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         "",
       appEnv,
     },
-  };
+  } as ExpoConfig;
 };

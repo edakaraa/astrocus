@@ -7,6 +7,10 @@ declare module "expo/config" {
       supabaseUrl?: string;
       supabaseAnonKey?: string;
       appEnv?: "development" | "production";
+      googleWebClientId?: string;
+      googleAndroidClientId?: string;
+      googleIosClientId?: string;
+      eas?: { projectId?: string };
     };
   }
 }

@@ -117,3 +117,5 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
 });
+
+export default AstrocusErrorBoundary;

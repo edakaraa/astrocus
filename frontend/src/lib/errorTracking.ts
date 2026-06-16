@@ -71,11 +71,17 @@ export const initGlobalErrorHandlers = (): void => {
   if (globalHandlersBound) {
     return;
   }
+
+  const errorUtils = ErrorUtils as typeof ErrorUtils | undefined;
+  if (!errorUtils?.getGlobalHandler || !errorUtils.setGlobalHandler) {
+    return;
+  }
+
   globalHandlersBound = true;
 
-  const defaultHandler = ErrorUtils.getGlobalHandler?.();
+  const defaultHandler = errorUtils.getGlobalHandler();
 
-  ErrorUtils.setGlobalHandler((error: unknown, isFatal?: boolean) => {
+  errorUtils.setGlobalHandler((error: unknown, isFatal?: boolean) => {
     const err = error instanceof Error ? error : new Error(serializeUnknown(error));
 
     captureError(err, {

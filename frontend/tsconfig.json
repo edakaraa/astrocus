@@ -5,7 +5,8 @@
     "baseUrl": ".",
     "types": [
       "react",
-      "react-native"
+      "react-native",
+      "node"
     ],
     "jsx": "react-native",
     "lib": [
@@ -33,6 +34,7 @@
   "include": [
     "app/**/*.ts",
     "app/**/*.tsx",
+    "app.config.ts",
     "src/**/*.ts",
     "src/**/*.tsx",
     "expo-config-extra.d.ts"
