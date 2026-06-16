@@ -88,6 +88,7 @@ import {
 } from "./session/offlineQueue";
 import { shouldResumeAwaySession } from "./session/focusBackgroundAway";
 import { onFocusSessionTimerCompleted } from "./session/focusSessionNotifications";
+import { addBreadcrumb } from "../lib/errorTracking";
 import { createDailySummary, estimateSessionCelebration } from "./session/stardust";
 
 type SessionState = FocusTimerState;
@@ -161,6 +162,8 @@ export const SessionProvider = ({
   const sessionStateRef = useRef(sessionState);
   sessionStateRef.current = sessionState;
   const prevAppStateRef = useRef<AppStateStatus>(AppState.currentState);
+  /** Serializes Android FGS stop→start so pause/resume cannot race startForegroundService vs stop. */
+  const focusNotificationChainRef = useRef(Promise.resolve());
 
   const notificationLanguage = user?.language ?? "tr";
 
@@ -538,20 +541,43 @@ export const SessionProvider = ({
       return;
     }
 
-    if (!isActiveFocusSession) {
-      void stopFocusSessionNotification();
-      return;
-    }
+    let cancelled = false;
 
-    const synced = syncFocusTimer(sessionStateRef.current, sessionMonotonicNowMs());
-    void startFocusSessionNotification(synced.remainingSeconds, notificationLanguage);
-    if (sessionStateRef.current.status === "running") {
-      startOngoingNotificationInterval();
-    }
+    const syncFocusNotification = async (): Promise<void> => {
+      await stopFocusSessionNotification();
+      if (cancelled) {
+        return;
+      }
+
+      if (!isActiveFocusSession) {
+        return;
+      }
+
+      const synced = syncFocusTimer(sessionStateRef.current, sessionMonotonicNowMs());
+      await startFocusSessionNotification(synced.remainingSeconds, notificationLanguage);
+      if (cancelled) {
+        return;
+      }
+
+      if (sessionStateRef.current.status === "running") {
+        startOngoingNotificationInterval();
+      }
+    };
+
+    focusNotificationChainRef.current = focusNotificationChainRef.current
+      .then(() => syncFocusNotification())
+      .catch(() => {
+        /* keep chain alive after notification errors */
+      });
 
     return () => {
+      cancelled = true;
       clearOngoingNotificationInterval();
-      void stopFocusSessionNotification();
+      focusNotificationChainRef.current = focusNotificationChainRef.current
+        .then(() => stopFocusSessionNotification())
+        .catch(() => {
+          /* keep chain alive after notification errors */
+        });
     };
   }, [
     clearOngoingNotificationInterval,
@@ -993,11 +1019,43 @@ export const SessionProvider = ({
   }, []);
 
   const pauseSession = useCallback(() => {
-    setSessionState((current) => pauseFocusSession(current, sessionMonotonicNowMs()));
+    const nowMs = sessionMonotonicNowMs();
+    const before = sessionStateRef.current;
+    addBreadcrumb("focus.pauseSession", {
+      statusBefore: before.status,
+      remainingSeconds: before.remainingSeconds,
+      focusedSeconds: before.focusedSeconds,
+      pauseCount: before.pauseCount,
+      runningSinceMs: before.runningSinceMs,
+      accumulatedFocusSeconds: before.accumulatedFocusSeconds,
+      nowMs,
+    });
+    setSessionState((current) => pauseFocusSession(current, nowMs));
   }, []);
 
   const resumeSession = useCallback(() => {
-    setSessionState((current) => resumeFocusSession(current, sessionMonotonicNowMs()));
+    const nowMs = sessionMonotonicNowMs();
+    const before = sessionStateRef.current;
+    addBreadcrumb("focus.resumeSession", {
+      statusBefore: before.status,
+      remainingSeconds: before.remainingSeconds,
+      focusedSeconds: before.focusedSeconds,
+      pauseCount: before.pauseCount,
+      runningSinceMs: before.runningSinceMs,
+      accumulatedFocusSeconds: before.accumulatedFocusSeconds,
+      plannedDurationMinutes: before.plannedDurationMinutes,
+      nowMs,
+    });
+    setSessionState((current) => {
+      const next = resumeFocusSession(current, nowMs);
+      addBreadcrumb("focus.resumeSession.applied", {
+        statusAfter: next.status,
+        remainingSeconds: next.remainingSeconds,
+        runningSinceMs: next.runningSinceMs,
+        accumulatedFocusSeconds: next.accumulatedFocusSeconds,
+      });
+      return next;
+    });
   }, []);
 
   const resetSession = useCallback(() => {

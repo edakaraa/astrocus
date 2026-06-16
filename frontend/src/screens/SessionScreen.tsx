@@ -295,7 +295,10 @@ export const SessionScreen = () => {
     <View style={[styles.sessionShell, isSessionActive && styles.fullScreen]}>
       {isSessionActive ? (
         <View style={styles.galaxyHost} pointerEvents="none">
-          <GalaxyBackground centerYRatio={0.5} animate />
+          <GalaxyBackground
+            centerYRatio={0.5}
+            animate={sessionState.status === "running"}
+          />
         </View>
       ) : null}
 

@@ -1,8 +1,15 @@
-import { bindSentryToSupabaseAuth, initSentry, wrapRootWithSentry } from "../src/lib/errorTracking";
+import {
+  bindSentryToSupabaseAuth,
+  initGlobalErrorHandlers,
+  initSentry,
+  wrapRootWithSentry,
+} from "../src/lib/errorTracking";
+import { AstrocusErrorBoundary } from "../src/components/AstrocusErrorBoundary";
 import { posthog, trackScreen } from "../src/lib/analytics";
 import { PostHogProvider } from "posthog-react-native";
 
 initSentry();
+initGlobalErrorHandlers();
 bindSentryToSupabaseAuth();
 
 import * as WebBrowser from "expo-web-browser";
@@ -250,28 +257,30 @@ function RootLayoutInner() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider {...refs}>
-        <NotificationProvider>
-          <SessionProvider {...refs}>
-            <UIProvider {...refs}>
-              <PostHogScreenTracker />
-              <OAuthColdStartProbe />
-              <AuthEmailDeepLinkHandler />
-              <NotificationResponseHandler />
-              <CelebrationHost />
-              <StatusBar style="light" />
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  contentStyle: { backgroundColor: colors.background },
-                }}
-              />
-            </UIProvider>
-          </SessionProvider>
-        </NotificationProvider>
-      </AuthProvider>
-    </GestureHandlerRootView>
+    <AstrocusErrorBoundary boundary="root">
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <AuthProvider {...refs}>
+          <NotificationProvider>
+            <SessionProvider {...refs}>
+              <UIProvider {...refs}>
+                <PostHogScreenTracker />
+                <OAuthColdStartProbe />
+                <AuthEmailDeepLinkHandler />
+                <NotificationResponseHandler />
+                <CelebrationHost />
+                <StatusBar style="light" />
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: colors.background },
+                  }}
+                />
+              </UIProvider>
+            </SessionProvider>
+          </NotificationProvider>
+        </AuthProvider>
+      </GestureHandlerRootView>
+    </AstrocusErrorBoundary>
   );
 }
 

@@ -150,7 +150,7 @@ export const GalaxyBackground = ({
         shootY1.value = startY + SCREEN_H * (0.06 + Math.random() * 0.08);
       }
     }
-  });
+  }, animate);
 
   const galaxyMatrix = useDerivedValue(() => {
     "worklet";
