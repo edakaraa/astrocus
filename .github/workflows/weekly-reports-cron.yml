@@ -2,9 +2,14 @@ name: Weekly Reports Cron
 
 on:
   schedule:
-    # Mondays 06:00 UTC
-    - cron: "0 6 * * 1"
+    # Pazartesi 00:00 Europe/Istanbul (UTC+3) = Pazar 21:00 UTC
+    - cron: "0 21 * * 0"
   workflow_dispatch:
+    inputs:
+      backfill:
+        description: "Eksik haftaları doldur (true/false)"
+        required: false
+        default: "true"
 
 jobs:
   trigger:
@@ -14,11 +19,14 @@ jobs:
         env:
           SUPABASE_FUNCTIONS_URL: ${{ secrets.SUPABASE_FUNCTIONS_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          BACKFILL: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.backfill || 'true') || 'false' }}
         run: |
           if [ -z "$SUPABASE_FUNCTIONS_URL" ] || [ -z "$CRON_SECRET" ]; then
-            echo "Skip: SUPABASE_FUNCTIONS_URL or CRON_SECRET not configured in repo secrets."
-            exit 0
+            echo "::error::SUPABASE_FUNCTIONS_URL veya CRON_SECRET repo secrets'ta tanımlı değil."
+            echo "GitHub → Settings → Secrets → Actions veya Supabase pg_cron (migration 030) kullanın."
+            exit 1
           fi
           curl -fsS -X POST "$SUPABASE_FUNCTIONS_URL" \
             -H "x-cron-secret: $CRON_SECRET" \
-            -H "Content-Type: application/json"
+            -H "Content-Type: application/json" \
+            -d "{\"backfill\": $BACKFILL}"

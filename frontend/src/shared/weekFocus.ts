@@ -27,7 +27,23 @@ export const toDateKeyInTimeZone = (iso: string, timeZone: string): string => {
   return `${year}-${month}-${day}`;
 };
 
-/** Monday → Sunday date keys for the current calendar week in the given timezone. */
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+export const addCalendarDays = (dateKey: string, days: number, timeZone: string): string => {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const instant = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  return toDateKeyInTimeZone(new Date(instant.getTime() + days * MS_PER_DAY).toISOString(), timeZone);
+};
+
+/** Monday date key of the most recent fully completed Mon–Sun week in `timeZone`. */
+export const getLastCompletedWeekMondayKey = (timeZone: string, anchor = new Date()): string => {
+  const weekday = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(anchor);
+  const mondayOffset = MONDAY_FIRST_WEEKDAY[weekday] ?? 0;
+  const todayKey = toDateKeyInTimeZone(anchor.toISOString(), timeZone);
+  const currentMondayKey = addCalendarDays(todayKey, -mondayOffset, timeZone);
+  return addCalendarDays(currentMondayKey, -7, timeZone);
+};
+
 export const buildMondayWeekDateKeys = (timeZone: string, anchor = new Date()): string[] => {
   const weekday = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(anchor);
   const mondayOffset = MONDAY_FIRST_WEEKDAY[weekday] ?? 0;

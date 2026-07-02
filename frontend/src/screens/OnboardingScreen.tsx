@@ -4,7 +4,6 @@ import {
   Easing,
   FlatList,
   Image,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -344,7 +343,6 @@ export const OnboardingScreen = ({ onComplete }: OnboardingScreenProps) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       <View
         style={[

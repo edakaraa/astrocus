@@ -9,6 +9,7 @@ type AstrocusFocusTimerModule = {
 
 let nativeModule: AstrocusFocusTimerModule | null | undefined;
 let serviceActive = false;
+let operationChain = Promise.resolve();
 
 const getModule = (): AstrocusFocusTimerModule | null => {
   if (Platform.OS !== "android") {
@@ -25,6 +26,15 @@ const getModule = (): AstrocusFocusTimerModule | null => {
   return nativeModule;
 };
 
+const enqueueNativeOperation = <T>(operation: () => Promise<T>): Promise<T> => {
+  const next = operationChain.then(operation, operation);
+  operationChain = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  return next;
+};
+
 export const isFocusTimerServiceAvailable = (): boolean => getModule() !== null;
 
 export const startFocusTimerNotification = async (
@@ -36,8 +46,11 @@ export const startFocusTimerNotification = async (
   if (!mod) {
     return false;
   }
-  await mod.start(endTimeMs, title, subtitle);
-  serviceActive = true;
+
+  await enqueueNativeOperation(async () => {
+    await mod.start(endTimeMs, title, subtitle);
+    serviceActive = true;
+  });
   return true;
 };
 
@@ -50,12 +63,15 @@ export const updateFocusTimerNotification = async (
   if (!mod) {
     return false;
   }
-  if (serviceActive) {
-    await mod.update(endTimeMs, title, subtitle);
-  } else {
+
+  await enqueueNativeOperation(async () => {
+    if (serviceActive) {
+      await mod.update(endTimeMs, title, subtitle);
+      return;
+    }
     await mod.start(endTimeMs, title, subtitle);
     serviceActive = true;
-  }
+  });
   return true;
 };
 
@@ -65,11 +81,18 @@ export const stopFocusTimerNotification = async (): Promise<void> => {
     serviceActive = false;
     return;
   }
-  await mod.stop();
-  serviceActive = false;
+
+  await enqueueNativeOperation(async () => {
+    if (!serviceActive) {
+      return;
+    }
+    await mod.stop();
+    serviceActive = false;
+  });
 };
 
 /** Test-only reset for notification orchestration unit tests. */
 export const __resetFocusTimerServiceStateForTests = (): void => {
   serviceActive = false;
+  operationChain = Promise.resolve();
 };

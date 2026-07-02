@@ -181,6 +181,12 @@ const fetchUserData = async (userId: string, accessToken: string): Promise<AuthP
   if (profileRes.error || !profileRes.data) {
     throw new Error(profileRes.error?.message ?? "Profile not found");
   }
+
+  const profileRow = profileRes.data as ProfileRow;
+  if (profileRow.timezone !== timezone) {
+    void supabase.from("profiles").update({ timezone }).eq("id", userId);
+  }
+
   if (sessionsRes.error) {
     throw new Error(sessionsRes.error.message);
   }
@@ -207,7 +213,7 @@ const fetchUserData = async (userId: string, accessToken: string): Promise<AuthP
 
   return buildAuthPayload(
     accessToken,
-    profileRes.data as ProfileRow,
+    profileRow,
     (sessionsRes.data ?? []) as SessionRow[],
     fromDb,
     earnedBadgeIds,

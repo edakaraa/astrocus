@@ -78,6 +78,7 @@ import {
 import {
   bindSessionMonotonicAnchor,
   clearSessionMonotonicAnchor,
+  rebindSessionMonotonicAnchorToWallNow,
   sessionMonotonicNowMs,
 } from "./session/monotonicNow";
 import { persistLocalDailyGoal } from "../lib/dailyGoalStorage";
@@ -364,6 +365,7 @@ export const SessionProvider = ({
 
     backgroundEventTimeRef.current = null;
 
+    rebindSessionMonotonicAnchorToWallNow();
     const nowMs = sessionMonotonicNowMs();
     const current = sessionStateRef.current;
     if (current.status !== "running") {
@@ -553,18 +555,16 @@ export const SessionProvider = ({
         return;
       }
 
-      await stopFocusSessionNotification();
-      if (cancelled) {
-        return;
-      }
-
       const synced = syncFocusTimer(sessionStateRef.current, sessionMonotonicNowMs());
-      await startFocusSessionNotification(synced.remainingSeconds, notificationLanguage);
+      if (hadActiveFocusNotificationRef.current) {
+        await updateFocusSessionNotification(synced.remainingSeconds, notificationLanguage);
+      } else {
+        await startFocusSessionNotification(synced.remainingSeconds, notificationLanguage);
+        hadActiveFocusNotificationRef.current = true;
+      }
       if (cancelled) {
         return;
       }
-
-      hadActiveFocusNotificationRef.current = true;
 
       if (sessionStateRef.current.status === "running") {
         startOngoingNotificationInterval();
@@ -580,11 +580,6 @@ export const SessionProvider = ({
     return () => {
       cancelled = true;
       clearOngoingNotificationInterval();
-      focusNotificationChainRef.current = focusNotificationChainRef.current
-        .then(() => stopFocusSessionNotification())
-        .catch(() => {
-          /* keep chain alive after notification errors */
-        });
     };
   }, [
     clearOngoingNotificationInterval,
@@ -949,6 +944,7 @@ export const SessionProvider = ({
         if (Platform.OS === "android") {
           void stopFocusSessionNotification();
         }
+        rebindSessionMonotonicAnchorToWallNow();
         syncSessionAfterForeground({ skipOngoingNotification: true });
         if (Platform.OS === "android" && sessionStateRef.current.status === "running") {
           startOngoingNotificationInterval();

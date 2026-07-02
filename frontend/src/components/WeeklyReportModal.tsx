@@ -114,11 +114,6 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({ visible, r
                   </View>
                 </View>
 
-                {report.fallbackUsed ? (
-                  <AppText variant="caption" color={theme.colors.muted} style={styles.fallbackNote}>
-                    {t(language, "weeklyReportFallbackNote")}
-                  </AppText>
-                ) : null}
               </ScrollView>
 
               <GradientButton label={t(language, "weeklyReportClose")} onPress={onClose} fullWidth />
@@ -200,8 +195,5 @@ const styles = StyleSheet.create({
     gap: 2,
     padding: spacing.sm,
     width: "47%",
-  },
-  fallbackNote: {
-    fontStyle: "italic",
   },
 });

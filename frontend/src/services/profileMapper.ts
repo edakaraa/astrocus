@@ -21,6 +21,7 @@ export type ProfileRow = {
   display_name?: string | null;
   birthdate?: string | null;
   favorite_planet?: string | null;
+  timezone?: string | null;
 };
 
 export type SessionRow = {

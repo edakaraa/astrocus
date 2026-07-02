@@ -2,7 +2,7 @@
   "expo": {
     "name": "Astrocus",
     "slug": "astrocus",
-    "version": "1.0.5",
+    "version": "1.0.8",
     "scheme": "astrocus",
     "platforms": [
       "ios",
@@ -54,7 +54,7 @@
       "icon": "./assets/brand/logo.png"
     },
     "android": {
-      "versionCode": 9,
+      "versionCode": 12,
       "package": "com.astrocus.app",
       "targetSdkVersion": 35,
       "compileSdkVersion": 35,

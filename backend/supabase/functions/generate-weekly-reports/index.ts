@@ -1,5 +1,15 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import {
+  addCalendarDays,
+  formatWeekLabel,
+  getLastCompletedWeekMondayKey,
+  getWeekDateKeys,
+  getWeekMondayKeyForLocalDate,
+  getWeeksToProcessForUser,
+  toDateKeyInTimeZone,
+  weekdayIndexInTimeZone,
+} from "./weekTimezone.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -16,7 +26,7 @@ export interface WeeklyStats {
   best_day_en: string | null;
   best_day_minutes: number | null;
   peak_hour_range: string | null;
-  /** Longest consecutive focus-day run within the reported week (UTC calendar days). */
+  /** Longest consecutive focus-day run within the reported week (local calendar days). */
   current_streak: number;
   longest_streak: number;
   personal_record_broken: boolean;
@@ -34,6 +44,7 @@ type ProfileRow = {
   longest_streak: number;
   daily_goal_minutes: number;
   created_at: string;
+  timezone?: string | null;
 };
 
 type SessionRow = {
@@ -45,6 +56,20 @@ type SessionRow = {
 
 type ReportText = { tr: string; en: string };
 
+type AdminClient = SupabaseClient;
+
+type WeeklyReportStatsRow = {
+  stats_json: { total_minutes?: number } | null;
+};
+
+type WeeklyReportInsert = {
+  user_id: string;
+  week_start: string;
+  stats_json: WeeklyStats;
+  report_text: ReportText;
+  fallback_used: boolean;
+};
+
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MODELS = [
   "google/gemma-4-31b-it:free",
@@ -53,52 +78,22 @@ const MODELS = [
 ] as const;
 
 const MODEL_RETRY_DELAY_MS = 3000;
+const USER_CONCURRENCY = 3;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const DAY_NAMES_TR = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
 const DAY_NAMES_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-// ---------------------------------------------------------------------------
-// Week boundaries (UTC calendar week: Mon 00:00 – Sun 23:59:59.999)
-// ---------------------------------------------------------------------------
-
-const pad2 = (n: number) => String(n).padStart(2, "0");
-
-const toDateKeyUtc = (d: Date) =>
-  `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
-
-const parseDateKey = (key: string): Date => {
-  const [y, m, d] = key.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d));
-};
-
-/** Monday 00:00 UTC of the week containing `ref`, then optionally step back `weeksAgo`. */
-const getWeekStartUtc = (ref: Date, weeksAgo = 0): Date => {
-  const d = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate()));
-  const day = d.getUTCDay();
-  const daysFromMonday = (day + 6) % 7;
-  d.setUTCDate(d.getUTCDate() - daysFromMonday - weeksAgo * 7);
-  return d;
-};
-
-const getWeekEndUtc = (weekStart: Date): Date => {
-  const end = new Date(weekStart);
-  end.setUTCDate(end.getUTCDate() + 6);
-  end.setUTCHours(23, 59, 59, 999);
-  return end;
-};
-
-const formatWeekLabel = (weekStart: Date, locale: "tr-TR" | "en-US"): string => {
-  const weekEnd = new Date(weekStart);
-  weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
-  const fmt = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long" });
-  const fmtShort = new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" });
-  const startStr = locale === "en-US"
-    ? fmtShort.format(weekStart)
-    : fmt.format(weekStart);
-  const endStr = fmt.format(weekEnd);
-  return `${startStr} - ${endStr}`;
+const runInBatches = async <T>(
+  items: T[],
+  batchSize: number,
+  fn: (item: T) => Promise<void>,
+): Promise<void> => {
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    await Promise.all(batch.map((item) => fn(item)));
+  }
 };
 
 // ---------------------------------------------------------------------------
@@ -119,17 +114,27 @@ const classifyUserType = (
   return "high";
 };
 
-const sessionInWeek = (session: SessionRow, weekStart: Date, weekEnd: Date): boolean => {
-  const completed = new Date(session.completed_at);
-  return completed >= weekStart && completed <= weekEnd;
+const sessionInWeekKeys = (
+  session: SessionRow,
+  weekKeys: Set<string>,
+  timeZone: string,
+): boolean => {
+  const key = toDateKeyInTimeZone(new Date(session.completed_at), timeZone);
+  return weekKeys.has(key);
 };
 
-const computePeakHourRange = (sessions: SessionRow[]): string | null => {
+const computePeakHourRange = (sessions: SessionRow[], timeZone: string): string | null => {
   if (sessions.length === 0) return null;
 
+  const pad2 = (n: number) => String(n).padStart(2, "0");
   const hourMinutes = new Array<number>(24).fill(0);
   for (const s of sessions) {
-    const h = new Date(s.started_at).getUTCHours();
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      hour: "numeric",
+      hour12: false,
+    }).formatToParts(new Date(s.started_at));
+    const h = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
     hourMinutes[h] += s.duration_minutes;
   }
 
@@ -148,17 +153,17 @@ const computePeakHourRange = (sessions: SessionRow[]): string | null => {
   return `${pad2(bestStart)}:00-${pad2(endHour)}:00`;
 };
 
-const sumMinutesByUtcDay = (sessions: SessionRow[]): Map<string, number> => {
+const sumMinutesByLocalDay = (sessions: SessionRow[], timeZone: string): Map<string, number> => {
   const map = new Map<string, number>();
   for (const s of sessions) {
-    const key = toDateKeyUtc(new Date(s.completed_at));
+    const key = toDateKeyInTimeZone(new Date(s.completed_at), timeZone);
     map.set(key, (map.get(key) ?? 0) + s.duration_minutes);
   }
   return map;
 };
 
 const maxWeekMinutesBefore = async (
-  admin: ReturnType<typeof createClient>,
+  admin: AdminClient,
   userId: string,
   beforeWeekStart: string,
 ): Promise<number> => {
@@ -169,8 +174,8 @@ const maxWeekMinutesBefore = async (
     .lt("week_start", beforeWeekStart);
 
   let max = 0;
-  for (const row of data ?? []) {
-    const mins = Number((row.stats_json as { total_minutes?: number })?.total_minutes ?? 0);
+  for (const row of (data ?? []) as WeeklyReportStatsRow[]) {
+    const mins = Number(row.stats_json?.total_minutes ?? 0);
     if (mins > max) max = mins;
   }
   return max;
@@ -178,31 +183,29 @@ const maxWeekMinutesBefore = async (
 
 const sumWeekMinutesFromSessions = (
   allSessions: SessionRow[],
-  weekStart: Date,
-  weekEnd: Date,
+  weekKeys: Set<string>,
+  timeZone: string,
 ): number => {
   let total = 0;
   for (const s of allSessions) {
-    if (sessionInWeek(s, weekStart, weekEnd)) {
+    if (sessionInWeekKeys(s, weekKeys, timeZone)) {
       total += s.duration_minutes;
     }
   }
   return total;
 };
 
-/** Longest run of consecutive UTC days with ≥1 session, within [weekStart, weekStart+6]. */
+/** Longest run of consecutive local calendar days with ≥1 session in the reported week. */
 export const computeLongestStreakInWeek = (
   weekSessions: SessionRow[],
-  weekStart: Date,
+  weekDateKeys: string[],
+  timeZone: string,
 ): number => {
-  const byDay = sumMinutesByUtcDay(weekSessions);
+  const byDay = sumMinutesByLocalDay(weekSessions, timeZone);
   let longest = 0;
   let current = 0;
 
-  for (let i = 0; i < 7; i += 1) {
-    const day = new Date(weekStart);
-    day.setUTCDate(day.getUTCDate() + i);
-    const key = toDateKeyUtc(day);
+  for (const key of weekDateKeys) {
     if ((byDay.get(key) ?? 0) > 0) {
       current += 1;
       longest = Math.max(longest, current);
@@ -217,18 +220,22 @@ export const computeLongestStreakInWeek = (
 export const buildWeeklyStats = (
   profile: ProfileRow,
   weekSessions: SessionRow[],
-  weekStart: Date,
-  weekEnd: Date,
+  weekMondayKey: string,
+  weekDateKeys: string[],
+  timeZone: string,
   allSessions: SessionRow[],
   priorMaxWeekMinutes: number,
   refDate: Date,
   goalsByDay: Map<string, number> = new Map(),
 ): WeeklyStats => {
+  const weekKeySet = new Set(weekDateKeys);
+  const sundayKey = weekDateKeys[6];
+
   const total_minutes = weekSessions.reduce((sum, s) => sum + s.duration_minutes, 0);
   const total_sessions = weekSessions.length;
   const completed_sessions = weekSessions.filter((s) => !s.pause_used).length;
 
-  const byDay = sumMinutesByUtcDay(weekSessions);
+  const byDay = sumMinutesByLocalDay(weekSessions, timeZone);
   let bestKey: string | null = null;
   let bestMinutes = 0;
   for (const [key, mins] of byDay) {
@@ -241,41 +248,37 @@ export const buildWeeklyStats = (
   let best_day_tr: string | null = null;
   let best_day_en: string | null = null;
   if (bestKey && bestMinutes > 0) {
-    const dow = parseDateKey(bestKey).getUTCDay();
+    const dow = weekdayIndexInTimeZone(bestKey, timeZone);
     best_day_tr = DAY_NAMES_TR[dow];
     best_day_en = DAY_NAMES_EN[dow];
   }
 
   const daily_goal_minutes = profile.daily_goal_minutes;
   let goal_met_days = 0;
-  for (let i = 0; i < 7; i += 1) {
-    const day = new Date(weekStart);
-    day.setUTCDate(day.getUTCDate() + i);
-    const key = toDateKeyUtc(day);
+  for (const key of weekDateKeys) {
     const dayGoal = goalsByDay.get(key);
     if (dayGoal != null && (byDay.get(key) ?? 0) >= dayGoal) {
       goal_met_days += 1;
     }
   }
 
-  const weekStartKey = toDateKeyUtc(weekStart);
+  const firstDayKey = weekDateKeys[0];
   const hasAnyPriorWeek = allSessions.some((s) => {
-    const completed = new Date(s.completed_at);
-    return completed < weekStart;
+    const localKey = toDateKeyInTimeZone(new Date(s.completed_at), timeZone);
+    return localKey < firstDayKey;
   });
 
-  const lastWeekStart = new Date(weekStart);
-  lastWeekStart.setUTCDate(lastWeekStart.getUTCDate() - 7);
-  const lastWeekEnd = getWeekEndUtc(lastWeekStart);
-  const lastWeekTotal = sumWeekMinutesFromSessions(allSessions, lastWeekStart, lastWeekEnd);
+  const prevMondayKey = addCalendarDays(weekMondayKey, -7, timeZone);
+  const prevWeekKeys = new Set(getWeekDateKeys(prevMondayKey, timeZone));
+  const lastWeekTotal = sumWeekMinutesFromSessions(allSessions, prevWeekKeys, timeZone);
 
   const vs_last_week_minutes = hasAnyPriorWeek ? total_minutes - lastWeekTotal : null;
 
   const weekTotalsBefore = new Map<string, number>();
   for (const s of allSessions) {
-    const completed = new Date(s.completed_at);
-    if (completed >= weekStart) continue;
-    const wsKey = toDateKeyUtc(getWeekStartUtc(completed, 0));
+    const localKey = toDateKeyInTimeZone(new Date(s.completed_at), timeZone);
+    if (weekKeySet.has(localKey) || localKey >= weekMondayKey) continue;
+    const wsKey = getWeekMondayKeyForLocalDate(localKey, timeZone);
     weekTotalsBefore.set(wsKey, (weekTotalsBefore.get(wsKey) ?? 0) + s.duration_minutes);
   }
   const sessionHistoryMax = weekTotalsBefore.size > 0
@@ -283,19 +286,19 @@ export const buildWeeklyStats = (
     : 0;
   const historicalMax = Math.max(priorMaxWeekMinutes, sessionHistoryMax);
   const personal_record_broken = total_minutes > 0 && total_minutes > historicalMax;
-  const weekLongestStreak = computeLongestStreakInWeek(weekSessions, weekStart);
+  const weekLongestStreak = computeLongestStreakInWeek(weekSessions, weekDateKeys, timeZone);
 
   return {
     user_name: profile.username?.trim() || profile.display_name?.trim() || "Explorer",
-    week_label_tr: formatWeekLabel(weekStart, "tr-TR"),
-    week_label_en: formatWeekLabel(weekStart, "en-US"),
+    week_label_tr: formatWeekLabel(weekMondayKey, sundayKey, "tr-TR"),
+    week_label_en: formatWeekLabel(weekMondayKey, sundayKey, "en-US"),
     total_minutes,
     total_sessions,
     completed_sessions,
     best_day_tr,
     best_day_en,
     best_day_minutes: bestMinutes > 0 ? bestMinutes : null,
-    peak_hour_range: computePeakHourRange(weekSessions),
+    peak_hour_range: computePeakHourRange(weekSessions, timeZone),
     current_streak: weekLongestStreak,
     longest_streak: profile.longest_streak,
     personal_record_broken,
@@ -495,6 +498,129 @@ const authorizeCron = (req: Request): boolean => {
   return bearer === cronSecret || cronHeader === cronSecret;
 };
 
+type ProcessResult = { processed: number; skipped: number; failed: number };
+
+const resolveUserTimezone = async (
+  admin: AdminClient,
+  profile: ProfileRow,
+): Promise<string> => {
+  const { data: goalRow } = await admin
+    .from("daily_goal_entries")
+    .select("timezone")
+    .eq("user_id", profile.id)
+    .order("goal_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const goalTz = (goalRow as { timezone?: string } | null)?.timezone?.trim();
+  const profileTz = profile.timezone?.trim();
+
+  // profiles.timezone defaults to UTC before first app sync — prefer real goal/device TZ.
+  if (profileTz && profileTz !== "UTC") return profileTz;
+  if (goalTz) return goalTz;
+  return profileTz || "UTC";
+};
+
+const processProfileWeeks = async (
+  admin: AdminClient,
+  profile: ProfileRow,
+  refDate: Date,
+  explicitWeekStart: string | null,
+  backfill: boolean,
+): Promise<ProcessResult> => {
+  let processed = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  const timeZone = await resolveUserTimezone(admin, profile);
+  const weeksToProcess = getWeeksToProcessForUser(timeZone, refDate, explicitWeekStart, backfill);
+
+  const { data: sessions, error: sessionsError } = await admin
+    .from("sessions")
+    .select("duration_minutes, started_at, completed_at, pause_used")
+    .eq("user_id", profile.id);
+
+  if (sessionsError) {
+    console.error(`[weekly-reports] sessions ${profile.id}:`, sessionsError);
+    return { processed, skipped, failed: weeksToProcess.length };
+  }
+
+  const allSessions = (sessions ?? []) as SessionRow[];
+
+  for (const weekMondayKey of weeksToProcess) {
+    const weekDateKeys = getWeekDateKeys(weekMondayKey, timeZone);
+    const weekKeySet = new Set(weekDateKeys);
+    const weekEndKey = weekDateKeys[6];
+
+    try {
+      const { data: existing } = await admin
+        .from("weekly_reports")
+        .select("id")
+        .eq("user_id", profile.id)
+        .eq("week_start", weekMondayKey)
+        .maybeSingle();
+
+      if (existing) {
+        skipped += 1;
+        continue;
+      }
+
+      const weekSessions = allSessions.filter((s) => sessionInWeekKeys(s, weekKeySet, timeZone));
+
+      const { data: goalRows, error: goalsError } = await admin
+        .from("daily_goal_entries")
+        .select("goal_date, goal_minutes")
+        .eq("user_id", profile.id)
+        .gte("goal_date", weekMondayKey)
+        .lte("goal_date", weekEndKey);
+
+      if (goalsError) throw goalsError;
+
+      const goalsByDay = new Map<string, number>();
+      for (const row of goalRows ?? []) {
+        const goalDate = String((row as { goal_date: string }).goal_date);
+        const goalMinutes = Number((row as { goal_minutes: number }).goal_minutes);
+        if (goalDate && goalMinutes > 0) {
+          goalsByDay.set(goalDate, goalMinutes);
+        }
+      }
+
+      const priorMax = await maxWeekMinutesBefore(admin, profile.id, weekMondayKey);
+
+      const stats = buildWeeklyStats(
+        profile,
+        weekSessions,
+        weekMondayKey,
+        weekDateKeys,
+        timeZone,
+        allSessions,
+        priorMax,
+        refDate,
+        goalsByDay,
+      );
+
+      const { text, fallback } = await generateReportText(stats);
+
+      const insertRow: WeeklyReportInsert = {
+        user_id: profile.id,
+        week_start: weekMondayKey,
+        stats_json: stats,
+        report_text: text,
+        fallback_used: fallback,
+      };
+      const { error: insertError } = await admin.from("weekly_reports").insert(insertRow);
+
+      if (insertError) throw insertError;
+      processed += 1;
+    } catch (err) {
+      failed += 1;
+      console.error(`[weekly-reports] user ${profile.id} week ${weekMondayKey}:`, err);
+    }
+  }
+
+  return { processed, skipped, failed };
+};
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
@@ -520,22 +646,20 @@ Deno.serve(async (req) => {
   }
 
   let weekStartKey: string | null = null;
+  let backfill = false;
   try {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     if (body && typeof body.week_start === "string") {
       weekStartKey = body.week_start;
+    }
+    if (body && body.backfill === true) {
+      backfill = true;
     }
   } catch {
     /* optional body */
   }
 
   const refDate = new Date();
-  const targetWeekStart = weekStartKey
-    ? parseDateKey(weekStartKey)
-    : getWeekStartUtc(refDate, 1);
-  const weekStart = targetWeekStart;
-  const weekEnd = getWeekEndUtc(weekStart);
-  const weekStartStr = toDateKeyUtc(weekStart);
 
   const admin = createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -543,7 +667,7 @@ Deno.serve(async (req) => {
 
   const { data: profiles, error: profilesError } = await admin
     .from("profiles")
-    .select("id, username, display_name, streak_count, longest_streak, daily_goal_minutes, created_at");
+    .select("id, username, display_name, streak_count, longest_streak, daily_goal_minutes, created_at, timezone");
 
   if (profilesError) {
     return new Response(JSON.stringify({ error: profilesError.message }), {
@@ -556,88 +680,22 @@ Deno.serve(async (req) => {
   let skipped = 0;
   let failed = 0;
 
-  for (const profile of (profiles ?? []) as ProfileRow[]) {
-    try {
-      const { data: existing } = await admin
-        .from("weekly_reports")
-        .select("id")
-        .eq("user_id", profile.id)
-        .eq("week_start", weekStartStr)
-        .maybeSingle();
-
-      if (existing) {
-        skipped += 1;
-        continue;
-      }
-
-      const { data: sessions, error: sessionsError } = await admin
-        .from("sessions")
-        .select("duration_minutes, started_at, completed_at, pause_used")
-        .eq("user_id", profile.id);
-
-      if (sessionsError) throw sessionsError;
-
-      const allSessions = (sessions ?? []) as SessionRow[];
-      const weekSessions = allSessions.filter((s) => sessionInWeek(s, weekStart, weekEnd));
-
-      const weekEndStr = toDateKeyUtc(weekEnd);
-      const { data: goalRows, error: goalsError } = await admin
-        .from("daily_goal_entries")
-        .select("goal_date, goal_minutes")
-        .eq("user_id", profile.id)
-        .gte("goal_date", weekStartStr)
-        .lte("goal_date", weekEndStr);
-
-      if (goalsError) throw goalsError;
-
-      const goalsByDay = new Map<string, number>();
-      for (const row of goalRows ?? []) {
-        const goalDate = String((row as { goal_date: string }).goal_date);
-        const goalMinutes = Number((row as { goal_minutes: number }).goal_minutes);
-        if (goalDate && goalMinutes > 0) {
-          goalsByDay.set(goalDate, goalMinutes);
-        }
-      }
-
-      const priorMax = await maxWeekMinutesBefore(admin, profile.id, weekStartStr);
-
-      const stats = buildWeeklyStats(
-        profile,
-        weekSessions,
-        weekStart,
-        weekEnd,
-        allSessions,
-        priorMax,
-        refDate,
-        goalsByDay,
-      );
-
-      const { text, fallback } = await generateReportText(stats);
-
-      const { error: insertError } = await admin.from("weekly_reports").insert({
-        user_id: profile.id,
-        week_start: weekStartStr,
-        stats_json: stats,
-        report_text: text,
-        fallback_used: fallback,
-      });
-
-      if (insertError) throw insertError;
-      processed += 1;
-    } catch (err) {
-      failed += 1;
-      console.error(`[weekly-reports] user ${profile.id}:`, err);
-    }
-  }
+  const profileRows = (profiles ?? []) as ProfileRow[];
+  await runInBatches(profileRows, USER_CONCURRENCY, async (profile) => {
+    const result = await processProfileWeeks(admin, profile, refDate, weekStartKey, backfill);
+    processed += result.processed;
+    skipped += result.skipped;
+    failed += result.failed;
+  });
 
   return new Response(
     JSON.stringify({
       ok: true,
-      week_start: weekStartStr,
+      backfill,
       processed,
       skipped,
       failed,
-      total_profiles: profiles?.length ?? 0,
+      total_profiles: profileRows.length,
     }),
     { status: 200, headers: { "Content-Type": "application/json" } },
   );

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 import type { Language, WeeklyReport, WeeklyReportStats } from "../shared/types";
 import { personalizeWeeklyReport } from "../shared/weeklyReportPersonalize";
+import { getDeviceTimeZone, getLastCompletedWeekMondayKey } from "../shared/weekFocus";
 
 type WeeklyReportRow = {
   id: string;
@@ -42,12 +43,12 @@ export function useWeeklyReport(
     }
 
     setLoading(true);
+    const expectedWeekStart = getLastCompletedWeekMondayKey(getDeviceTimeZone());
     const { data, error } = await supabase
       .from("weekly_reports")
       .select("id, user_id, week_start, stats_json, report_text, fallback_used, created_at")
       .eq("user_id", userId)
-      .order("week_start", { ascending: false })
-      .limit(1)
+      .eq("week_start", expectedWeekStart)
       .maybeSingle();
 
     if (error && __DEV__ && !/relation.*weekly_reports|schema cache/i.test(error.message)) {
